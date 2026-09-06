@@ -1,0 +1,28 @@
+# Private working notes, never committed
+CLAUDE.local.md
+
+# Secrets
+.env
+.env.*
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+
+# Development caches (the monthly run never caches)
+.cache/
+drift/dev-cache/
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
