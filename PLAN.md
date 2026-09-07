@@ -153,7 +153,10 @@ Notes:
   `workflow_dispatch` for manual runs. No VPS involved. If a scheduled run fails, one
   rerun is allowed within 72 hours and is marked as a rerun in the record.
 - **Secrets:** vendor keys in GitHub Actions secrets. Hard spend caps set in every
-  vendor console before the first dry run (portfolio action 3). The runner also carries
+  vendor console before the first dry run (portfolio action 3). The `boundary` library is
+  installed from its private repository with a fine-grained GitHub token, read-only and
+  scoped to that one repository, held as an Actions secret (04 stays private at `v0.1.0`,
+  decided 2026-09-07). The runner also carries
   its own cap: it aborts and records a partial run if spend passes 150% of the expected
   cost for that run.
 - **Storage:** raw request and response for every call as JSONL, one file per model per
