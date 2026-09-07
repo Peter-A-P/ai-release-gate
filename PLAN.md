@@ -75,7 +75,10 @@ keeps calling it until the vendor returns an error, and the error is recorded as
 - Temperature 0, fixed `max_tokens`, fixed system prompt, no tools, no vendor-side
   caching or "prompt caching" features.
 - One pinned HTTP client and pinned API version headers per vendor, raw HTTP rather than
-  vendor SDKs, so an SDK release cannot change the request.
+  vendor SDKs, so an SDK release cannot change the request. The calls go through the
+  portfolio's gateway library (project 04, version 0) in **pass-through mode**: raw
+  request recorded, no retries, no caching, no rewriting. The gateway supplies telemetry
+  and the cost ledger; it is never allowed to become a confound in the record.
 - Same runner (GitHub-hosted Actions runner, `ubuntu-latest` pinned to a specific image
   version), same region as far as GitHub allows, same time of day.
 - Request and response headers stored with every call: request identifiers, any model or
@@ -337,8 +340,10 @@ regulator can read" means concretely.
 
 ### B2.5 Reuse over novelty
 
-The runner, storage and programmatic graders are the ones from Part A. The statistics use
-project 02's `mselect` for the power function and item parameters. Presidio does PII
+The runner, storage and programmatic graders are the ones from Part A, and every model
+call goes through the portfolio gateway (project 04) so cost and latency land in the
+shared ledger. The statistics use project 02's `mselect` for the power function and item
+parameters. Presidio does PII
 detection. OpenTelemetry does tracing. The project earns attention through statistical
 rigour, not through a new eval framework, and the write-up says so.
 

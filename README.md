@@ -40,3 +40,10 @@ suites, an append-only ledger, and a dashboard at gate.peterparker.ca.
 One of ten projects built over twelve months. This one is the measurement layer for the
 others: the compliant gateway, the filings analyst, the small-model cost frontier and the
 self-healing production AI all use it to make their claims.
+
+## How this was built
+
+Design, methodology, evaluation choices and judgement are Peter Parker's. AI coding
+assistants (Claude Code) were used for implementation and drafting, the way a senior
+engineer uses them in 2026. Every number in the results table is reproducible from this
+repository with one command, and that reproducibility is the evidence that matters.
