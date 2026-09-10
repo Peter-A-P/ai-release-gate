@@ -296,6 +296,7 @@ def run_arm(
                     messages=[{"role": "user", "content": item.prompt}],
                     max_tokens=config.max_tokens[item.block],
                     temperature=config.temperature,
+                    extra=arm.extra,
                 ),
                 purpose="drift-run",
                 run_id=run_id,

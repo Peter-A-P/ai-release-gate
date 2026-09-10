@@ -41,6 +41,11 @@ class Arm(BaseModel):
     # Snapshot and alias arms of one family share a family name so the report can overlay them.
     family: str
     weight_hash: str | None = None  # control arm only: the open-weights checkpoint hash
+    # Vendor request fields fixed for this arm for the life of the panel and sent verbatim
+    # with every call (PLAN.md section 2.3): for example {"reasoning_effort": "minimal"} on an
+    # OpenAI reasoning model, which otherwise spends the whole token budget thinking and
+    # returns no text. Part of the data, recorded here, never varied between months.
+    extra: dict[str, Any] = Field(default_factory=dict)
 
     @property
     def explicit(self) -> str:

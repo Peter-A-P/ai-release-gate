@@ -256,6 +256,31 @@ def test_expected_cost_from_the_price_list(suite: Suite, panel: Panel, tmp_path:
         run(suite, panel, FakeGateway(), tmp_path / "c", RunConfig(), prices=unpriced)
 
 
+def test_arm_extra_fields_are_sent_with_every_call(suite: Suite, tmp_path: Path) -> None:
+    """A vendor field fixed on the arm (reasoning_effort for an OpenAI reasoning model) goes
+    out verbatim on each request of that arm and on no other arm's."""
+    panel = Panel(
+        version=1,
+        chosen=dt.date(2026, 9, 27),
+        arms=[
+            Arm(
+                key="openai-snapshot",
+                provider="openai",
+                model="gpt-x-2026-01-01",
+                arm="snapshot",
+                family="gpt",
+                extra={"reasoning_effort": "minimal"},
+            ),
+            Arm(key="openai-alias", provider="openai", model="gpt-x", arm="alias", family="gpt"),
+        ],
+    )
+    gw = FakeGateway()
+    run(suite, panel, gw, tmp_path, RunConfig(repeats=1, expected_cost_usd=1.0))
+    by_model = {r.model: r.extra for r, _, _ in gw.requests}
+    assert dict(by_model["openai/gpt-x-2026-01-01"]) == {"reasoning_effort": "minimal"}
+    assert dict(by_model["openai/gpt-x"]) == {}
+
+
 def test_refuses_an_unchosen_panel(suite: Suite, tmp_path: Path) -> None:
     from drift.panel import load_panel
 

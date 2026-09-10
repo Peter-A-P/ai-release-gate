@@ -12,6 +12,10 @@ on:
         description: "also list each vendor's model identifiers (drift panel candidates)"
         required: false
         default: "true"
+      extra_models:
+        description: "space-separated provider/model-id list to smoke as well, e.g. google/gemini-flash-latest"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -47,7 +51,14 @@ jobs:
       - name: Smoke openweights
         continue-on-error: true
         run: uv run boundary --config drift/config/boundary.yaml smoke openweights --run-id smoke-actions
-      - name: Ledger rows for the four calls
+      - name: Smoke the extra models
+        if: inputs.extra_models != ''
+        run: |
+          for m in ${{ inputs.extra_models }}; do
+            p="${m%%/*}"
+            uv run boundary --config drift/config/boundary.yaml smoke "$p" --model "$m" --run-id smoke-actions || echo "FAILED $m"
+          done
+      - name: Ledger rows for the calls
         run: uv run boundary --config drift/config/boundary.yaml ledger report --ledger drift/runs/dev-ledger.sqlite
       - name: Panel candidates
         if: inputs.candidates == 'true'

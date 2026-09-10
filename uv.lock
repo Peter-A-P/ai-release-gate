@@ -45,7 +45,7 @@ wheels = [
 [[package]]
 name = "boundary"
 version = "0.1.0.dev1"
-source = { git = "https://github.com/Peter-A-P/compliant-ai-gateway?branch=main#7adb0ab1a7c4148b03d38e1ab311f592f3a92d52" }
+source = { git = "https://github.com/Peter-A-P/compliant-ai-gateway?branch=main#3048e89ccb88696cdcfb299988fbfae8f4006b0b" }
 dependencies = [
     { name = "httpx" },
     { name = "opentelemetry-api" },
