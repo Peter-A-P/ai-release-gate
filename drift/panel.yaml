@@ -1,0 +1,50 @@
+# The panel is part of the data, not a configuration to tune (PLAN.md section 2.2).
+#
+# Identifiers are chosen on the day of the first run from each vendor's current list and the
+# date is recorded in `chosen`. Until then the runner refuses to run. When a vendor retires an
+# identifier, the runner keeps calling it and the error is the result.
+#
+# Arms: one dated snapshot and its floating alias per vendor family (mid-tier), plus one
+# open-weights control with a fixed weight hash served by the openweights provider.
+
+version: 1
+chosen: null
+notes: "Identifiers to be chosen on the first run day, targeted 2026-09-27; dry runs from Sep 16 may name them explicitly with --arm."
+
+arms:
+  - key: anthropic-snapshot
+    provider: anthropic
+    model: CHOOSE-dated-mid-tier-snapshot
+    arm: snapshot
+    family: claude
+  - key: anthropic-alias
+    provider: anthropic
+    model: CHOOSE-floating-alias
+    arm: alias
+    family: claude
+  - key: openai-snapshot
+    provider: openai
+    model: CHOOSE-dated-mid-tier-snapshot
+    arm: snapshot
+    family: gpt
+  - key: openai-alias
+    provider: openai
+    model: CHOOSE-floating-alias
+    arm: alias
+    family: gpt
+  - key: google-snapshot
+    provider: google
+    model: CHOOSE-dated-mid-tier-snapshot
+    arm: snapshot
+    family: gemini
+  - key: google-alias
+    provider: google
+    model: CHOOSE-floating-alias
+    arm: alias
+    family: gemini
+  - key: control-openweights
+    provider: openweights
+    model: CHOOSE-open-weights-model-with-fixed-weights
+    arm: control
+    family: control
+    weight_hash: null

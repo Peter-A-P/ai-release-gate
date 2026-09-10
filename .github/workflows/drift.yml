@@ -1,0 +1,65 @@
+name: drift
+
+# The monthly drift run (PLAN.md section 5): the 1st of each month at 06:00 UTC, plus a manual
+# path for the first two runs and for the one permitted rerun within 72 hours. GitHub cron can
+# slip by up to an hour; the actual start time is in RUN.json.
+
+on:
+  schedule:
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+    inputs:
+      month:
+        description: "YYYY-MM the run belongs to (default: the current month)"
+        required: false
+      items:
+        description: "dry run: items per block (leave empty for the full suite)"
+        required: false
+      repeats:
+        description: "repeats per item"
+        required: false
+        default: "5"
+      rerun_of:
+        description: "run id this rerun supersedes, if any"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: drift-run
+  cancel-in-progress: false
+
+jobs:
+  run:
+    # Pinned image so the same runner shape is used every month.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 720
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - name: Authenticate git for the boundary repository
+        run: git config --global url."https://x-access-token:${{ secrets.BOUNDARY_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - run: uv sync --frozen
+      - name: Run
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
+        run: |
+          MONTH="${{ inputs.month }}"
+          if [ -z "$MONTH" ]; then MONTH=$(date -u +%Y-%m); fi
+          ARGS="--month $MONTH --repeats ${{ inputs.repeats || '5' }}"
+          if [ -n "${{ inputs.items }}" ]; then ARGS="$ARGS --items ${{ inputs.items }}"; fi
+          if [ -n "${{ inputs.rerun_of }}" ]; then ARGS="$ARGS --rerun-of ${{ inputs.rerun_of }}"; fi
+          uv run drift run $ARGS || echo "run finished with a non-complete status; the record is still committed"
+      - name: Commit the record
+        run: |
+          git config user.name "Peter Parker"
+          git config user.email "peter.alexander.parker@outlook.com"
+          git add drift/runs drift/reports README.md
+          git commit -m "Drift run $(date -u +%Y-%m): records, report, README table" || echo "nothing to commit"
+          git push

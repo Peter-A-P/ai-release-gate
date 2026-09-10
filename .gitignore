@@ -26,3 +26,7 @@ drift/dev-cache/
 Thumbs.db
 .vscode/
 .idea/
+
+# Development ledger for the runner (the monthly ledgers under drift/runs/<month>/ are committed)
+drift/runs/dev-ledger.sqlite*
+drift/runs/*/raw/*.tmp

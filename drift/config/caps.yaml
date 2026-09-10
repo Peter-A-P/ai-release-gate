@@ -1,0 +1,14 @@
+# Second line behind the vendor console caps. Amounts set by Peter on 2026-09-08 in the 04
+# repository and mirrored here: the drift runs are the ai-release-gate project.
+
+version: 1
+portfolio_monthly_usd: 200
+
+projects:
+  ai-release-gate:
+    monthly_usd: 60
+    per_run_usd: 30
+
+default:
+  monthly_usd: 10
+  per_run_usd: 4

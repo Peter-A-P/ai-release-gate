@@ -1,0 +1,136 @@
+"""The item record (PLAN.md section 3) and its validation.
+
+One JSON object per line. Every field required. The canonical line (sorted keys, no spaces)
+is what gets hashed, so two files with the same items in a different order or spacing
+hash the same.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from collections.abc import Iterable, Iterator
+from pathlib import Path
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+Block = Literal[
+    "closed_form_reasoning",
+    "multiple_choice",
+    "instruction_following",
+    "structured_extraction",
+    "refusal_calibration",
+    "long_context_recall",
+    "paraphrase_robustness",
+]
+
+BLOCK_PREFIX: dict[str, str] = {
+    "closed_form_reasoning": "reason",
+    "multiple_choice": "choice",
+    "instruction_following": "ifollow",
+    "structured_extraction": "extract",
+    "refusal_calibration": "refuse",
+    "long_context_recall": "recall",
+    "paraphrase_robustness": "para",
+}
+
+_ID = re.compile(r"^[a-z]+-\d{4}(?:-p[12])?$")
+# The characters the plain-punctuation rule forbids: en and em dash, curly quotes, ellipsis.
+_TYPOGRAPHIC = re.compile("[–—‘’“”…]")
+MAX_PROMPT_WORDS = 300
+
+
+class ItemError(ValueError):
+    """An item that fails validation, with the line it came from."""
+
+
+class Item(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    id: str = Field(pattern=_ID.pattern)
+    block: Block
+    system: str
+    prompt: str = Field(min_length=1)
+    grader: str = Field(min_length=1)
+    expected: Any
+    held_out: bool
+    source: str = Field(min_length=1)
+    licence: str = Field(min_length=1)
+    # Paraphrase items point at the reasoning item they rephrase, and share its grader.
+    parent_id: str | None = None
+
+    def canonical(self) -> str:
+        return json.dumps(
+            self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        )
+
+    def sha256(self) -> str:
+        return hashlib.sha256(self.canonical().encode("utf-8")).hexdigest()
+
+
+def check_item(item: Item, *, grader_names: Iterable[str], long_context: bool = False) -> list[str]:
+    """Rule violations beyond the schema. Empty means the item is acceptable."""
+    problems: list[str] = []
+    prefix = BLOCK_PREFIX[item.block]
+    if not item.id.startswith(prefix + "-"):
+        problems.append(f"id {item.id!r} should start with {prefix!r} for block {item.block}")
+    if item.grader not in set(grader_names):
+        problems.append(f"unknown grader {item.grader!r}")
+    if _TYPOGRAPHIC.search(item.prompt) or _TYPOGRAPHIC.search(item.system):
+        problems.append(
+            "typographic dashes or curly quotes in prompt or system; plain punctuation only"
+        )
+    if "```" in item.prompt:
+        problems.append("markdown fence in prompt")
+    if item.prompt != item.prompt.strip():
+        problems.append("leading or trailing whitespace in prompt")
+    if not long_context and item.block != "long_context_recall":
+        words = len(item.prompt.split())
+        if words > MAX_PROMPT_WORDS:
+            problems.append(
+                f"prompt is {words} words; limit {MAX_PROMPT_WORDS} outside long context"
+            )
+    if item.held_out and item.block != "structured_extraction":
+        problems.append("only structured_extraction items are held out")
+    if item.block == "paraphrase_robustness" and not item.parent_id:
+        problems.append("paraphrase items need parent_id")
+    if item.block != "paraphrase_robustness" and item.parent_id:
+        problems.append("parent_id is only for paraphrase items")
+    return problems
+
+
+def read_items(path: Path) -> Iterator[Item]:
+    with path.open(encoding="utf-8") as f:
+        for n, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                yield Item.model_validate_json(line)
+            except ValidationError as e:
+                raise ItemError(f"{path.name}:{n}: {e}") from e
+
+
+def write_items(path: Path, items: Iterable[Item]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="\n") as f:
+        for item in items:
+            f.write(item.canonical() + "\n")
+
+
+def validate_file(path: Path, *, grader_names: Iterable[str]) -> list[str]:
+    """All problems in a file: schema errors, rule violations, duplicate ids."""
+    names = list(grader_names)
+    problems: list[str] = []
+    seen: set[str] = set()
+    try:
+        for item in read_items(path):
+            if item.id in seen:
+                problems.append(f"{item.id}: duplicate id")
+            seen.add(item.id)
+            problems.extend(f"{item.id}: {p}" for p in check_item(item, grader_names=names))
+    except ItemError as e:
+        problems.append(str(e))
+    return problems

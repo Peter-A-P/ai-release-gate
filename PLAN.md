@@ -165,10 +165,14 @@ Notes:
   release assets if it grows past that.
 - **Reports:** the job renders `drift/reports/YYYY-MM.md` (tables and one SVG chart per
   model) and updates the results table in the README. The dashboard is phase 2.
-- **Reproducibility:** `uv run drift --month 2026-10 --replay` regrades from stored
+- **Reproducibility:** `uv run drift replay --month 2026-10` regrades from stored
   responses without calling any vendor, so anyone can verify the numbers.
-- **Code:** Python 3.13, `httpx`, `pydantic`, `polars`, `duckdb` for analysis,
-  `typer` for the CLI. Typed, `ruff` and `mypy` clean, tests for every grader against
+- **Code:** Python 3.13, `pydantic`, `jsonschema`, `typer` for the CLI, and the
+  portfolio's `boundary` library for every vendor call (it owns the HTTP client).
+  Part A's analysis is plain Python over the JSONL records (a few thousand rows a
+  month); `polars` and `duckdb` arrive with Part B's ledger and dashboard, where the
+  volume justifies them (changed 2026-09-10 when the scaffold was built). Typed,
+  `ruff` and `mypy` clean, tests for every grader against
   hand-written fixtures including adversarial outputs (markdown fences, trailing text,
   unicode digits).
 

@@ -1,0 +1,54 @@
+# boundary configuration for the drift runner. The record owns its own price snapshot in
+# prices/ (copied from the vendors' pages on run day) and its own caps.
+#
+# Every call is pass-through with an explicit provider/model-id from panel.yaml; the routes
+# below exist only so the configuration validates and for development against the graders.
+
+version: 1
+
+providers:
+  anthropic:
+    kind: anthropic
+    base_url: https://api.anthropic.com
+    api_key_env: ANTHROPIC_API_KEY
+    api_version: "2023-06-01"
+  openai:
+    kind: openai_compat
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    max_tokens_field: max_completion_tokens
+  google:
+    kind: google
+    base_url: https://generativelanguage.googleapis.com
+    api_key_env: GOOGLE_API_KEY
+    api_version: v1beta
+  openweights:
+    kind: openai_compat
+    base_url: https://api.together.xyz/v1
+    api_key_env: OPENWEIGHTS_API_KEY
+
+routes:
+  dev:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+
+prices: prices
+caps: caps.yaml
+
+defaults:
+  max_tokens: 512
+  timeouts:
+    connect_s: 10
+    read_s: 120
+
+retry:
+  max_attempts: 4
+
+ledger:
+  path: ../runs/dev-ledger.sqlite
+
+telemetry:
+  exporter: none
+
+cache:
+  enabled: false

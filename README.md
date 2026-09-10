@@ -5,7 +5,7 @@ discipline a test suite gives code, applied to AI, with an audit trail a regulat
 read. Plus a public, month-by-month record of how the major vendors' "frozen" models
 silently change, on a fixed suite, with error bars.
 
-**Status: planning.** Nothing has run yet. Both phases are planned in [PLAN.md](PLAN.md):
+**Status: Part A runner built, suite being written, first run targeted 2026-09-27.** Both phases are planned in [PLAN.md](PLAN.md):
 Part A, the monthly drift record, with the first official run targeted for 2026-09-27; Part
 B, the release gate itself, built Dec 2026 to Jan 2027.
 
@@ -13,9 +13,14 @@ B, the release gate itself, built Dec 2026 to Jan 2027.
 
 Not yet measured. This table is filled by the monthly job from the first run onward.
 
-| Model (arm) | Run | Accuracy (95% CI) | Flip rate vs previous | Same-day flip rate | Refusal rate | Drift? |
+| Run | Arm | Accuracy (95% CI) | Same-day flip rate (noise floor) | Flip rate vs previous run | Refused when it should answer | Cost per 1,000 calls |
 |---|---|---|---|---|---|---|
+<!-- drift:start -->
 | _none yet_ | | | | | | |
+<!-- drift:end -->
+
+The monthly job writes the rows between the markers; the full report per month, with the
+drift call against the noise floor and the control arm, is under `drift/reports/`.
 
 ## What this does not do
 
