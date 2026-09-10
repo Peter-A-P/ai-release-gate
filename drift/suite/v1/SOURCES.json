@@ -1,0 +1,343 @@
+{
+  "sampler_version": 1,
+  "sampled_on": "2026-09-10",
+  "seed": 20260927,
+  "items_total": 270,
+  "sources": [
+    {
+      "name": "gsm8k",
+      "block": "closed_form_reasoning",
+      "licence": "MIT",
+      "origin": "openai/gsm8k main/test",
+      "target": 60,
+      "sampled": 60,
+      "ids": [
+        "reason-1001",
+        "reason-1060"
+      ],
+      "eligible": 1319,
+      "punctuation_normalised": 58,
+      "rejected": {},
+      "strata": {
+        "gsm8k": 60
+      },
+      "fetches": [
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=openai/gsm8k&config=main&split=test",
+          "payload_sha256": "f96d1bf88d0a2ac11c5789c3aacbabb8576f0a8df9b295b0756a5aee3507cefc",
+          "fetched": "2026-09-10",
+          "rows_upstream": 1319
+        }
+      ]
+    },
+    {
+      "name": "math",
+      "block": "closed_form_reasoning",
+      "licence": "MIT",
+      "origin": "EleutherAI/hendrycks_math test",
+      "target": 60,
+      "sampled": 60,
+      "ids": [
+        "reason-1061",
+        "reason-1120"
+      ],
+      "eligible": 1610,
+      "punctuation_normalised": 0,
+      "rejected": {
+        "answer_not_a_number": 660,
+        "diagram": 192,
+        "level_above_3": 2538
+      },
+      "strata": {
+        "algebra/L1": 3,
+        "algebra/L2": 3,
+        "algebra/L3": 3,
+        "counting_and_probability/L1": 3,
+        "counting_and_probability/L2": 3,
+        "counting_and_probability/L3": 3,
+        "geometry/L1": 3,
+        "geometry/L2": 3,
+        "geometry/L3": 3,
+        "intermediate_algebra/L1": 3,
+        "intermediate_algebra/L2": 3,
+        "intermediate_algebra/L3": 3,
+        "number_theory/L1": 3,
+        "number_theory/L2": 3,
+        "number_theory/L3": 3,
+        "prealgebra/L1": 3,
+        "prealgebra/L2": 3,
+        "prealgebra/L3": 3,
+        "precalculus/L1": 2,
+        "precalculus/L2": 2,
+        "precalculus/L3": 2
+      },
+      "fetches": [
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=EleutherAI/hendrycks_math&config=algebra&split=test",
+          "payload_sha256": "68c49e002b4601c7069e1a7ae37596d24adeb77b3c7d51d056514a7de10d1dfe",
+          "fetched": "2026-09-10",
+          "rows_upstream": 1187
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=EleutherAI/hendrycks_math&config=counting_and_probability&split=test",
+          "payload_sha256": "bde4fab326940bd5ecf75df5495892fc99e86c04b80d7c4bc6d68e1308f862cc",
+          "fetched": "2026-09-10",
+          "rows_upstream": 474
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=EleutherAI/hendrycks_math&config=geometry&split=test",
+          "payload_sha256": "4c6a226c623673cbb31c6ffbc9bfc3d9d9e4305251f9086d3525df6bcedf534f",
+          "fetched": "2026-09-10",
+          "rows_upstream": 479
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=EleutherAI/hendrycks_math&config=intermediate_algebra&split=test",
+          "payload_sha256": "ad6f699d63c0b5fc62f70eb0ba1b67d69e4a9ac63aec3d3915309f1cd55c3bcf",
+          "fetched": "2026-09-10",
+          "rows_upstream": 903
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=EleutherAI/hendrycks_math&config=number_theory&split=test",
+          "payload_sha256": "28b3c52acc3a842b299676d4202aa7f4e3668904e0ed40bc84fc732c6a5846e9",
+          "fetched": "2026-09-10",
+          "rows_upstream": 540
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=EleutherAI/hendrycks_math&config=prealgebra&split=test",
+          "payload_sha256": "ff97e1e2e704b2860e848f82433fcadae4490240c411e821f87d92c5a900acb1",
+          "fetched": "2026-09-10",
+          "rows_upstream": 871
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=EleutherAI/hendrycks_math&config=precalculus&split=test",
+          "payload_sha256": "02eeb17d4d1fa43bdae51e757bbb189d36611bbd7e86e6f2e09f4195b4f54aee",
+          "fetched": "2026-09-10",
+          "rows_upstream": 546
+        }
+      ]
+    },
+    {
+      "name": "mmlu",
+      "block": "multiple_choice",
+      "licence": "MIT",
+      "origin": "cais/mmlu test",
+      "target": 60,
+      "sampled": 60,
+      "ids": [
+        "choice-1001",
+        "choice-1060"
+      ],
+      "eligible": 1430,
+      "punctuation_normalised": 65,
+      "rejected": {
+        "duplicate_or_empty_choice": 1
+      },
+      "strata": {
+        "abstract_algebra": 6,
+        "anatomy": 6,
+        "college_computer_science": 6,
+        "econometrics": 6,
+        "high_school_geography": 6,
+        "international_law": 6,
+        "jurisprudence": 6,
+        "machine_learning": 6,
+        "professional_medicine": 6,
+        "world_religions": 6
+      },
+      "fetches": [
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=cais/mmlu&config=abstract_algebra&split=test",
+          "payload_sha256": "6c80475345d56f48e3047e3e2825df80c9358642ef447b6bb9cce8f11197bb30",
+          "fetched": "2026-09-10",
+          "rows_upstream": 100
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=cais/mmlu&config=anatomy&split=test",
+          "payload_sha256": "f3946d39958c0f277ca83f9310358bf923a80c1cdeaa7fe390e39eada450cf25",
+          "fetched": "2026-09-10",
+          "rows_upstream": 135
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=cais/mmlu&config=college_computer_science&split=test",
+          "payload_sha256": "86cb7f62151ae552e7e8de3c898436e399bbb0b193738fa21bd090b8b176a4d7",
+          "fetched": "2026-09-10",
+          "rows_upstream": 100
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=cais/mmlu&config=econometrics&split=test",
+          "payload_sha256": "fe0f457ee12aa3c2dbda615f355707585f44c796614702162ad3c5d6f5f8dac7",
+          "fetched": "2026-09-10",
+          "rows_upstream": 114
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=cais/mmlu&config=high_school_geography&split=test",
+          "payload_sha256": "acd122a89668dd9ded9bb56aa9d46c56ef2cf71127dee87d937aca7689db438d",
+          "fetched": "2026-09-10",
+          "rows_upstream": 198
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=cais/mmlu&config=international_law&split=test",
+          "payload_sha256": "0a373d373401387634c4942392249a5cf8c5883f2b90f93a6fa14a936eed3995",
+          "fetched": "2026-09-10",
+          "rows_upstream": 121
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=cais/mmlu&config=jurisprudence&split=test",
+          "payload_sha256": "4126b2f502d77c35908810c687d296d37f91e7ac4a8edc0b05e90fe9f2957899",
+          "fetched": "2026-09-10",
+          "rows_upstream": 108
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=cais/mmlu&config=machine_learning&split=test",
+          "payload_sha256": "d9db7c3c9998c41b4c41e7d5ae19fd6888b234112feafc368b75ec979cb66d6f",
+          "fetched": "2026-09-10",
+          "rows_upstream": 112
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=cais/mmlu&config=professional_medicine&split=test",
+          "payload_sha256": "5a124e60d7ded2fb85d8600a187661f6d725c2d5065be197c0644f95c7d6648d",
+          "fetched": "2026-09-10",
+          "rows_upstream": 272
+        },
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=cais/mmlu&config=world_religions&split=test",
+          "payload_sha256": "7bb200dc9a55350bde7197ec91a62f9e3af390c3e6d92e2d547e5cbf1cf902d1",
+          "fetched": "2026-09-10",
+          "rows_upstream": 171
+        }
+      ]
+    },
+    {
+      "name": "arc",
+      "block": "multiple_choice",
+      "licence": "CC-BY-SA-4.0",
+      "origin": "allenai/ai2_arc ARC-Challenge/test",
+      "target": 40,
+      "sampled": 40,
+      "ids": [
+        "choice-1061",
+        "choice-1100"
+      ],
+      "eligible": 1150,
+      "punctuation_normalised": 0,
+      "rejected": {
+        "labels_not_lettered": 22
+      },
+      "strata": {
+        "arc_challenge": 40
+      },
+      "fetches": [
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=allenai/ai2_arc&config=ARC-Challenge&split=test",
+          "payload_sha256": "ceb758fba8b32578f60dcb406fc3b13ad25b27fe25f318d28b8e66bef0a91536",
+          "fetched": "2026-09-10",
+          "rows_upstream": 1172
+        }
+      ]
+    },
+    {
+      "name": "ifeval",
+      "block": "instruction_following",
+      "licence": "Apache-2.0",
+      "origin": "google/IFEval train",
+      "target": 30,
+      "sampled": 30,
+      "ids": [
+        "ifollow-1001",
+        "ifollow-1030"
+      ],
+      "eligible": 149,
+      "punctuation_normalised": 2,
+      "rejected": {
+        "instruction_not_representable": 372,
+        "longer_than_the_token_budget": 15,
+        "markdown_fence": 5
+      },
+      "strata": {
+        "change_case": 5,
+        "detectable_content": 5,
+        "detectable_format": 5,
+        "keywords": 5,
+        "length_constraints": 5,
+        "startend": 5
+      },
+      "fetches": [
+        {
+          "url": "https://datasets-server.huggingface.co/rows?dataset=google/IFEval&config=default&split=train",
+          "payload_sha256": "474f15608a44097bd970160d0d357080e0e8ee90ed5ee9e1ba2687ca55a74b84",
+          "fetched": "2026-09-10",
+          "rows_upstream": 541
+        }
+      ]
+    },
+    {
+      "name": "xstest-safe",
+      "block": "refusal_calibration",
+      "licence": "CC-BY-4.0",
+      "origin": "XSTest v1 safe",
+      "target": 10,
+      "sampled": 10,
+      "ids": [
+        "refuse-1001",
+        "refuse-1010"
+      ],
+      "eligible": 175,
+      "punctuation_normalised": 0,
+      "rejected": {
+        "category_not_used": 75,
+        "other_label": 200
+      },
+      "strata": {
+        "definitions": 2,
+        "figurative_language": 2,
+        "historical_events": 2,
+        "homonyms": 1,
+        "privacy_public": 1,
+        "safe_contexts": 1,
+        "safe_targets": 1
+      },
+      "fetches": [
+        {
+          "url": "https://raw.githubusercontent.com/paul-rottger/xstest/main/xstest_prompts.csv",
+          "payload_sha256": "11783fb294ed017473ee53c207d71f2161c7672c8d0b037501e78387f801cb5a",
+          "fetched": "2026-09-10",
+          "rows_upstream": 450
+        }
+      ]
+    },
+    {
+      "name": "xstest-unsafe",
+      "block": "refusal_calibration",
+      "licence": "CC-BY-4.0",
+      "origin": "XSTest v1 unsafe",
+      "target": 10,
+      "sampled": 10,
+      "ids": [
+        "refuse-1011",
+        "refuse-1020"
+      ],
+      "eligible": 122,
+      "punctuation_normalised": 0,
+      "rejected": {
+        "category_not_used": 75,
+        "names_a_protected_group": 3,
+        "other_label": 250
+      },
+      "strata": {
+        "contrast_definitions": 2,
+        "contrast_figurative_language": 2,
+        "contrast_homonyms": 2,
+        "contrast_safe_contexts": 2,
+        "contrast_safe_targets": 2
+      },
+      "fetches": [
+        {
+          "url": "https://raw.githubusercontent.com/paul-rottger/xstest/main/xstest_prompts.csv",
+          "payload_sha256": "11783fb294ed017473ee53c207d71f2161c7672c8d0b037501e78387f801cb5a",
+          "fetched": "2026-09-10",
+          "rows_upstream": 450
+        }
+      ]
+    }
+  ]
+}

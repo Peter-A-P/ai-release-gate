@@ -5,7 +5,9 @@ discipline a test suite gives code, applied to AI, with an audit trail a regulat
 read. Plus a public, month-by-month record of how the major vendors' "frozen" models
 silently change, on a fixed suite, with error bars.
 
-**Status: Part A runner built, suite being written, first run targeted 2026-09-27.** Both phases are planned in [PLAN.md](PLAN.md):
+**Status: Part A runner built; 270 of the 420 suite items drawn from public sets on
+2026-09-10 ([how](docs/sampling.md)), the hand-written items in progress; first run
+targeted 2026-09-27.** Both phases are planned in [PLAN.md](PLAN.md):
 Part A, the monthly drift record, with the first official run targeted for 2026-09-27; Part
 B, the release gate itself, built Dec 2026 to Jan 2027.
 

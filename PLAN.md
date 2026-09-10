@@ -143,6 +143,40 @@ Notes:
 - Every item carries: `id`, `block`, `prompt`, `system`, `grader`, `expected`,
   `held_out` flag, `source`, `licence`.
 
+**The public draw (done 2026-09-10, seed 20260927, 270 items).** Sources, filters and the
+numbers are recorded in `drift/suite/v1/SOURCES.json` and explained in
+[docs/sampling.md](docs/sampling.md). Sets: GSM8K test (60), MATH levels 1 to 3 across its
+seven types (60), MMLU test across ten named subjects (60), ARC-Challenge test (40), IFEval
+(30), XSTest v1 safe (10) and unsafe contrast (10). Decisions taken in the draw that the
+plan did not settle:
+
+- **The refusal block's public half is XSTest v1**, not an unnamed "public refusal
+  calibration set". Excluded from the must-refuse side: the two discrimination categories and
+  the historical-events contrast set, because a factual correction to a prejudiced premise is
+  good behaviour that a regex classifier reads as compliance; the privacy contrast set,
+  because "I do not have access to that" is an inability rather than a policy refusal and
+  teaching the classifier otherwise would conflate "cannot know" with "will not answer"; and
+  any prompt naming a protected group as its target, which every vendor refuses anyway and
+  which section 8 requires be innocuous to publish. Sampled `must_answer` items carry no
+  keywords, so they measure willingness only; the hand-written half covers content.
+- **Typographic characters in upstream text are mapped to ASCII, not grounds for
+  rejection.** 58 of 60 sampled GSM8K questions contain a curly apostrophe, so rejecting
+  would have biased the sample. The count of touched items is in the manifest.
+- **An item that cannot be graded exactly is rejected, not approximated.** This costs 372 of
+  541 IFEval rows (their instructions are outside what the constraint checker can verify) and
+  660 MATH rows (symbolic answers and solution lists).
+- **Items must fit the block's fixed `max_tokens`.** IFEval rows demanding 300 words or more
+  are rejected, since the instruction-following budget of 400 tokens makes them permanently
+  unpassable. Raising a budget is a change to this plan, not to a filter.
+- **Two whole-word constraint types were added to the grader** (`contains_word`,
+  `not_contains_word`), because IFEval's keyword instructions mean "the word": a forbidden
+  "can" must not fail an answer that says "cannot".
+- **Sampled ids start at 1001**; hand-written items own 0001 to 0999 in each block, and the
+  two halves live in separate files that the suite loader merges.
+- Hand-checking nine sampled MATH items against their solutions caught one real defect
+  before freeze (a boxed `1,3` read as the number 13). That check is part of the process, not
+  optional.
+
 ## 4. Statistics
 
 - **Accuracy CI:** percentile bootstrap over items, 2,000 resamples, reported as
@@ -249,7 +283,7 @@ items.
 | Date | Step | Output |
 |---|---|---|
 | Sep 8 - 12 | Repo scaffold, item schema, grader modules with tests | `drift/graders` green in CI |
-| Sep 12 - 16 | Sample and freeze public items; write 90 hand-written items; grade by hand twice | `drift/suite/v1` and `SUITE_HASH` committed; held-out hashes committed |
+| Sep 12 - 16 | Sample and freeze public items; write 90 hand-written items; grade by hand twice | `drift/suite/v1` and `SUITE_HASH` committed; held-out hashes committed. **Public draw done 2026-09-10: 270 items, `SOURCES.json` committed. The 90 hand-written items and the 60 generated ones are what the freeze now waits on** |
 | Sep 16 - 19 | Runner with raw HTTP per vendor, retry policy, spend cap, JSONL recording | Dry run on 20 items, 1 repeat, all arms |
 | Sep 19 - 21 | Analysis and report rendering; regrade-from-store path | Report renders from the dry run |
 | Sep 22 - 24 | Full dry run (all items, k = 5) after vendor caps are set | Cost check against section 6; fix graders that misfire |

@@ -7,7 +7,14 @@ from pathlib import Path
 import pytest
 
 from drift.graders import GRADERS
-from drift.items import Item, check_item, validate_file, write_items
+from drift.items import (
+    BLOCK_PREFIX,
+    SYSTEM_PROMPTS,
+    Item,
+    check_item,
+    validate_file,
+    write_items,
+)
 from drift.panel import Panel, load_panel
 from drift.suite import Suite, freeze, heldout_hashes, load_suite, suite_hash, verify
 
@@ -172,6 +179,17 @@ def test_repo_system_prompts_document_exists() -> None:
     assert (
         Path(__file__).resolve().parent.parent / "drift" / "suite" / "v1" / "SYSTEM.md"
     ).is_file()
+
+
+def test_system_prompts_in_code_match_the_document_verbatim() -> None:
+    """SYSTEM.md is the source of truth and the sampler copies from SYSTEM_PROMPTS. If the two
+    drift apart, items get a system prompt the suite never documented."""
+    text = (
+        Path(__file__).resolve().parent.parent / "drift" / "suite" / "v1" / "SYSTEM.md"
+    ).read_text(encoding="utf-8")
+    for block, prompt in SYSTEM_PROMPTS.items():
+        assert prompt in text, block
+    assert set(SYSTEM_PROMPTS) == set(BLOCK_PREFIX)
 
 
 def test_parse_model_list_handles_each_vendor_shape() -> None:

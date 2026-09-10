@@ -121,6 +121,29 @@ def test_constraints_grader() -> None:
     assert g.check_expected({"constraints": [{"type": "nope"}]})
 
 
+def test_whole_word_constraints_do_not_fire_inside_a_longer_word() -> None:
+    """The substring pair is kept for hand-written items, but a sampled "do not use the word
+    can" item has to pass an answer that says "cannot", or every model fails it forever."""
+    g = grader("constraints")
+    forbid_can = {"constraints": [{"type": "not_contains_word", "text": "can"}]}
+    assert g.grade("She cannot ride it. Scan the manual.", forbid_can).correct
+    assert not g.grade("She can ride it.", forbid_can).correct
+    assert not g.grade("CAN you believe it", forbid_can).correct  # case insensitive
+    assert not g.grade("Yes, can.", forbid_can).correct  # punctuation is a boundary
+    # The substring check is the stricter one, and stays available.
+    assert not g.grade(
+        "She cannot ride it.", {"constraints": [{"type": "not_contains", "text": "can"}]}
+    ).correct
+
+    require = {"constraints": [{"type": "contains_word", "text": "rail"}]}
+    assert g.grade("The rail is long.", require).correct
+    assert not g.grade("The railway is long.", require).correct
+    # A marker that ends in punctuation still matches when a space follows it.
+    postscript = {"constraints": [{"type": "contains_word", "text": "P.S."}]}
+    assert g.grade("Thanks.\n\nP.S. one more thing", postscript).correct
+    assert g.check_expected({"constraints": [{"type": "contains_word"}]})
+
+
 # -- structured extraction --------------------------------------------------------------------
 
 SCHEMA = {

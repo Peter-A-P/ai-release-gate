@@ -1,5 +1,5 @@
-"""Command line: drift run | collect | replay | report | items validate | suite freeze | suite verify
-| panel show | panel providers | panel candidates.
+"""Command line: drift run | collect | replay | report | sample | items validate | suite freeze
+| suite verify | panel show | panel providers | panel candidates.
 
 Paths default to the repository layout in PLAN.md section 5. The runner's boundary
 configuration lives in drift/config so the drift record owns its own price snapshot.
@@ -35,6 +35,17 @@ from drift.items import read_items, validate_file
 from drift.panel import MODEL_LIST_PATHS, Arm, load_panel, parse_model_list, snapshot_alias_pairs
 from drift.runner.records import summarise_month
 from drift.runner.run import Callers, RunConfig, run_month
+from drift.sampling.sample import (
+    DEFAULT_SEED,
+    SOURCES,
+    Draw,
+    differences,
+    items_for,
+    load_parts,
+    today,
+    write_draws,
+)
+from drift.sampling.sample import draw as make_draw
 from drift.suite import (
     HeldoutError,
     NotFrozenError,
@@ -230,6 +241,56 @@ def report(month: Annotated[str, typer.Option()], readme: bool = False) -> None:
                 metrics_for_month(RUNS, previous_month(month)),
             ),
         )
+
+
+@app.command()
+def sample(
+    seed: int = DEFAULT_SEED,
+    check: Annotated[
+        bool,
+        typer.Option("--check", help="compare a fresh draw with the files on disk, write nothing"),
+    ] = False,
+    refresh: Annotated[
+        bool, typer.Option("--refresh", help="re-fetch the sources instead of using the cache")
+    ] = False,
+    cache: Path = ROOT / ".cache" / "sources",
+) -> None:
+    """Draw the public half of suite v1 from the public sources, once (PLAN.md section 3).
+
+    Writes drift/suite/v1/<block>-<source>.jsonl and SOURCES.json, and refuses to run against
+    a frozen suite. --check re-draws into memory and reports any difference from the files,
+    which is how the published items are audited after the freeze.
+
+    Every source is drawn on every invocation, and there is deliberately no way to draw one:
+    ids are assigned per block across all of them and the manifest describes the whole draw,
+    so a partial run would renumber items and drop the rest from the record. From the cache it
+    takes a few seconds.
+    """
+    specs = list(SOURCES)
+    sampled_on = today()
+    draws: list[Draw] = []
+    for spec in specs:
+        parts, provenance = load_parts(spec, cache, refresh=refresh)
+        d = make_draw(spec, parts, provenance, seed=seed)
+        draws.append(d)
+        typer.echo(
+            f"{spec.name}: {len(parts)} rows, {len(d.built.candidates)} eligible, "
+            f"{len(d.chosen)} sampled into {spec.block}"
+            + (f", rejected {d.built.rejected}" if d.built.rejected else "")
+        )
+    items = items_for(draws, seed=seed, sampled_on=sampled_on)
+    if check:
+        problems = differences(SUITE_ROOT, items)
+        for p in problems:
+            typer.echo(p, err=True)
+        typer.echo(
+            "the files on disk are the draw for this seed"
+            if not problems
+            else f"{len(problems)} source file(s) differ from the draw"
+        )
+        raise typer.Exit(1 if problems else 0)
+    path = write_draws(SUITE_ROOT, draws, items, seed=seed, sampled_on=sampled_on)
+    typer.echo(f"{sum(len(v) for v in items.values())} items written; manifest {path.name}")
 
 
 @items_app.command("validate")

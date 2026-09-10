@@ -13,6 +13,22 @@ from drift.graders.normalise import collapse, normalise, strip_fences
 _BULLET = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+", re.MULTILINE)
 
 
+def _word_pattern(text: str) -> re.Pattern[str]:
+    """`text` as a whole-word match where that makes sense.
+
+    A forbidden word has to be matched on word boundaries: "can" must not fail an answer that
+    says "cannot". The boundary is only applied at an end that is alphanumeric, so a marker
+    like "P.S." still matches when a space follows it.
+    """
+    left = r"\b" if text[:1].isalnum() else ""
+    right = r"\b" if text[-1:].isalnum() else ""
+    return re.compile(left + re.escape(text) + right, re.IGNORECASE)
+
+
+def _contains_word(text: str, constraint: dict[str, Any]) -> bool:
+    return _word_pattern(str(constraint["text"])).search(text) is not None
+
+
 def _words(text: str) -> int:
     return len(collapse(text).split())
 
@@ -34,6 +50,11 @@ CHECKS: dict[str, Callable[[str, dict[str, Any]], bool]] = {
     "min_words": lambda t, c: _words(t) >= int(c["n"]),
     "contains": lambda t, c: str(c["text"]).casefold() in t.casefold(),
     "not_contains": lambda t, c: str(c["text"]).casefold() not in t.casefold(),
+    # The whole-word pair. Sampled IFEval keyword items use these, because the upstream
+    # instruction says "the word", and a substring test fails an answer that writes "cannot"
+    # for a forbidden "can".
+    "contains_word": _contains_word,
+    "not_contains_word": lambda t, c: not _contains_word(t, c),
     "all_caps": lambda t, c: t.strip() != "" and t == t.upper(),
     "all_lower": lambda t, c: t.strip() != "" and t == t.lower(),
     "json_valid": lambda t, c: _json_valid(t),
@@ -48,6 +69,8 @@ _NEEDS: dict[str, set[str]] = {
     "min_words": {"n"},
     "contains": {"text"},
     "not_contains": {"text"},
+    "contains_word": {"text"},
+    "not_contains_word": {"text"},
     "starts_with": {"text"},
     "ends_with": {"text"},
     "n_bullets": {"n"},

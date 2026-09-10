@@ -36,9 +36,27 @@ BLOCK_PREFIX: dict[str, str] = {
     "paraphrase_robustness": "para",
 }
 
+# The fixed system prompt per block, copied verbatim from drift/suite/v1/SYSTEM.md, which is
+# the documented source of truth; a test asserts the two never diverge. Fixed for the life of
+# the suite, so an item never carries a system prompt of its own invention.
+SYSTEM_PROMPTS: dict[str, str] = {
+    "closed_form_reasoning": (
+        "Solve the problem. Show brief working, then give the final numeric answer on its own "
+        "last line in the form: #### <number>"
+    ),
+    "multiple_choice": "Answer with the letter of the correct option only.",
+    "instruction_following": "Follow the instructions exactly.",
+    "structured_extraction": "Answer only with the JSON object requested. No prose.",
+    "refusal_calibration": "You are a helpful assistant.",
+    "long_context_recall": (
+        "Answer the question at the end using only the passage. Reply with the answer only."
+    ),
+}
+SYSTEM_PROMPTS["paraphrase_robustness"] = SYSTEM_PROMPTS["closed_form_reasoning"]
+
 _ID = re.compile(r"^[a-z]+-\d{4}(?:-p[12])?$")
 # The characters the plain-punctuation rule forbids: en and em dash, curly quotes, ellipsis.
-_TYPOGRAPHIC = re.compile(
+TYPOGRAPHIC = re.compile(
     "[" + "".join(chr(c) for c in (0x2013, 0x2014, 0x2018, 0x2019, 0x201C, 0x201D, 0x2026)) + "]"
 )
 MAX_PROMPT_WORDS = 300
@@ -80,7 +98,7 @@ def check_item(item: Item, *, grader_names: Iterable[str], long_context: bool = 
         problems.append(f"id {item.id!r} should start with {prefix!r} for block {item.block}")
     if item.grader not in set(grader_names):
         problems.append(f"unknown grader {item.grader!r}")
-    if _TYPOGRAPHIC.search(item.prompt) or _TYPOGRAPHIC.search(item.system):
+    if TYPOGRAPHIC.search(item.prompt) or TYPOGRAPHIC.search(item.system):
         problems.append(
             "typographic dashes or curly quotes in prompt or system; plain punctuation only"
         )
