@@ -69,7 +69,7 @@ def test_freeze_verify_and_heldout(suite_root: Path, suite: Suite, tmp_path: Pat
     assert verify(suite_root)
     assert heldout_hashes(suite_root) == {it.sha256() for it in held}
     # Editing a frozen file is detected.
-    f = next((suite_root / "v1").glob("*.jsonl"))
+    f = suite_root / "v1" / "closed_form_reasoning.jsonl"  # the file that contains "plus"
     f.write_text(f.read_text(encoding="utf-8").replace("plus", "minus", 1), encoding="utf-8")
     assert not verify(suite_root)
 
