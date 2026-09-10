@@ -91,7 +91,25 @@ grade, it is the wrong item; rewrite it until a program can grade it.
 Twenty structured-extraction items are held out. At freeze their SHA-256 hashes (of the
 canonical JSON line) are committed to `drift/suite/heldout/HASHES.txt` and the items
 themselves are kept outside the repository until month 12. Write them in a separate file,
-`heldout-extract.jsonl`, in a folder that is not the repository; the freeze step hashes it.
+`heldout-extract.jsonl`, in a folder that is not the repository (the repository's
+`.gitignore` also refuses any `heldout-*.jsonl`, as a second line); the freeze step hashes it.
+
+How the runner gets them afterwards (PLAN.md section 2.5):
+
+- Locally, set `DRIFT_HELDOUT_FILE` to the file's path before `drift run`. Without it, a run
+  against a frozen suite refuses to start unless told `--without-heldout`.
+- On GitHub Actions, the file's text is the `DRIFT_HELDOUT_ITEMS` secret. From PowerShell in
+  the repository folder, once, after the second-pass grading:
+
+  ```powershell
+  Get-Content -Raw "C:\path\outside\the\repo\heldout-extract.jsonl" | & "$env:LOCALAPPDATA\Programs\gh\bin\gh.exe" secret set DRIFT_HELDOUT_ITEMS -R Peter-A-P/ai-release-gate
+  ```
+
+  Twenty items are about 30 KB; the secret limit is 48 KB.
+- `drift suite verify --heldout` checks that whatever the runner will read matches the
+  committed hashes exactly.
+- Their records are committed with the output replaced by its hash; the raw store for their
+  calls is never committed.
 
 ## Worked examples
 

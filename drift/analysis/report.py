@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from drift.analysis.metrics import (
+    HELDOUT_SUFFIX,
     ArmMetrics,
     MonthOverMonth,
     arm_metrics,
@@ -66,7 +67,8 @@ def render(
             f"Run `{meta.run_id}`: {meta.status}"
             + (f" ({meta.reason})" if meta.reason else "")
             + f". Started {meta.started_utc}, finished {meta.finished_utc or 'n/a'}.",
-            f"Suite {meta.suite_version}, hash `{meta.suite_hash[:16]}`; {meta.items} items, {meta.repeats} repeats; "
+            f"Suite {meta.suite_version}, hash `{meta.suite_hash[:16]}`; {meta.items} items "
+            f"({meta.heldout_items} held out), {meta.repeats} repeats; "
             f"boundary {meta.boundary_version}, drift {meta.drift_version}; {meta.calls} calls, US${meta.spent_usd:.2f} spent "
             f"against an expected US${meta.expected_cost_usd:.2f}.",
             "",
@@ -121,6 +123,29 @@ def render(
             m.accuracy_by_block[b].fmt() if b in m.accuracy_by_block else "n/a" for b in blocks
         ]
         lines.append(f"| {key} | " + " | ".join(cells) + " |")
+    heldout = [b for b in blocks if b.endswith(HELDOUT_SUFFIX)]
+    if heldout:
+        lines += [
+            "",
+            "## Held-out check",
+            "",
+            "Held-out items are never published, so a model cannot have seen them. Public accuracy",
+            "rising while held-out accuracy does not is evidence of contamination, not capability.",
+            "",
+            "| Arm | Block | Public accuracy | Held-out accuracy | Public minus held-out |",
+            "|---|---|---|---|---:|",
+        ]
+        for key, m in sorted(cur.items()):
+            for hb in heldout:
+                pb = hb.removesuffix(HELDOUT_SUFFIX)
+                held = m.accuracy_by_block.get(hb)
+                public = m.accuracy_by_block.get(pb)
+                if held is None:
+                    continue
+                gap = f"{public.point - held.point:+.1%}" if public is not None else "n/a"
+                lines.append(
+                    f"| {key} | {pb} | {public.fmt() if public is not None else 'n/a'} | {held.fmt()} | {gap} |"
+                )
     lines.append("")
     return "\n".join(lines)
 

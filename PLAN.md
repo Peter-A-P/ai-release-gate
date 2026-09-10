@@ -63,7 +63,12 @@ behaviour, not open-ended quality. That is stated in the README as the honest li
 | Control | An open-weights model with a fixed weight hash, served by one provider | Infrastructure and provider noise with the weights held constant |
 
 Panel at first run: the current mid-tier snapshot and its alias from each of Anthropic,
-OpenAI and Google, plus one open-weights control. Frontier-tier models are excluded from
+OpenAI and Google, plus one open-weights control. **Anthropic, decided 2026-09-10:** the
+vendor's model ids from the 4.6 generation on are pinned snapshots with no separate floating
+alias, so the pair can only be formed on Haiku 4.5 (dated id plus undated alias), whose
+retirement floor is 2026-10-15. A fourth snapshot-only arm on the current Anthropic mid-tier
+model (Sonnet 5) is carried from the first run so the Anthropic series survives a Haiku
+retirement. Eight arms in total: four snapshot, three alias, one control. Frontier-tier models are excluded from
 the monthly run on cost; one frontier snapshot per vendor is run once a quarter if budget
 allows (see section 6). Model identifiers are chosen on the day of the first run from each
 vendor's current list and recorded in `drift/panel.yaml` with the date. **The panel is part
@@ -102,6 +107,17 @@ one, the items themselves are not published until month 12. If public items drif
 "correct" while held-out items do not, that is evidence of training-set contamination
 rather than capability change, and it is reported as such. The public half exists so that
 anyone can reproduce the public part of the record immediately.
+
+Mechanics (decided 2026-09-10): the held-out items live in one file outside the repository.
+Locally the runner reads it from the `DRIFT_HELDOUT_FILE` path; on GitHub Actions it reads
+the file's text from the `DRIFT_HELDOUT_ITEMS` secret. Either way every item's hash must be in
+the committed list and every committed hash must be present, or the run refuses to start.
+Their per-call records are committed with the public ones but with the output, its
+normalised form and the grader detail replaced by the output's SHA-256; the grade stays, so
+the month-over-month statistics include them and the report shows public and held-out
+accuracy side by side. Their calls go through a second gateway whose raw request and
+response store is gitignored and never leaves the runner. Only aggregate accuracy is
+published until month 12.
 
 ## 3. The suite (v1)
 
@@ -151,7 +167,12 @@ Notes:
 - **Runner:** GitHub Actions, `schedule` cron on the 1st of each month at 06:00 UTC
   (GitHub cron can slip by up to an hour; the actual start time is recorded), plus
   `workflow_dispatch` for manual runs. No VPS involved. If a scheduled run fails, one
-  rerun is allowed within 72 hours and is marked as a rerun in the record.
+  rerun is allowed within 72 hours and is marked as a rerun in the record. **Shape
+  (2026-09-10):** one job per provider in parallel, each provider's arms one after another
+  with a pause sized to that vendor's entry-tier rate limit, then one job that folds the
+  arm directories into the month and commits. GitHub kills a job at six hours; about
+  17,000 sequential calls would not fit in one, and one key hit by several jobs at once
+  would record rate-limit errors as results.
 - **Secrets:** vendor keys in GitHub Actions secrets. Hard spend caps set in every
   vendor console before the first dry run (portfolio action 3). The `boundary` library is
   installed from its private repository with a fine-grained GitHub token, read-only and
@@ -159,10 +180,12 @@ Notes:
   decided 2026-09-07). The runner also carries
   its own cap: it aborts and records a partial run if spend passes 150% of the expected
   cost for that run.
-- **Storage:** raw request and response for every call as JSONL, one file per model per
-  run, committed to the repo under `drift/runs/YYYY-MM/`. Roughly 2,000 calls per model
-  per run at a few KB each: tens of MB per month, fine for git; moved to Git LFS or
-  release assets if it grows past that.
+- **Storage:** raw request and response for every call as JSONL, one directory per arm
+  per run (`records.jsonl`, the arm's `RUN.json`, its boundary ledger and raw store),
+  committed to the repo under `drift/runs/YYYY-MM/<arm>/`, with the month's `RUN.json`
+  beside them. Roughly 2,000 calls per model per run at a few KB each: tens of MB per
+  month, fine for git; moved to Git LFS or release assets if it grows past that.
+  Held-out records carry the output's hash, not the output (section 2.5).
 - **Reports:** the job renders `drift/reports/YYYY-MM.md` (tables and one SVG chart per
   model) and updates the results table in the README. The dashboard is phase 2.
 - **Reproducibility:** `uv run drift replay --month 2026-10` regrades from stored
@@ -186,14 +209,16 @@ drift/
   runner/             call, retry, record
   graders/            one module per grader type, fully tested
   analysis/           bootstrap, McNemar, drift call, report rendering
-  runs/YYYY-MM/       raw JSONL per model
+  runs/YYYY-MM/       RUN.json for the month, one directory per arm (records, ledger, raw)
   reports/YYYY-MM.md  rendered monthly report
 .github/workflows/drift.yml
 ```
 
 ## 6. Cost
 
-Assumptions, to be replaced with the price list on the day of the first run:
+Assumptions, re-estimated 2026-09-10 with the vendors' published prices of 2026-09-09
+(`drift/config/prices/2026-09-09.yaml`) and the eight-arm panel; the runner computes the
+same estimate from the price list on run day to size its abort cap:
 
 | Quantity | Value |
 |---|---|
@@ -201,15 +226,20 @@ Assumptions, to be replaced with the price list on the day of the first run:
 | Repeats | 5 |
 | Calls per model per run | 2,100 |
 | Average tokens per call | ~700 in (long-context block raises the mean), ~150 out |
-| Models per run | 7 (3 snapshot + 3 alias + 1 control) |
-| Tokens per run | ~10M in, ~2M out |
-| Blended mid-tier price | ~US$0.50 per M in, ~US$2 per M out |
-| Estimated cost per run | ~US$9, about **CA$12** |
+| Models per run | 8 (4 snapshot + 3 alias + 1 control) |
+| Tokens per run | ~11.8M in, ~2.5M out |
+| Anthropic Haiku 4.5, snapshot and alias, US$1 in and US$5 out per M | ~US$3.05 each, US$6.1 |
+| Anthropic Sonnet 5, snapshot only, US$2 in and US$10 out | ~US$6.1 |
+| OpenAI mid-tier (gpt-5-mini), snapshot and alias, US$0.25 and US$2.00 | ~US$1.0 each, US$2.0 |
+| Google Gemini 2.5 Flash, snapshot and alias, US$0.30 and US$2.50 | ~US$1.2 each, US$2.5 |
+| Control (Llama 3.3 70B on Together), US$1.04 both ways | ~US$1.9 |
+| Estimated cost per run | ~US$18.5, about **CA$25** |
 
-Against the CA$35 per month line for drift runs, that leaves headroom for one of:
-a quarterly frontier-tier pass (three snapshots, one repeat, roughly CA$20), or doubling
-the suite in v2. Decide after the first two runs when the real bill is known. Record the
-actual invoice in the portfolio's STATUS next to the estimate.
+The original plan-day figure was about US$9 on a blended mid-tier price; Anthropic's
+mid-tier price is higher than that blend and the Sonnet arm is new. Against the CA$35 per
+month line for drift runs, CA$25 leaves little headroom: the quarterly frontier-tier pass
+and any doubling of the suite wait for the first two real bills. Record the actual invoice
+in the portfolio's STATUS next to the estimate.
 
 If the first dry run shows the estimate is off by more than 2x, cut k to 3 before cutting
 items.
@@ -239,7 +269,7 @@ Effort: about 25 hours across three weeks, alongside the start of project 01.
 |---|---|
 | Vendor retires a snapshot mid-year | Keep calling; the error is the data. Add the successor snapshot as a new arm the same month so the family's series continues |
 | API shape or auth changes | Raw HTTP with pinned version headers; a failed month is recorded as a failed month, then fixed |
-| Rate limits during the run | Spread calls over the run window, exponential backoff, record every retry |
+| Rate limits during the run | One job per provider, its arms one after another, a pause sized to the vendor's entry-tier limit (Anthropic: 50 requests a minute). Pass-through never retries, so a 429 is recorded as the result, and a month with rate-limit errors says so |
 | Cost overrun | Console caps plus the runner's 150% abort. First two runs at k = 5 decide whether k stays |
 | GitHub cron slips or skips | Record actual start time; `workflow_dispatch` rerun within 72 hours, marked |
 | Contamination of public items | Held-out half with committed hashes; report public and held-out separately |

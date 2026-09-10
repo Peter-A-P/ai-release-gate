@@ -60,6 +60,11 @@ class Panel(BaseModel):
         keys = [a.key for a in self.arms]
         if len(keys) != len(set(keys)):
             raise ValueError("arm keys must be unique")
+        # The monthly job runs one provider per parallel job and collects each provider's
+        # arm directories by prefix, so the key must start with the provider name.
+        bad = [a.key for a in self.arms if not a.key.startswith(a.provider + "-")]
+        if bad:
+            raise ValueError(f"arm keys must start with their provider name: {bad}")
         controls = [a for a in self.arms if a.arm == "control"]
         if len(controls) > 1:
             raise ValueError("at most one control arm")
@@ -69,6 +74,15 @@ class Panel(BaseModel):
     def ready(self) -> bool:
         """The panel can be run only once identifiers were chosen and dated."""
         return self.chosen is not None and all("CHOOSE" not in a.model for a in self.arms)
+
+    @property
+    def providers(self) -> list[str]:
+        """Distinct providers in panel order; one parallel job each."""
+        out: list[str] = []
+        for a in self.arms:
+            if a.provider not in out:
+                out.append(a.provider)
+        return out
 
     def control(self) -> Arm | None:
         for a in self.arms:

@@ -84,7 +84,81 @@ def test_duplicate_ids_across_files_refused(suite_root: Path) -> None:
 def test_repo_panel_loads_but_is_not_ready() -> None:
     panel = load_panel(Path(__file__).resolve().parent.parent / "drift" / "panel.yaml")
     assert isinstance(panel, Panel) and not panel.ready
-    assert panel.control() is not None and len(panel.arms) == 7
+    assert panel.control() is not None and len(panel.arms) == 8
+    assert panel.providers == ["anthropic", "openai", "google", "openweights"]
+    assert sum(1 for a in panel.arms if a.provider == "anthropic") == 3
+
+
+def test_panel_arm_keys_must_start_with_the_provider() -> None:
+    import datetime as dt
+
+    from drift.panel import Arm
+
+    with pytest.raises(ValueError, match="start with their provider"):
+        Panel(
+            version=1,
+            chosen=dt.date(2026, 9, 27),
+            arms=[Arm(key="control", provider="openweights", model="x", arm="control", family="c")],
+        )
+
+
+def test_public_suite_files_may_not_hold_heldout_items(suite_root: Path) -> None:
+    held = make_items()[0].model_copy(
+        update={"id": "extract-0001", "block": "structured_extraction", "held_out": True}
+    )
+    write_items(suite_root / "v1" / "extra.jsonl", [held])
+    with pytest.raises(ValueError, match="must not be in the public suite"):
+        load_suite(suite_root)
+
+
+def test_load_heldout_from_environment(suite_root: Path, tmp_path: Path) -> None:
+    from drift.suite import HeldoutError, load_heldout
+
+    # Nothing committed yet: nothing to load, no error.
+    assert load_heldout(suite_root, env={}) == []
+    held = [
+        make_items()[0].model_copy(
+            update={
+                "id": f"extract-{i:04d}",
+                "block": "structured_extraction",
+                "held_out": True,
+                "grader": "json_schema_exact",
+                "expected": {"schema": {"type": "object"}, "values": {"a": 1}},
+            }
+        )
+        for i in range(2)
+    ]
+    heldout_file = tmp_path / "heldout-extract.jsonl"
+    write_items(heldout_file, held)
+    freeze(suite_root, heldout_file=heldout_file)
+    # Committed but no source: an official run must not silently skip them.
+    with pytest.raises(HeldoutError, match="neither DRIFT_HELDOUT_FILE nor DRIFT_HELDOUT_ITEMS"):
+        load_heldout(suite_root, env={})
+    # From a file path, and from the text of an Actions secret.
+    assert load_heldout(suite_root, env={"DRIFT_HELDOUT_FILE": str(heldout_file)}) == held
+    text = heldout_file.read_text(encoding="utf-8")
+    assert load_heldout(suite_root, env={"DRIFT_HELDOUT_ITEMS": text}) == held
+    # A changed item, or a missing one, is refused.
+    changed = text.replace("plus", "minus", 1)
+    with pytest.raises(HeldoutError, match="does not match any committed hash"):
+        load_heldout(suite_root, text=changed)
+    with pytest.raises(HeldoutError, match="have no item"):
+        load_heldout(suite_root, text=text.splitlines()[0] + "\n")
+    with pytest.raises(HeldoutError, match="not marked held_out"):
+        load_heldout(suite_root, text=text.replace('"held_out":true', '"held_out":false'))
+
+
+def test_cli_panel_providers_and_collect_of_an_empty_month() -> None:
+    from typer.testing import CliRunner
+
+    from drift.cli import app
+
+    r = CliRunner().invoke(app, ["panel", "providers", "--json"])
+    assert (
+        r.exit_code == 0 and r.output.strip() == '["anthropic", "openai", "google", "openweights"]'
+    )
+    r = CliRunner().invoke(app, ["collect", "--month", "1999-01", "--no-readme"])
+    assert r.exit_code == 1 and "no arm has recorded" in r.output
 
 
 def test_repo_system_prompts_document_exists() -> None:

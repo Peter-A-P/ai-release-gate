@@ -103,16 +103,20 @@ def check_item(item: Item, *, grader_names: Iterable[str], long_context: bool = 
     return problems
 
 
+def read_items_text(lines: Iterable[str], name: str = "<text>") -> Iterator[Item]:
+    for n, line in enumerate(lines, start=1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            yield Item.model_validate_json(line)
+        except ValidationError as e:
+            raise ItemError(f"{name}:{n}: {e}") from e
+
+
 def read_items(path: Path) -> Iterator[Item]:
     with path.open(encoding="utf-8") as f:
-        for n, line in enumerate(f, start=1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                yield Item.model_validate_json(line)
-            except ValidationError as e:
-                raise ItemError(f"{path.name}:{n}: {e}") from e
+        yield from read_items_text(f, path.name)
 
 
 def write_items(path: Path, items: Iterable[Item]) -> None:

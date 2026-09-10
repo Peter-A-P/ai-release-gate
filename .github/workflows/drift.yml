@@ -3,6 +3,11 @@ name: drift
 # The monthly drift run (PLAN.md section 5): the 1st of each month at 06:00 UTC, plus a manual
 # path for the first two runs and for the one permitted rerun within 72 hours. GitHub cron can
 # slip by up to an hour; the actual start time is in RUN.json.
+#
+# Shape: one job per provider in parallel (each well under GitHub's six-hour job limit, and
+# each provider's arms run one after another so one key is never hit by several jobs at
+# once), then one job that folds the arm directories into the month's RUN.json, the report
+# and the README table, and commits. A provider that fails still lets the others be committed.
 
 on:
   schedule:
@@ -22,6 +27,10 @@ on:
       rerun_of:
         description: "run id this rerun supersedes, if any"
         required: false
+      without_heldout:
+        description: "public items only (dry runs before the held-out secret exists)"
+        required: false
+        default: "false"
 
 permissions:
   contents: write
@@ -30,11 +39,17 @@ concurrency:
   group: drift-run
   cancel-in-progress: false
 
+env:
+  UV_PYTHON: "3.13"
+
 jobs:
-  run:
-    # Pinned image so the same runner shape is used every month.
+  plan:
+    # Fails fast, before any vendor is called, if the suite or the panel is not in order.
     runs-on: ubuntu-24.04
-    timeout-minutes: 720
+    timeout-minutes: 10
+    outputs:
+      month: ${{ steps.plan.outputs.month }}
+      providers: ${{ steps.plan.outputs.providers }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -43,23 +58,94 @@ jobs:
       - name: Authenticate git for the boundary repository
         run: git config --global url."https://x-access-token:${{ secrets.BOUNDARY_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - run: uv sync --frozen
-      - name: Run
+      - id: plan
+        env:
+          DRIFT_HELDOUT_ITEMS: ${{ secrets.DRIFT_HELDOUT_ITEMS }}
+        run: |
+          MONTH="${{ inputs.month }}"
+          if [ -z "$MONTH" ]; then MONTH=$(date -u +%Y-%m); fi
+          echo "month=$MONTH" >> "$GITHUB_OUTPUT"
+          echo "providers=$(uv run drift panel providers --json)" >> "$GITHUB_OUTPUT"
+          uv run drift panel show
+          if [ "${{ inputs.without_heldout }}" = "true" ]; then
+            uv run drift suite verify
+          else
+            uv run drift suite verify --heldout
+          fi
+
+  run:
+    needs: plan
+    runs-on: ubuntu-24.04
+    # Pinned image so the same runner shape is used every month. Under the six-hour job limit.
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: ${{ fromJSON(needs.plan.outputs.providers) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - name: Authenticate git for the boundary repository
+        run: git config --global url."https://x-access-token:${{ secrets.BOUNDARY_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - run: uv sync --frozen
+      - name: Run the ${{ matrix.provider }} arms
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
+          DRIFT_HELDOUT_ITEMS: ${{ secrets.DRIFT_HELDOUT_ITEMS }}
         run: |
-          MONTH="${{ inputs.month }}"
-          if [ -z "$MONTH" ]; then MONTH=$(date -u +%Y-%m); fi
-          ARGS="--month $MONTH --repeats ${{ inputs.repeats || '5' }}"
+          # Anthropic's entry tier allows 50 requests a minute; the pause keeps three sequential
+          # arms comfortably under it. The others allow hundreds.
+          case "${{ matrix.provider }}" in
+            anthropic) PAUSE=1.0 ;;
+            *) PAUSE=0.2 ;;
+          esac
+          ARGS="--month ${{ needs.plan.outputs.month }} --provider ${{ matrix.provider }} --repeats ${{ inputs.repeats || '5' }} --pause $PAUSE --no-collect"
           if [ -n "${{ inputs.items }}" ]; then ARGS="$ARGS --items ${{ inputs.items }}"; fi
           if [ -n "${{ inputs.rerun_of }}" ]; then ARGS="$ARGS --rerun-of ${{ inputs.rerun_of }}"; fi
-          uv run drift run $ARGS || echo "run finished with a non-complete status; the record is still committed"
+          if [ "${{ inputs.without_heldout }}" = "true" ]; then ARGS="$ARGS --without-heldout"; fi
+          uv run drift run $ARGS || echo "run finished with a non-complete status; the record is still uploaded"
+      - name: Upload the arm directories
+        # Always, so a partial record survives a failure. The held-out raw store never leaves
+        # the runner.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.provider }}
+          path: |
+            drift/runs/${{ needs.plan.outputs.month }}/${{ matrix.provider }}-*
+            !drift/runs/${{ needs.plan.outputs.month }}/${{ matrix.provider }}-*/raw-heldout
+          if-no-files-found: error
+          retention-days: 7
+
+  collect:
+    needs: [plan, run]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - name: Authenticate git for the boundary repository
+        run: git config --global url."https://x-access-token:${{ secrets.BOUNDARY_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - run: uv sync --frozen
+      - uses: actions/download-artifact@v4
+        with:
+          path: drift/runs/${{ needs.plan.outputs.month }}
+          merge-multiple: true
+      - name: Fold the arms into the month
+        run: uv run drift collect --month ${{ needs.plan.outputs.month }} || echo "month is not complete; the record is still committed"
       - name: Commit the record
         run: |
           git config user.name "Peter Parker"
           git config user.email "peter.alexander.parker@outlook.com"
           git add drift/runs drift/reports README.md
-          git commit -m "Drift run $(date -u +%Y-%m): records, report, README table" || echo "nothing to commit"
+          git commit -m "Drift run ${{ needs.plan.outputs.month }}: records, report, README table" || echo "nothing to commit"
+          git pull --rebase origin main
           git push

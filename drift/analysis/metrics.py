@@ -23,6 +23,15 @@ def _group(records: Iterable[CallRecord]) -> dict[str, list[CallRecord]]:
     return by
 
 
+HELDOUT_SUFFIX = " (held out)"
+
+
+def block_label(r: CallRecord) -> str:
+    """Held-out items are reported apart from the public items of the same block
+    (PLAN.md section 2.5): a gap between the two is the contamination signal."""
+    return r.block + HELDOUT_SUFFIX if r.held_out else r.block
+
+
 def item_outcome(recs: list[CallRecord]) -> bool | None:
     votes = [r.correct for r in recs if r.correct is not None]
     if not votes:
@@ -58,7 +67,7 @@ def arm_metrics(arm_key: str, records: list[CallRecord], *, seed: int = 0) -> Ar
     acc_values = [1.0 if o else 0.0 for o in graded.values()]
     by_block: dict[str, list[float]] = defaultdict(list)
     for iid, o in graded.items():
-        by_block[by[iid][0].block].append(1.0 if o else 0.0)
+        by_block[block_label(by[iid][0])].append(1.0 if o else 0.0)
 
     flips: list[float] = []
     stable: list[float] = []

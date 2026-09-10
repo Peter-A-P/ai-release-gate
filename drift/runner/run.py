@@ -2,24 +2,34 @@
 
 What is held fixed (PLAN.md section 2.3): temperature, max_tokens per block, the system
 prompt from the item, no tools, no caching, explicit model identifiers. The order of calls is
-shuffled with a recorded seed so repeats of one item are spread across the run. The runner's
-own cap aborts the run when the boundary ledger's spend for the run passes a multiple of the
-expected cost; the run is then marked partial, never deleted.
+shuffled with a recorded seed so repeats of one item are spread across the run.
+
+One arm at a time (`run_arm`), each with its own directory, ledger and raw store, so the
+arms of one provider can run as one GitHub Actions job while other providers run in parallel
+(`run_month` loops over the arms selected and opens a gateway per arm). The runner's own cap
+aborts an arm when the boundary ledger's spend for the run passes a multiple of that arm's
+expected cost; the arm is then marked partial, never deleted.
+
+Held-out items go through a second gateway whose raw store is not committed, and their
+records carry the output's hash instead of the output.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import platform
 import random
 import time
 from collections.abc import Callable, Iterable
+from contextlib import AbstractContextManager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
 from boundary import ChatRequest, ChatResponse, Mode
 from boundary import __version__ as boundary_version
+from boundary.config import PriceList
 
 from drift import __version__ as drift_version
 from drift.graders import grader
@@ -37,6 +47,11 @@ from drift.runner.records import (
 from drift.suite import Suite
 
 REQUEST_ID_HEADERS = ("request-id", "x-request-id", "cf-ray")
+
+# PLAN.md section 6: the token assumptions behind the expected cost of a run. Replaced by the
+# real usage in the record; used only to size the abort cap before the first call.
+ASSUMED_INPUT_TOKENS = 700
+ASSUMED_OUTPUT_TOKENS = 150
 
 
 class Ledger(Protocol):
@@ -66,6 +81,23 @@ class Caller(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class Callers:
+    """The gateway for public items and the one for held-out items (whose raw store is never
+    committed). They may be the same object when nothing is held out."""
+
+    public: Caller
+    heldout: Caller
+
+    def for_item(self, item: Item) -> Caller:
+        return self.heldout if item.held_out else self.public
+
+
+# Opens the callers for one arm; the context closes them. The CLI opens real Gateways with
+# the arm's ledger and raw stores; tests return fakes.
+CallerFactory = Callable[[Arm, Path], AbstractContextManager[Callers]]
+
+
+@dataclass(frozen=True, slots=True)
 class RunConfig:
     repeats: int = 5
     seed: int = 20260927
@@ -81,10 +113,13 @@ class RunConfig:
             "paraphrase_robustness": 512,
         }
     )
-    expected_cost_usd: float = 9.0
+    # Expected cost of the arms being run in this invocation. None means: estimate from the
+    # price list and the token assumptions above.
+    expected_cost_usd: float | None = None
     abort_multiplier: float = 1.5
     items_limit: int | None = None  # dry runs: first N items per block after shuffling
     arm_keys: tuple[str, ...] | None = None
+    providers: tuple[str, ...] | None = None
     pause_s: float = 0.0
     rerun_of: str | None = None
 
@@ -118,6 +153,27 @@ def select_items(suite: Suite, limit: int | None, seed: int) -> list[Item]:
     return out
 
 
+def select_arms(panel: Panel, config: RunConfig) -> list[Arm]:
+    return [
+        a
+        for a in panel.arms
+        if (config.arm_keys is None or a.key in config.arm_keys)
+        and (config.providers is None or a.provider in config.providers)
+    ]
+
+
+def estimate_arm_cost_usd(arm: Arm, calls: int, prices: PriceList | None) -> float | None:
+    """What one arm's calls should cost at the price list, on the token assumptions. None when
+    the model has no price (the caller then needs an explicit expected cost)."""
+    if prices is None:
+        return None
+    entry = prices.lookup(arm.provider, arm.model)
+    if entry is None:
+        return None
+    per_call = (ASSUMED_INPUT_TOKENS * entry.input + ASSUMED_OUTPUT_TOKENS * entry.output) / 1e6
+    return round(calls * per_call, 6)
+
+
 def _request_id(headers: dict[str, str] | object) -> str | None:
     if not isinstance(headers, dict):
         return None
@@ -137,6 +193,14 @@ def record_for(
     if resp.ok and resp.text is not None:
         g = grader(item.grader).grade(resp.text, item.expected)
         correct, normalised, detail = g.correct, g.normalised, g.detail
+    output = resp.text
+    output_sha256: str | None = None
+    if item.held_out:
+        # The grade stays; the text, its normalised form and the grader detail (which can
+        # quote the expected value) do not.
+        if output is not None:
+            output_sha256 = hashlib.sha256(output.encode("utf-8")).hexdigest()
+        output = normalised = detail = None
     return CallRecord(
         ts_utc=utc_now(),
         run_id=run_id,
@@ -149,7 +213,9 @@ def record_for(
         block=item.block,
         grader=item.grader,
         repeat=repeat,
-        output=resp.text,
+        held_out=item.held_out,
+        output=output,
+        output_sha256=output_sha256,
         finish_reason=resp.finish_reason,
         status=resp.status,
         error_type=None if resp.ok else str(resp.status),
@@ -166,38 +232,37 @@ def record_for(
     )
 
 
-def run_month(
+def run_arm(
     *,
     month: str,
     suite: Suite,
     panel: Panel,
-    gateway: Caller,
+    arm: Arm,
+    callers: Callers,
     runs_root: Path,
     config: RunConfig,
+    expected_cost_usd: float,
     sleep: Callable[[float], None] = time.sleep,
     log: Callable[[str], None] = print,
 ) -> RunMeta:
-    if not panel.ready:
-        raise ValueError(
-            "panel.yaml has identifiers still to choose; the panel is data, choose and date them first"
-        )
+    """Every planned call for one arm that is not yet recorded, then the arm's RUN.json."""
     run_id = f"drift-{month}"
-    arms = [a for a in panel.arms if config.arm_keys is None or a.key in config.arm_keys]
     items = select_items(suite, config.items_limit, config.seed)
-    meta = load_meta(runs_root, month) or RunMeta(
+    meta = load_meta(runs_root, month, arm.key) or RunMeta(
         run_id=run_id,
         month=month,
         started_utc=utc_now(),
         suite_version=suite.version,
         suite_hash=suite.hash,
+        heldout_items=sum(1 for it in items if it.held_out),
         panel_chosen=panel.chosen.isoformat() if panel.chosen else None,
         boundary_version=boundary_version,
         drift_version=drift_version,
         repeats=config.repeats,
         items=len(items),
-        arms=[a.key for a in arms],
+        arms=[arm.key],
         seed=config.seed,
-        expected_cost_usd=config.expected_cost_usd,
+        expected_cost_usd=expected_cost_usd,
         abort_multiplier=config.abort_multiplier,
         rerun_of=config.rerun_of,
         runner={"python": platform.python_version(), "platform": platform.platform()},
@@ -207,51 +272,112 @@ def run_month(
             f"suite hash changed since this run started: {meta.suite_hash} vs {suite.hash}"
         )
     meta.status = "running"
-    save_meta(runs_root, meta)
+    save_meta(runs_root, meta, arm.key)
 
     by_id = {it.id: it for it in items}
-    cap = config.expected_cost_usd * config.abort_multiplier
+    cap = expected_cost_usd * config.abort_multiplier
+    path = records_path(runs_root, month, arm.key)
+    gateway = callers.public
     try:
-        for arm in arms:
-            path = records_path(runs_root, month, arm.key)
-            done = {(r.item_id, r.repeat) for r in read_records(path)}
-            todo = [
-                p for p in plan_calls(items, config.repeats, config.seed, arm.key) if p not in done
-            ]
-            log(f"{arm.key}: {len(todo)} calls to make, {len(done)} already recorded")
-            for item_id, repeat in todo:
-                spent = gateway.ledger.spend_usd(project=gateway.project, run_id=run_id)
-                if spent > cap:
-                    raise RunAbortedError(
-                        f"spend US${spent:.2f} passed {config.abort_multiplier}x the expected US${config.expected_cost_usd:.2f}"
-                    )
-                item = by_id[item_id]
-                resp = gateway.chat(
-                    ChatRequest(
-                        model=arm.explicit,
-                        system=item.system,
-                        messages=[{"role": "user", "content": item.prompt}],
-                        max_tokens=config.max_tokens[item.block],
-                        temperature=config.temperature,
-                    ),
-                    purpose="drift-run",
-                    run_id=run_id,
-                    mode=Mode.PASSTHROUGH,
+        done = {(r.item_id, r.repeat) for r in read_records(path)}
+        todo = [p for p in plan_calls(items, config.repeats, config.seed, arm.key) if p not in done]
+        log(f"{arm.key}: {len(todo)} calls to make, {len(done)} already recorded")
+        for item_id, repeat in todo:
+            spent = gateway.ledger.spend_usd(project=gateway.project, run_id=run_id)
+            if spent > cap:
+                raise RunAbortedError(
+                    f"spend US${spent:.2f} passed {config.abort_multiplier}x the expected US${expected_cost_usd:.2f}"
                 )
-                append_record(
-                    path,
-                    record_for(resp, arm=arm, item=item, repeat=repeat, run_id=run_id, month=month),
-                )
-                meta.calls += 1
-                if config.pause_s:
-                    sleep(config.pause_s)
+            item = by_id[item_id]
+            resp = callers.for_item(item).chat(
+                ChatRequest(
+                    model=arm.explicit,
+                    system=item.system,
+                    messages=[{"role": "user", "content": item.prompt}],
+                    max_tokens=config.max_tokens[item.block],
+                    temperature=config.temperature,
+                ),
+                purpose="drift-run",
+                run_id=run_id,
+                mode=Mode.PASSTHROUGH,
+            )
+            append_record(
+                path,
+                record_for(resp, arm=arm, item=item, repeat=repeat, run_id=run_id, month=month),
+            )
+            meta.calls += 1
+            if config.pause_s:
+                sleep(config.pause_s)
         meta.status = "complete"
     except RunAbortedError as e:
         meta.status = "partial"
         meta.reason = str(e)
-        log(f"aborted: {e}")
+        log(f"{arm.key} aborted: {e}")
     finally:
         meta.spent_usd = gateway.ledger.spend_usd(project=gateway.project, run_id=run_id)
         meta.finished_utc = utc_now()
-        save_meta(runs_root, meta)
+        save_meta(runs_root, meta, arm.key)
     return meta
+
+
+def run_month(
+    *,
+    month: str,
+    suite: Suite,
+    panel: Panel,
+    open_callers: CallerFactory,
+    runs_root: Path,
+    config: RunConfig,
+    prices: PriceList | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+    log: Callable[[str], None] = print,
+) -> list[RunMeta]:
+    """The selected arms, one after another, each with its own callers. Returns one RunMeta
+    per arm; `summarise_month` folds them into the month's RUN.json."""
+    if not panel.ready:
+        raise ValueError(
+            "panel.yaml has identifiers still to choose; the panel is data, choose and date them first"
+        )
+    arms = select_arms(panel, config)
+    if not arms:
+        raise ValueError("no arm matches the selection")
+    n_calls = len(select_items(suite, config.items_limit, config.seed)) * config.repeats
+    estimates = {a.key: estimate_arm_cost_usd(a, n_calls, prices) for a in arms}
+    if config.expected_cost_usd is not None:
+        # An explicit total for this invocation is split in proportion to the estimates, or
+        # evenly when there is nothing to split by.
+        known = {k: v for k, v in estimates.items() if v is not None}
+        total = sum(known.values())
+        expected = {
+            a.key: (
+                config.expected_cost_usd * known[a.key] / total
+                if a.key in known and total > 0
+                else config.expected_cost_usd / len(arms)
+            )
+            for a in arms
+        }
+    else:
+        unpriced = [k for k, v in estimates.items() if v is None]
+        if unpriced:
+            raise ValueError(
+                f"no price for {', '.join(unpriced)} in the price list; pass an explicit expected cost"
+            )
+        expected = {k: v for k, v in estimates.items() if v is not None}
+    metas: list[RunMeta] = []
+    for arm in arms:
+        with open_callers(arm, runs_root / month / arm.key) as callers:
+            metas.append(
+                run_arm(
+                    month=month,
+                    suite=suite,
+                    panel=panel,
+                    arm=arm,
+                    callers=callers,
+                    runs_root=runs_root,
+                    config=config,
+                    expected_cost_usd=expected[arm.key],
+                    sleep=sleep,
+                    log=log,
+                )
+            )
+    return metas

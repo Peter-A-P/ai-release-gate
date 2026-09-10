@@ -95,21 +95,21 @@ def panel() -> Panel:
         chosen=dt.date(2026, 9, 27),
         arms=[
             Arm(
-                key="a-snapshot",
+                key="anthropic-snapshot",
                 provider="anthropic",
                 model="claude-test-20260101",
                 arm="snapshot",
                 family="claude",
             ),
             Arm(
-                key="a-alias",
+                key="anthropic-alias",
                 provider="anthropic",
                 model="claude-test",
                 arm="alias",
                 family="claude",
             ),
             Arm(
-                key="control",
+                key="openweights-control",
                 provider="openweights",
                 model="org/open-70b",
                 arm="control",

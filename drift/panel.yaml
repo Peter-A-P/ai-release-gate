@@ -6,6 +6,16 @@
 #
 # Arms: one dated snapshot and its floating alias per vendor family (mid-tier), plus one
 # open-weights control with a fixed weight hash served by the openweights provider.
+#
+# Anthropic (decided 2026-09-10): the vendor's model ids from the 4.6 generation on are
+# pinned snapshots with no separate floating alias, so the snapshot-and-alias pair can only
+# be formed on Haiku 4.5 (dated id plus undated alias). Because Haiku 4.5 may be retired
+# during the twelve months (earliest 2026-10-15), a snapshot-only arm on the current
+# mid-tier model (Sonnet 5) is carried from the first run so the Anthropic series survives
+# the retirement. Eight arms in total.
+#
+# Arm keys start with the provider name: the monthly job runs one provider per parallel job
+# and collects each provider's arm directories by that prefix.
 
 version: 1
 chosen: null
@@ -14,14 +24,19 @@ notes: "Identifiers to be chosen on the first run day, targeted 2026-09-27; dry 
 arms:
   - key: anthropic-snapshot
     provider: anthropic
-    model: CHOOSE-dated-mid-tier-snapshot
+    model: CHOOSE-dated-haiku-4-5-snapshot
     arm: snapshot
-    family: claude
+    family: claude-haiku
   - key: anthropic-alias
     provider: anthropic
-    model: CHOOSE-floating-alias
+    model: CHOOSE-haiku-4-5-floating-alias
     arm: alias
-    family: claude
+    family: claude-haiku
+  - key: anthropic-sonnet-snapshot
+    provider: anthropic
+    model: CHOOSE-sonnet-5-pinned-id
+    arm: snapshot
+    family: claude-sonnet
   - key: openai-snapshot
     provider: openai
     model: CHOOSE-dated-mid-tier-snapshot
@@ -42,7 +57,7 @@ arms:
     model: CHOOSE-floating-alias
     arm: alias
     family: gemini
-  - key: control-openweights
+  - key: openweights-control
     provider: openweights
     model: CHOOSE-open-weights-model-with-fixed-weights
     arm: control

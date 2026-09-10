@@ -1,12 +1,21 @@
-"""Command line: drift run | replay | report | items validate | suite freeze | suite verify | panel show.
+"""Command line: drift run | collect | replay | report | items validate | suite freeze | suite verify
+| panel show | panel providers | panel candidates.
 
 Paths default to the repository layout in PLAN.md section 5. The runner's boundary
 configuration lives in drift/config so the drift record owns its own price snapshot.
+
+The monthly job (drift.yml) runs `drift run --provider X --no-collect` once per provider in
+parallel, then `drift collect` once to fold the arm directories into the month's RUN.json, the
+report and the README table. A local full run is `drift run` with no selection: the same
+thing in one process.
 """
 
 from __future__ import annotations
 
+import json
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated
 
@@ -23,9 +32,10 @@ from drift.analysis.report import (
 )
 from drift.graders import GRADERS, grader
 from drift.items import read_items, validate_file
-from drift.panel import MODEL_LIST_PATHS, load_panel, parse_model_list, snapshot_alias_pairs
-from drift.runner.run import RunConfig, run_month
-from drift.suite import freeze, load_suite, verify
+from drift.panel import MODEL_LIST_PATHS, Arm, load_panel, parse_model_list, snapshot_alias_pairs
+from drift.runner.records import summarise_month
+from drift.runner.run import Callers, RunConfig, run_month
+from drift.suite import HeldoutError, Suite, freeze, load_heldout, load_suite, verify
 
 app = typer.Typer(add_completion=False, help=f"drift {__version__}: the frozen-suite drift record")
 items_app = typer.Typer(help="item files")
@@ -45,55 +55,53 @@ BOUNDARY_CONFIG = DRIFT / "config" / "boundary.yaml"
 PROJECT = "ai-release-gate"
 
 
-@app.command()
-def run(
-    month: Annotated[str, typer.Option(help="YYYY-MM the run belongs to")],
-    repeats: int = 5,
-    items: Annotated[int | None, typer.Option(help="dry run: items per block")] = None,
-    arm: Annotated[list[str] | None, typer.Option(help="only these arm keys")] = None,
-    expected_cost: float = 9.0,
-    abort_multiplier: float = 1.5,
-    seed: int = 20260927,
-    pause: float = 0.0,
-    rerun_of: str | None = None,
-    write_readme_table: bool = True,
-) -> None:
-    """Run the suite against every arm through boundary in pass-through mode, then report."""
-    from boundary import Gateway
-
+def _load_suite_or_exit(*, without_heldout: bool) -> Suite:
     suite = load_suite(SUITE_ROOT)
     if not verify(SUITE_ROOT):
         typer.echo(
             "suite files do not match SUITE_HASH; a changed suite is a new version", err=True
         )
         raise typer.Exit(2)
+    if without_heldout:
+        return suite
+    try:
+        heldout = load_heldout(SUITE_ROOT)
+    except HeldoutError as e:
+        typer.echo(f"held-out items: {e}", err=True)
+        raise typer.Exit(2) from e
+    return suite.with_heldout(heldout)
+
+
+@contextmanager
+def _open_callers(arm: Arm, arm_dir: Path) -> Iterator[Callers]:
+    """Two real gateways on one ledger: the held-out one writes its raw store to a directory
+    that is never committed."""
+    from boundary import Gateway
+
+    arm_dir.mkdir(parents=True, exist_ok=True)
+    ledger = arm_dir / "ledger.sqlite"
+    with (
+        Gateway.from_config(
+            BOUNDARY_CONFIG, project=PROJECT, ledger_path=ledger, raw_store=arm_dir / "raw"
+        ) as public,
+        Gateway.from_config(
+            BOUNDARY_CONFIG, project=PROJECT, ledger_path=ledger, raw_store=arm_dir / "raw-heldout"
+        ) as heldout,
+    ):
+        yield Callers(public=public, heldout=heldout)
+
+
+def _collect(month: str, *, write_readme_table: bool) -> bool:
     panel = load_panel(PANEL)
-    month_dir = RUNS / month
-    month_dir.mkdir(parents=True, exist_ok=True)
-    with Gateway.from_config(
-        BOUNDARY_CONFIG,
-        project=PROJECT,
-        ledger_path=month_dir / "ledger.sqlite",
-        raw_store=month_dir / "raw",
-    ) as gw:
-        meta = run_month(
-            month=month,
-            suite=suite,
-            panel=panel,
-            gateway=gw,
-            runs_root=RUNS,
-            config=RunConfig(
-                repeats=repeats,
-                seed=seed,
-                expected_cost_usd=expected_cost,
-                abort_multiplier=abort_multiplier,
-                items_limit=items,
-                arm_keys=tuple(arm) if arm else None,
-                pause_s=pause,
-                rerun_of=rerun_of,
-            ),
-        )
-    typer.echo(f"run {meta.run_id}: {meta.status}, {meta.calls} calls, US${meta.spent_usd:.2f}")
+    meta = summarise_month(RUNS, month, [a.key for a in panel.arms])
+    if meta is None:
+        typer.echo(f"no arm has recorded anything for {month}", err=True)
+        return False
+    typer.echo(
+        f"run {meta.run_id}: {meta.status}"
+        + (f" ({meta.reason})" if meta.reason else "")
+        + f", {len(meta.arms)} arms, {meta.calls} calls, US${meta.spent_usd:.2f}"
+    )
     out = build_report(RUNS, REPORTS, month, panel)
     typer.echo(f"report: {out}")
     if write_readme_table:
@@ -105,13 +113,84 @@ def run(
                 metrics_for_month(RUNS, previous_month(month)),
             ),
         )
-    if meta.status != "complete":
+    return meta.status == "complete"
+
+
+@app.command()
+def run(
+    month: Annotated[str, typer.Option(help="YYYY-MM the run belongs to")],
+    repeats: int = 5,
+    items: Annotated[int | None, typer.Option(help="dry run: items per block")] = None,
+    arm: Annotated[list[str] | None, typer.Option(help="only these arm keys")] = None,
+    provider: Annotated[list[str] | None, typer.Option(help="only these providers' arms")] = None,
+    expected_cost: Annotated[
+        float | None,
+        typer.Option(help="expected US$ for the arms run here; default: from the price list"),
+    ] = None,
+    abort_multiplier: float = 1.5,
+    seed: int = 20260927,
+    pause: float = 0.0,
+    rerun_of: str | None = None,
+    without_heldout: Annotated[
+        bool, typer.Option("--without-heldout", help="public items only (dry runs)")
+    ] = False,
+    collect: Annotated[
+        bool, typer.Option(help="fold the arms into RUN.json, the report and the README after")
+    ] = True,
+) -> None:
+    """Run the suite against the selected arms through boundary in pass-through mode."""
+    from boundary.config import latest_price_list, load_config
+
+    suite = _load_suite_or_exit(without_heldout=without_heldout)
+    panel = load_panel(PANEL)
+    prices = latest_price_list(load_config(BOUNDARY_CONFIG).prices)
+    metas = run_month(
+        month=month,
+        suite=suite,
+        panel=panel,
+        open_callers=_open_callers,
+        runs_root=RUNS,
+        config=RunConfig(
+            repeats=repeats,
+            seed=seed,
+            expected_cost_usd=expected_cost,
+            abort_multiplier=abort_multiplier,
+            items_limit=items,
+            arm_keys=tuple(arm) if arm else None,
+            providers=tuple(provider) if provider else None,
+            pause_s=pause,
+            rerun_of=rerun_of,
+        ),
+        prices=prices,
+    )
+    for m in metas:
+        typer.echo(
+            f"{m.arms[0]}: {m.status}"
+            + (f" ({m.reason})" if m.reason else "")
+            + f", {m.calls} calls, US${m.spent_usd:.2f} of an expected US${m.expected_cost_usd:.2f}"
+        )
+    ok = all(m.status == "complete" for m in metas)
+    if collect:
+        ok = _collect(month, write_readme_table=True) and ok
+    if not ok:
+        raise typer.Exit(1)
+
+
+@app.command()
+def collect(
+    month: Annotated[str, typer.Option()],
+    readme: bool = True,
+) -> None:
+    """Fold the arm directories of a month into RUN.json, the report and the README table.
+    Exit 1 when any arm is missing or not complete; the records are kept either way."""
+    if not _collect(month, write_readme_table=readme):
         raise typer.Exit(1)
 
 
 @app.command()
 def replay(month: Annotated[str, typer.Option()]) -> None:
-    """Regrade stored outputs with the current graders; no vendor is called."""
+    """Regrade stored outputs with the current graders; no vendor is called. Held-out
+    records store no output and are skipped."""
     suite = load_suite(SUITE_ROOT)
     for key, (compared, disagreed) in regrade(RUNS, month, suite).items():
         typer.echo(
@@ -164,9 +243,20 @@ def suite_freeze(heldout: Path | None = None) -> None:
 
 
 @suite_app.command("verify")
-def suite_verify() -> None:
+def suite_verify(
+    heldout: Annotated[
+        bool, typer.Option(help="also check the held-out items from the environment")
+    ] = False,
+) -> None:
     ok = verify(SUITE_ROOT)
     typer.echo("suite matches SUITE_HASH" if ok else "suite DOES NOT match SUITE_HASH")
+    if heldout:
+        try:
+            items = load_heldout(SUITE_ROOT)
+            typer.echo(f"{len(items)} held-out items match the committed hashes")
+        except HeldoutError as e:
+            typer.echo(f"held-out items: {e}", err=True)
+            ok = False
     raise typer.Exit(0 if ok else 1)
 
 
@@ -175,7 +265,18 @@ def panel_show() -> None:
     panel = load_panel(PANEL)
     typer.echo(f"panel v{panel.version}, chosen {panel.chosen or 'NOT YET'}; ready: {panel.ready}")
     for a in panel.arms:
-        typer.echo(f"  {a.key:<22} {a.arm:<8} {a.family:<10} {a.explicit}")
+        typer.echo(f"  {a.key:<26} {a.arm:<8} {a.family:<14} {a.explicit}")
+
+
+@panel_app.command("providers")
+def panel_providers(
+    as_json: Annotated[
+        bool, typer.Option("--json", help="a JSON list, for the job matrix")
+    ] = False,
+) -> None:
+    """The providers in the panel, one parallel job each in the monthly workflow."""
+    providers = load_panel(PANEL).providers
+    typer.echo(json.dumps(providers) if as_json else "\n".join(providers))
 
 
 @panel_app.command("candidates")

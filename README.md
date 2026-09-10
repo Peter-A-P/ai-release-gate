@@ -32,7 +32,8 @@ drift call against the noise floor and the control arm, is under `drift/reports/
 ## How it works
 
 See [PLAN.md](PLAN.md). Part A: a frozen suite of about 420 programmatically graded
-items, run monthly against a dated snapshot and a floating alias from each vendor plus an
+items, run monthly against a dated snapshot and a floating alias from each vendor (plus a
+second, snapshot-only Anthropic arm, because that vendor's newer ids have no alias) and an
 open-weights control, five repeats per item so month-to-month change is tested against a
 same-day noise floor, raw responses committed, numbers reproducible offline. Part B: a
 judge calibrated against human labels and corrected for its own error, paired
