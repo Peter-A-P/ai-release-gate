@@ -1,0 +1,55 @@
+name: smoke
+
+# One short live call per vendor through boundary, plus each vendor's current model list, on
+# GitHub's runners. Exists because the laptop's usual network inspects TLS, so the four smoke
+# calls that gate boundary v0.1.0 (and the panel choice for PLAN.md section 2.2) run here
+# instead. Manual only; costs a few cents. Every call is ledgered like any other.
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidates:
+        description: "also list each vendor's model identifiers (drift panel candidates)"
+        required: false
+        default: "true"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - name: Authenticate git for the boundary repository
+        run: git config --global url."https://x-access-token:${{ secrets.BOUNDARY_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - run: uv sync --frozen
+      - run: uv run python -c "import boundary; print('boundary', boundary.__version__)"
+      # One step per vendor and none stops the others, so one bad key does not hide the rest.
+      - name: Smoke anthropic
+        continue-on-error: true
+        run: uv run boundary smoke anthropic --config drift/config/boundary.yaml --run-id smoke-actions
+      - name: Smoke openai
+        continue-on-error: true
+        run: uv run boundary smoke openai --config drift/config/boundary.yaml --run-id smoke-actions
+      - name: Smoke google
+        continue-on-error: true
+        run: uv run boundary smoke google --config drift/config/boundary.yaml --run-id smoke-actions
+      - name: Smoke openweights
+        continue-on-error: true
+        run: uv run boundary smoke openweights --config drift/config/boundary.yaml --run-id smoke-actions
+      - name: Ledger rows for the four calls
+        run: uv run boundary ledger report --config drift/config/boundary.yaml --ledger drift/runs/dev-ledger.sqlite
+      - name: Panel candidates
+        if: inputs.candidates == 'true'
+        continue-on-error: true
+        run: uv run drift panel candidates
