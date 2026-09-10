@@ -37,18 +37,18 @@ jobs:
       # One step per vendor and none stops the others, so one bad key does not hide the rest.
       - name: Smoke anthropic
         continue-on-error: true
-        run: uv run boundary smoke anthropic --config drift/config/boundary.yaml --run-id smoke-actions
+        run: uv run boundary --config drift/config/boundary.yaml smokeanthropic --run-id smoke-actions
       - name: Smoke openai
         continue-on-error: true
-        run: uv run boundary smoke openai --config drift/config/boundary.yaml --run-id smoke-actions
+        run: uv run boundary --config drift/config/boundary.yaml smokeopenai --run-id smoke-actions
       - name: Smoke google
         continue-on-error: true
-        run: uv run boundary smoke google --config drift/config/boundary.yaml --run-id smoke-actions
+        run: uv run boundary --config drift/config/boundary.yaml smokegoogle --run-id smoke-actions
       - name: Smoke openweights
         continue-on-error: true
-        run: uv run boundary smoke openweights --config drift/config/boundary.yaml --run-id smoke-actions
+        run: uv run boundary --config drift/config/boundary.yaml smokeopenweights --run-id smoke-actions
       - name: Ledger rows for the four calls
-        run: uv run boundary ledger report --config drift/config/boundary.yaml --ledger drift/runs/dev-ledger.sqlite
+        run: uv run boundary --config drift/config/boundary.yaml ledger report --ledger drift/runs/dev-ledger.sqlite
       - name: Panel candidates
         if: inputs.candidates == 'true'
         continue-on-error: true
