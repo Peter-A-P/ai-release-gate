@@ -16,6 +16,20 @@
 #
 # Arm keys start with the provider name: the monthly job runs one provider per parallel job
 # and collects each provider's arm directories by that prefix.
+#
+# Findings from the live calls of 2026-09-10 (smoke workflow), for the choice on run day:
+#   anthropic: claude-haiku-4-5 resolves to claude-haiku-4-5-20251001, so the pair is real
+#              even though the models endpoint does not list the alias.
+#   openai:    gpt-5.4-mini <-> gpt-5.4-mini-2026-03-17 is the current mid-tier pair. The
+#              gpt-5.4 family rejects reasoning_effort "minimal" and accepts "none"; without
+#              it a reasoning model spends the token budget thinking and returns no text.
+#              Fix the value per arm in `extra`, for the life of the panel.
+#   google:    gemini-flash-latest resolved to gemini-3.8-flash and returned no text within
+#              64 tokens (thinking on by default); gemini-flash-lite-latest resolved to
+#              gemini-3.5-flash-lite and answered. The Flash pair needs a thinkingConfig in
+#              `extra` under generationConfig; the Flash-Lite pair does not. Decide which
+#              tier is "mid" for Google on run day.
+#   openweights: 275 identifiers, none dated; the control stays a fixed named checkpoint.
 
 version: 1
 chosen: null
