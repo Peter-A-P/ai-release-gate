@@ -102,9 +102,16 @@ def freeze(root: Path, version: str = "v1", *, heldout_file: Path | None = None)
     return suite.hash, n_heldout
 
 
+class NotFrozenError(FileNotFoundError):
+    """No SUITE_HASH yet: the suite has not been frozen, so nothing can be verified or run."""
+
+
 def verify(root: Path, version: str = "v1") -> bool:
     """True when the items on disk still hash to the committed SUITE_HASH."""
-    committed = (root / version / SUITE_HASH_FILE).read_text(encoding="utf-8").strip()
+    p = root / version / SUITE_HASH_FILE
+    if not p.is_file():
+        raise NotFrozenError(f"{p} does not exist; the suite is not frozen (drift suite freeze)")
+    committed = p.read_text(encoding="utf-8").strip()
     return load_suite(root, version).hash == committed
 
 

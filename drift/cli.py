@@ -35,7 +35,15 @@ from drift.items import read_items, validate_file
 from drift.panel import MODEL_LIST_PATHS, Arm, load_panel, parse_model_list, snapshot_alias_pairs
 from drift.runner.records import summarise_month
 from drift.runner.run import Callers, RunConfig, run_month
-from drift.suite import HeldoutError, Suite, freeze, load_heldout, load_suite, verify
+from drift.suite import (
+    HeldoutError,
+    NotFrozenError,
+    Suite,
+    freeze,
+    load_heldout,
+    load_suite,
+    verify,
+)
 
 app = typer.Typer(add_completion=False, help=f"drift {__version__}: the frozen-suite drift record")
 items_app = typer.Typer(help="item files")
@@ -55,9 +63,17 @@ BOUNDARY_CONFIG = DRIFT / "config" / "boundary.yaml"
 PROJECT = "ai-release-gate"
 
 
+def _verify_or_exit() -> bool:
+    try:
+        return verify(SUITE_ROOT)
+    except NotFrozenError as e:
+        typer.echo(f"suite is not frozen: {e}", err=True)
+        raise typer.Exit(2) from e
+
+
 def _load_suite_or_exit(*, without_heldout: bool) -> Suite:
     suite = load_suite(SUITE_ROOT)
-    if not verify(SUITE_ROOT):
+    if not _verify_or_exit():
         typer.echo(
             "suite files do not match SUITE_HASH; a changed suite is a new version", err=True
         )
@@ -248,7 +264,7 @@ def suite_verify(
         bool, typer.Option(help="also check the held-out items from the environment")
     ] = False,
 ) -> None:
-    ok = verify(SUITE_ROOT)
+    ok = _verify_or_exit()
     typer.echo("suite matches SUITE_HASH" if ok else "suite DOES NOT match SUITE_HASH")
     if heldout:
         try:

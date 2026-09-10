@@ -161,6 +161,13 @@ def test_cli_panel_providers_and_collect_of_an_empty_month() -> None:
     assert r.exit_code == 1 and "no arm has recorded" in r.output
 
 
+def test_verify_before_freeze_is_a_clear_refusal(suite_root: Path) -> None:
+    from drift.suite import NotFrozenError
+
+    with pytest.raises(NotFrozenError, match="not frozen"):
+        verify(suite_root)
+
+
 def test_repo_system_prompts_document_exists() -> None:
     assert (
         Path(__file__).resolve().parent.parent / "drift" / "suite" / "v1" / "SYSTEM.md"
