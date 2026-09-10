@@ -38,7 +38,9 @@ BLOCK_PREFIX: dict[str, str] = {
 
 _ID = re.compile(r"^[a-z]+-\d{4}(?:-p[12])?$")
 # The characters the plain-punctuation rule forbids: en and em dash, curly quotes, ellipsis.
-_TYPOGRAPHIC = re.compile("[–—‘’“”…]")
+_TYPOGRAPHIC = re.compile(
+    "[" + "".join(chr(c) for c in (0x2013, 0x2014, 0x2018, 0x2019, 0x201C, 0x201D, 0x2026)) + "]"
+)
 MAX_PROMPT_WORDS = 300
 
 

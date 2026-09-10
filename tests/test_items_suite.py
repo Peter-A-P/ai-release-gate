@@ -24,7 +24,8 @@ def test_canonical_is_order_independent() -> None:
 def test_check_item_rules() -> None:
     it = make_items()[0]
     assert check_item(it, grader_names=GRADERS) == []
-    bad = it.model_copy(update={"prompt": "What is 1 — 2?", "grader": "judge"})
+    em_dash = chr(0x2014)
+    bad = it.model_copy(update={"prompt": f"What is 1 {em_dash} 2?", "grader": "judge"})
     problems = check_item(bad, grader_names=GRADERS)
     assert any("typographic" in p for p in problems) and any(
         "unknown grader" in p for p in problems
