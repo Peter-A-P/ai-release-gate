@@ -23,7 +23,7 @@ from drift.analysis.report import (
 )
 from drift.graders import GRADERS, grader
 from drift.items import read_items, validate_file
-from drift.panel import load_panel
+from drift.panel import MODEL_LIST_PATHS, load_panel, parse_model_list, snapshot_alias_pairs
 from drift.runner.run import RunConfig, run_month
 from drift.suite import freeze, load_suite, verify
 
@@ -176,6 +176,45 @@ def panel_show() -> None:
     typer.echo(f"panel v{panel.version}, chosen {panel.chosen or 'NOT YET'}; ready: {panel.ready}")
     for a in panel.arms:
         typer.echo(f"  {a.key:<22} {a.arm:<8} {a.family:<10} {a.explicit}")
+
+
+@panel_app.command("candidates")
+def panel_candidates(
+    provider: Annotated[list[str] | None, typer.Option(help="only these providers")] = None,
+    contains: Annotated[str | None, typer.Option(help="only ids containing this")] = None,
+) -> None:
+    """List the identifiers each vendor currently offers, and the snapshot and alias pairs
+    among them, so the panel can be chosen from the vendors' own lists.
+
+    These are real vendor calls (free: no tokens), made through boundary's escape hatch so
+    they are ledgered. Run them from a network that does not inspect TLS.
+    """
+    from boundary import Gateway
+
+    names = provider or list(MODEL_LIST_PATHS)
+    with Gateway.from_config(BOUNDARY_CONFIG, project=PROJECT) as gw:
+        for name in names:
+            path = MODEL_LIST_PATHS.get(name)
+            if path is None:
+                typer.echo(f"{name}: no model-list endpoint known", err=True)
+                continue
+            resp = gw.raw(name, "GET", path, None, purpose="panel-candidates")
+            if resp.status != 200:
+                detail = resp.body[:200].decode("utf-8", "replace")
+                typer.echo(f"{name}: {resp.status} {detail}", err=True)
+                continue
+            ids = [i for i in parse_model_list(name, resp.json) if not contains or contains in i]
+            pairs = snapshot_alias_pairs(ids)
+            typer.echo("")
+            typer.echo(f"{name}: {len(ids)} identifiers")
+            for i in ids:
+                typer.echo(f"  {i}")
+            if pairs:
+                typer.echo(f"  snapshot and alias pairs ({len(pairs)}):")
+                for snap, alias in pairs:
+                    typer.echo(f"    snapshot {snap}  <->  alias {alias}")
+            else:
+                typer.echo("  no dated snapshot with a matching undated alias")
 
 
 def main() -> None:

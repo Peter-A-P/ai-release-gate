@@ -93,6 +93,13 @@ canonical JSON line) are committed to `drift/suite/heldout/HASHES.txt` and the i
 themselves are kept outside the repository until month 12. Write them in a separate file,
 `heldout-extract.jsonl`, in a folder that is not the repository; the freeze step hashes it.
 
+## Worked examples
+
+`docs/examples/` holds two validated items per hand-written block, in the exact record
+form, covering the three graders you will use. Copy one and change the content rather
+than writing a record from scratch. They pass `drift items validate` and a test asserts
+they keep passing, so they cannot rot.
+
 ## Workflow
 
 1. Write items in a scratch file per block, one JSON object per line.

@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # So the boundary read token can be verified without a dummy commit.
+  workflow_dispatch:
 
 jobs:
   check:

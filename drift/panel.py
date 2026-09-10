@@ -8,13 +8,27 @@ error is the result.
 from __future__ import annotations
 
 import datetime as dt
+import re
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ArmKind = Literal["snapshot", "alias", "control"]
+
+# Where each provider lists the models it currently offers. Paths are relative to the
+# provider base_url in the boundary configuration.
+MODEL_LIST_PATHS: dict[str, str] = {
+    "anthropic": "v1/models?limit=100",
+    "openai": "models",
+    "google": "v1beta/models?pageSize=200",
+    "openweights": "models",
+}
+
+# A dated identifier ends in YYYYMMDD or YYYY-MM-DD; stripping the date gives the alias
+# candidate, which is a pair only when the vendor also offers that undated identifier.
+_DATED = re.compile(r"^(?P<base>.+?)[-@](?P<date>\d{8}|\d{4}-\d{2}-\d{2})$")
 
 
 class Arm(BaseModel):
@@ -61,6 +75,33 @@ class Panel(BaseModel):
             if a.arm == "control":
                 return a
         return None
+
+
+def parse_model_list(provider: str, body: Any) -> list[str]:
+    """Model identifiers from a provider's list endpoint, whatever shape it returns."""
+    if provider == "google":
+        models = body.get("models", []) if isinstance(body, dict) else []
+        return sorted(
+            str(m.get("name", "")).removeprefix("models/") for m in models if isinstance(m, dict)
+        )
+    if isinstance(body, dict) and isinstance(body.get("data"), list):
+        return sorted(str(m.get("id", "")) for m in body["data"] if isinstance(m, dict))
+    if isinstance(body, list):
+        return sorted(str(m.get("id", "")) for m in body if isinstance(m, dict))
+    return []
+
+
+def snapshot_alias_pairs(ids: list[str]) -> list[tuple[str, str]]:
+    """(dated snapshot, floating alias) pairs: a dated id whose undated form the vendor
+    also offers. A vendor with no such pair has nothing to compare an alias against, which
+    is itself a finding for the record."""
+    available = set(ids)
+    pairs: list[tuple[str, str]] = []
+    for i in ids:
+        m = _DATED.match(i)
+        if m and m.group("base") in available:
+            pairs.append((i, m.group("base")))
+    return pairs
 
 
 def load_panel(path: Path) -> Panel:

@@ -91,3 +91,50 @@ def test_repo_system_prompts_document_exists() -> None:
     assert (
         Path(__file__).resolve().parent.parent / "drift" / "suite" / "v1" / "SYSTEM.md"
     ).is_file()
+
+
+def test_parse_model_list_handles_each_vendor_shape() -> None:
+    from drift.panel import parse_model_list
+
+    openai_like = {"data": [{"id": "gpt-x-2026-01-01"}, {"id": "gpt-x"}]}
+    assert parse_model_list("openai", openai_like) == ["gpt-x", "gpt-x-2026-01-01"]
+    anthropic_like = {"data": [{"id": "claude-haiku-4-5-20251001"}]}
+    assert parse_model_list("anthropic", anthropic_like) == ["claude-haiku-4-5-20251001"]
+    google_like = {"models": [{"name": "models/gemini-2.5-flash"}, {"name": "models/gemini-x"}]}
+    assert parse_model_list("google", google_like) == ["gemini-2.5-flash", "gemini-x"]
+    together_like = [{"id": "org/Model-70B"}, {"id": "org/Other"}]
+    assert parse_model_list("openweights", together_like) == ["org/Model-70B", "org/Other"]
+    assert parse_model_list("openai", None) == []
+
+
+def test_snapshot_alias_pairs() -> None:
+    from drift.panel import snapshot_alias_pairs
+
+    ids = [
+        "claude-haiku-4-5",
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-5",
+        "gpt-x",
+        "gpt-x-2026-01-01",
+        "orphan-20250101",
+    ]
+    assert snapshot_alias_pairs(sorted(ids)) == [
+        ("claude-haiku-4-5-20251001", "claude-haiku-4-5"),
+        ("gpt-x-2026-01-01", "gpt-x"),
+    ]
+    # A vendor whose identifiers are all undated has no pair to compare.
+    assert snapshot_alias_pairs(["claude-sonnet-5", "claude-opus-5"]) == []
+
+
+def test_example_items_validate() -> None:
+    """The worked examples shipped for the writing session pass every check."""
+    from drift.graders import GRADERS, grader
+    from drift.items import read_items, validate_file
+
+    examples = Path(__file__).resolve().parent.parent / "docs" / "examples"
+    files = sorted(examples.glob("*.jsonl"))
+    assert len(files) == 3
+    for f in files:
+        assert validate_file(f, grader_names=GRADERS) == []
+        for item in read_items(f):
+            assert grader(item.grader).check_expected(item.expected) == []
