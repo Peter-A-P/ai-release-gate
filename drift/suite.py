@@ -18,7 +18,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from drift.items import Item, ItemError, read_items, read_items_text
+from drift.items import Item, ItemError, check_paraphrases, read_items, read_items_text
 
 SUITE_HASH_FILE = "SUITE_HASH"
 HELDOUT_HASHES_FILE = "HASHES.txt"
@@ -81,6 +81,9 @@ def load_suite(root: Path, version: str = "v1") -> Suite:
                 raise ValueError(f"held-out item {it.id} must not be in the public suite files")
             seen.add(it.id)
             items.append(it)
+    problems = check_paraphrases(items)
+    if problems:
+        raise ValueError("paraphrase block: " + "; ".join(problems))
     return Suite(version=version, items=tuple(items), hash=suite_hash(items))
 
 

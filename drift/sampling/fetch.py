@@ -116,6 +116,12 @@ def _get(url: str) -> bytes:
     raise FetchError(f"{url}: {last} after {RETRIES} attempts")
 
 
+def is_cached(url: str, cache: Path) -> bool:
+    """True when `fetch` would return this URL from the cache without touching the network."""
+    body_path, meta_path = _cache_paths(cache, url)
+    return body_path.is_file() and meta_path.is_file()
+
+
 def fetch(url: str, cache: Path, *, refresh: bool = False) -> tuple[bytes, str]:
     """The bytes at a URL and the date they were fetched, through the cache.
 

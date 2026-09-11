@@ -177,6 +177,34 @@ plan did not settle:
   before freeze (a boxed `1,3` read as the number 13). That check is part of the process, not
   optional.
 
+**The generated items (done 2026-09-11, seed 20260927, 60 items).** Recorded in
+`drift/suite/v1/LONGCONTEXT.json` and explained in [docs/long-context.md](docs/long-context.md).
+Decisions taken that the plan did not settle:
+
+- **Long-context passages are windows of twenty Project Gutenberg novels**, one passage per
+  book, sized in words because the repository has no tokenizer: 8,000 tokens at the sampler's
+  1.4 tokens per word is 5,714 words, and the passages came out at 5,724 to 5,859. The planted
+  fact is an invented sentence whose answer is a made-up name or a bare number that the
+  generator confirms appears nowhere else in the passage, planted at a seeded paragraph
+  boundary between 10% and 90% of the way through; the depth is recorded per item so a change
+  on this block can be read against position. Invented facts, not questions about the book,
+  because every model on the panel has read these novels. Three books were dropped in the
+  first pass and replaced: one because its Gutenberg file is a copyrighted modern translation,
+  two because the sampled passages carried language section 8 says not to publish. The
+  generator now refuses any file whose header marks it copyrighted.
+- **The paraphrase parents are twenty GSM8K items chosen from the seed**, not MATH items. A
+  GSM8K problem is prose, so rewording it tests sensitivity to wording; a MATH problem is
+  mostly notation and rewording it either changes nothing or changes the problem. The two
+  paraphrases per parent were drafted by the assistant for Peter's review, as
+  `docs/writing-items.md` said they would be, and the suite loader enforces that each keeps
+  the parent's grader, answer, system prompt and every number, so a paraphrase that quietly
+  changed a quantity cannot enter the suite. Ids name the parent (`para-1017-p1` rephrases
+  `reason-1017`).
+- **Exact match on the recall block is strict on purpose.** "Bramblewick." passes, "The cat
+  was called Bramblewick" does not. The system prompt asks for the answer only and the rule is
+  the same every month, so it lowers the baseline rather than creating a false signal, the same
+  argument sampling.md makes for `ends_with`.
+
 ## 4. Statistics
 
 - **Accuracy CI:** percentile bootstrap over items, 2,000 resamples, reported as
@@ -237,7 +265,8 @@ Layout:
 
 ```
 drift/
-  suite/v1/           frozen items, one JSONL per block, plus SUITE_HASH
+  suite/v1/           frozen items, one JSONL per block and source, plus SUITE_HASH and the
+                      SOURCES.json and LONGCONTEXT.json manifests of the draw and the generation
   suite/heldout/      hashes only until month 12
   panel.yaml          model identifiers, arms, provider, date chosen
   runner/             call, retry, record
@@ -283,7 +312,7 @@ items.
 | Date | Step | Output |
 |---|---|---|
 | Sep 8 - 12 | Repo scaffold, item schema, grader modules with tests | `drift/graders` green in CI |
-| Sep 12 - 16 | Sample and freeze public items; write 90 hand-written items; grade by hand twice | `drift/suite/v1` and `SUITE_HASH` committed; held-out hashes committed. **Public draw done 2026-09-10: 270 items, `SOURCES.json` committed. The 90 hand-written items and the 60 generated ones are what the freeze now waits on** |
+| Sep 12 - 16 | Sample and freeze public items; write 90 hand-written items; grade by hand twice | `drift/suite/v1` and `SUITE_HASH` committed; held-out hashes committed. **Public draw done 2026-09-10: 270 items, `SOURCES.json` committed. Generated items done 2026-09-11: 20 long-context and 40 paraphrase items, `LONGCONTEXT.json` committed. The freeze now waits on the 90 hand-written items and on Peter's review of the 40 paraphrases** |
 | Sep 16 - 19 | Runner with raw HTTP per vendor, retry policy, spend cap, JSONL recording | Dry run on 20 items, 1 repeat, all arms |
 | Sep 19 - 21 | Analysis and report rendering; regrade-from-store path | Report renders from the dry run |
 | Sep 22 - 24 | Full dry run (all items, k = 5) after vendor caps are set | Cost check against section 6; fix graders that misfire |

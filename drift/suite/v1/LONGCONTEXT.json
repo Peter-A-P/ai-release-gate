@@ -1,0 +1,416 @@
+{
+  "generator_version": 1,
+  "generated_on": "2026-09-11",
+  "seed": 20260927,
+  "target_tokens": 8000,
+  "tokens_per_word_assumed": 1.4,
+  "target_words": 5714,
+  "depth_range": [
+    0.1,
+    0.9
+  ],
+  "items_total": 20,
+  "licence": "Public domain (United States); Project Gutenberg boilerplate removed",
+  "items": [
+    {
+      "id": "recall-1001",
+      "gutenberg_id": 1400,
+      "title": "Great Expectations",
+      "author": "Charles Dickens",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/1400/pg1400.txt",
+        "payload_sha256": "9a637118af8e953e9764ec603d9b0a032883384d465acac2e27966a80cf1c6f8",
+        "fetched": "2026-09-11",
+        "rows_upstream": 3915,
+        "paragraphs": 3915
+      },
+      "window": [
+        2118,
+        2225
+      ],
+      "words": 5764,
+      "fact": "bridge",
+      "depth": 0.1339
+    },
+    {
+      "id": "recall-1002",
+      "gutenberg_id": 1342,
+      "title": "Pride and Prejudice",
+      "author": "Jane Austen",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/1342/pg1342.txt",
+        "payload_sha256": "3f6bb9d6f78e0293b56acd4714dd68cb7d6d1d293402031ce9d5a216bcaf9d75",
+        "fetched": "2026-09-11",
+        "rows_upstream": 2509,
+        "paragraphs": 2509
+      },
+      "window": [
+        1462,
+        1589
+      ],
+      "words": 5857,
+      "fact": "strongbox",
+      "depth": 0.453
+    },
+    {
+      "id": "recall-1003",
+      "gutenberg_id": 2701,
+      "title": "Moby-Dick; or, The Whale",
+      "author": "Herman Melville",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/2701/pg2701.txt",
+        "payload_sha256": "907420db6c4b68c70e2988cd2ad9c8cf79138667a01b63376d18dd17fef1a18b",
+        "fetched": "2026-09-11",
+        "rows_upstream": 2802,
+        "paragraphs": 2802
+      },
+      "window": [
+        2288,
+        2386
+      ],
+      "words": 5775,
+      "fact": "millwheel",
+      "depth": 0.6767
+    },
+    {
+      "id": "recall-1004",
+      "gutenberg_id": 1260,
+      "title": "Jane Eyre",
+      "author": "Charlotte Bronte",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/1260/pg1260.txt",
+        "payload_sha256": "13414dee2951c3ee731d76d2ffd822016b2479c892162760c5d0eb2aa5fa7631",
+        "fetched": "2026-09-11",
+        "rows_upstream": 4115,
+        "paragraphs": 4115
+      },
+      "window": [
+        2078,
+        2158
+      ],
+      "words": 5753,
+      "fact": "packet",
+      "depth": 0.165
+    },
+    {
+      "id": "recall-1005",
+      "gutenberg_id": 1661,
+      "title": "The Adventures of Sherlock Holmes",
+      "author": "Arthur Conan Doyle",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/1661/pg1661.txt",
+        "payload_sha256": "922e2a12ccb43a4c9544c260b2166c6ad2097aeb5957faeee113f173bb857cd0",
+        "fetched": "2026-09-11",
+        "rows_upstream": 2546,
+        "paragraphs": 2546
+      },
+      "window": [
+        1163,
+        1301
+      ],
+      "words": 5816,
+      "fact": "printer",
+      "depth": 0.1771
+    },
+    {
+      "id": "recall-1006",
+      "gutenberg_id": 84,
+      "title": "Frankenstein; or, The Modern Prometheus",
+      "author": "Mary Shelley",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/84/pg84.txt",
+        "payload_sha256": "7810cd483cffcf2cc8a1d8f0d5807931e69d4f48cd14149b8c76f88af82fead3",
+        "fetched": "2026-09-11",
+        "rows_upstream": 797,
+        "paragraphs": 797
+      },
+      "window": [
+        151,
+        224
+      ],
+      "words": 5749,
+      "fact": "physician",
+      "depth": 0.8022
+    },
+    {
+      "id": "recall-1007",
+      "gutenberg_id": 98,
+      "title": "A Tale of Two Cities",
+      "author": "Charles Dickens",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/98/pg98.txt",
+        "payload_sha256": "d54c2b80d40a40b982cd88852c6180bb944d95acdb028af3d0e01a1750681784",
+        "fetched": "2026-09-11",
+        "rows_upstream": 3327,
+        "paragraphs": 3327
+      },
+      "window": [
+        2320,
+        2418
+      ],
+      "words": 5731,
+      "fact": "bell",
+      "depth": 0.547
+    },
+    {
+      "id": "recall-1008",
+      "gutenberg_id": 345,
+      "title": "Dracula",
+      "author": "Bram Stoker",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/345/pg345.txt",
+        "payload_sha256": "96cd16eacdbfebae8fdda5591f66e0cc8ee76be18e0cd1aca02bc00615782d28",
+        "fetched": "2026-09-11",
+        "rows_upstream": 2190,
+        "paragraphs": 2190
+      },
+      "window": [
+        308,
+        373
+      ],
+      "words": 5792,
+      "fact": "horse",
+      "depth": 0.1664
+    },
+    {
+      "id": "recall-1009",
+      "gutenberg_id": 145,
+      "title": "Middlemarch",
+      "author": "George Eliot",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/145/pg145.txt",
+        "payload_sha256": "dc2e0107e6ae07e8e33da934b2ec4e8e600826a2e0cd48df265119cd02e5fb50",
+        "fetched": "2026-09-11",
+        "rows_upstream": 4786,
+        "paragraphs": 4786
+      },
+      "window": [
+        3171,
+        3258
+      ],
+      "words": 5826,
+      "fact": "coach",
+      "depth": 0.8215
+    },
+    {
+      "id": "recall-1010",
+      "gutenberg_id": 768,
+      "title": "Wuthering Heights",
+      "author": "Emily Bronte",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/768/pg768.txt",
+        "payload_sha256": "e533fe750589f0421d5d744576315f5c2b9b0d69e981179ea0551bbf134c5e02",
+        "fetched": "2026-09-11",
+        "rows_upstream": 1978,
+        "paragraphs": 1978
+      },
+      "window": [
+        1139,
+        1264
+      ],
+      "words": 5794,
+      "fact": "signpainter",
+      "depth": 0.3157
+    },
+    {
+      "id": "recall-1011",
+      "gutenberg_id": 120,
+      "title": "Treasure Island",
+      "author": "Robert Louis Stevenson",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/120/pg120.txt",
+        "payload_sha256": "5bc08275eacea8640b1aa185c645283bb8c564d7b23df6b03437d229b4fc6ebd",
+        "fetched": "2026-09-11",
+        "rows_upstream": 1436,
+        "paragraphs": 1436
+      },
+      "window": [
+        851,
+        970
+      ],
+      "words": 5779,
+      "fact": "buoy",
+      "depth": 0.425
+    },
+    {
+      "id": "recall-1012",
+      "gutenberg_id": 174,
+      "title": "The Picture of Dorian Gray",
+      "author": "Oscar Wilde",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/174/pg174.txt",
+        "payload_sha256": "38f36b510417177aa87a6a24c968e3ec63a447b7df36a9c1a7c5a3f2d9e51547",
+        "fetched": "2026-09-11",
+        "rows_upstream": 1525,
+        "paragraphs": 1525
+      },
+      "window": [
+        180,
+        334
+      ],
+      "words": 5757,
+      "fact": "village",
+      "depth": 0.7289
+    },
+    {
+      "id": "recall-1013",
+      "gutenberg_id": 158,
+      "title": "Emma",
+      "author": "Jane Austen",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/158/pg158.txt",
+        "payload_sha256": "532b122b4e6a76cc556d6fdcd729b5892f5c4ce4a1b7060b9f832adfad8680dc",
+        "fetched": "2026-09-11",
+        "rows_upstream": 2382,
+        "paragraphs": 2382
+      },
+      "window": [
+        1725,
+        1795
+      ],
+      "words": 5859,
+      "fact": "strongroom",
+      "depth": 0.4363
+    },
+    {
+      "id": "recall-1014",
+      "gutenberg_id": 45,
+      "title": "Anne of Green Gables",
+      "author": "L. M. Montgomery",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/45/pg45.txt",
+        "payload_sha256": "89a5e9fb2e0bb44562a969785385366f94e1da736aebee7d9cdf459eb0b5f9f6",
+        "fetched": "2026-09-11",
+        "rows_upstream": 1831,
+        "paragraphs": 1831
+      },
+      "window": [
+        1614,
+        1688
+      ],
+      "words": 5746,
+      "fact": "marrow",
+      "depth": 0.5804
+    },
+    {
+      "id": "recall-1015",
+      "gutenberg_id": 36,
+      "title": "The War of the Worlds",
+      "author": "H. G. Wells",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/36/pg36.txt",
+        "payload_sha256": "8417469e3ab664749f7b36ebb85799075818207b0380b54c27d07d592a44117d",
+        "fetched": "2026-09-11",
+        "rows_upstream": 921,
+        "paragraphs": 921
+      },
+      "window": [
+        622,
+        687
+      ],
+      "words": 5825,
+      "fact": "telescope",
+      "depth": 0.127
+    },
+    {
+      "id": "recall-1016",
+      "gutenberg_id": 105,
+      "title": "Persuasion",
+      "author": "Jane Austen",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/105/pg105.txt",
+        "payload_sha256": "64ffb821b9e9eb1040c103a44c28893c94ebe33ffbb911288b5022efaecbfefc",
+        "fetched": "2026-09-11",
+        "rows_upstream": 1040,
+        "paragraphs": 1040
+      },
+      "window": [
+        765,
+        859
+      ],
+      "words": 5859,
+      "fact": "ferry",
+      "depth": 0.206
+    },
+    {
+      "id": "recall-1017",
+      "gutenberg_id": 113,
+      "title": "The Secret Garden",
+      "author": "Frances Hodgson Burnett",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/113/pg113.txt",
+        "payload_sha256": "6b0bb5fbd0c4e873d2d22028da9d753cf3977d5f70ac58221556b28060badbf5",
+        "fetched": "2026-09-11",
+        "rows_upstream": 2166,
+        "paragraphs": 2166
+      },
+      "window": [
+        1843,
+        1948
+      ],
+      "words": 5773,
+      "fact": "apothecary",
+      "depth": 0.7433
+    },
+    {
+      "id": "recall-1018",
+      "gutenberg_id": 766,
+      "title": "David Copperfield",
+      "author": "Charles Dickens",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/766/pg766.txt",
+        "payload_sha256": "51650d348820a64ca4d4233da035f804819d2231801b59373db4e1279a1985e0",
+        "fetched": "2026-09-11",
+        "rows_upstream": 7192,
+        "paragraphs": 7192
+      },
+      "window": [
+        6542,
+        6636
+      ],
+      "words": 5724,
+      "fact": "apprentice",
+      "depth": 0.3896
+    },
+    {
+      "id": "recall-1019",
+      "gutenberg_id": 514,
+      "title": "Little Women",
+      "author": "Louisa May Alcott",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/514/pg514.txt",
+        "payload_sha256": "677d034b4a3d1cea92d075939878f852a7a3ec757dc9ed05ef0c40cab5c1e6de",
+        "fetched": "2026-09-11",
+        "rows_upstream": 3869,
+        "paragraphs": 3869
+      },
+      "window": [
+        3492,
+        3614
+      ],
+      "words": 5727,
+      "fact": "daughter",
+      "depth": 0.8378
+    },
+    {
+      "id": "recall-1020",
+      "gutenberg_id": 289,
+      "title": "The Wind in the Willows",
+      "author": "Kenneth Grahame",
+      "fetch": {
+        "url": "https://www.gutenberg.org/cache/epub/289/pg289.txt",
+        "payload_sha256": "98f6b6cda20087857cefe9121b71d6166c1b92423bb7645fdba3c45ff0c141e8",
+        "fetched": "2026-09-11",
+        "rows_upstream": 934,
+        "paragraphs": 934
+      },
+      "window": [
+        516,
+        589
+      ],
+      "words": 5761,
+      "fact": "cat",
+      "depth": 0.5325
+    }
+  ]
+}

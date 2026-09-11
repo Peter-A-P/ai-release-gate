@@ -36,7 +36,7 @@ religions.
 
 The other 150 items of the planned 420 are not sampled: 90 are hand-written
 ([writing-items.md](writing-items.md)), 20 are generated long-context items and 40 are
-paraphrases of sampled reasoning items.
+paraphrases of sampled reasoning items ([long-context.md](long-context.md) covers both).
 
 ## What was rejected, and why that is published
 

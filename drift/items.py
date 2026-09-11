@@ -55,6 +55,10 @@ SYSTEM_PROMPTS: dict[str, str] = {
 SYSTEM_PROMPTS["paraphrase_robustness"] = SYSTEM_PROMPTS["closed_form_reasoning"]
 
 _ID = re.compile(r"^[a-z]+-\d{4}(?:-p[12])?$")
+_PARA_ID = re.compile(r"^para-(\d{4})-p([12])$")
+# Every number in a prompt, comma grouping included, so a paraphrase can be checked to keep
+# exactly the quantities of the problem it rephrases.
+_NUMBERS = re.compile(r"\d[\d,]*(?:\.\d+)?")
 # The characters the plain-punctuation rule forbids: en and em dash, curly quotes, ellipsis.
 TYPOGRAPHIC = re.compile(
     "[" + "".join(chr(c) for c in (0x2013, 0x2014, 0x2018, 0x2019, 0x201C, 0x201D, 0x2026)) + "]"
@@ -118,6 +122,64 @@ def check_item(item: Item, *, grader_names: Iterable[str], long_context: bool = 
         problems.append("paraphrase items need parent_id")
     if item.block != "paraphrase_robustness" and item.parent_id:
         problems.append("parent_id is only for paraphrase items")
+    return problems
+
+
+def numbers_in(text: str) -> list[str]:
+    """The numbers in a text, in order, commas removed: "$5,000" gives "5000"."""
+    return sorted(n.replace(",", "").rstrip(".") for n in _NUMBERS.findall(text))
+
+
+def check_paraphrase(item: Item, parent: Item) -> list[str]:
+    """A paraphrase is the parent's problem in other words: same grader, same expected value,
+    same system prompt, every number kept, and not the parent's text verbatim. The id names
+    the parent (`para-1017-p1` rephrases `reason-1017`)."""
+    problems: list[str] = []
+    m = _PARA_ID.match(item.id)
+    if m is None or f"reason-{m.group(1)}" != parent.id:
+        problems.append(f"id {item.id!r} does not name its parent {parent.id!r}")
+    if parent.block != "closed_form_reasoning":
+        problems.append(f"parent {parent.id} is not a closed-form reasoning item")
+    if item.grader != parent.grader:
+        problems.append(f"grader {item.grader!r} differs from the parent's {parent.grader!r}")
+    if item.expected != parent.expected:
+        problems.append("expected value differs from the parent's")
+    if item.system != parent.system:
+        problems.append("system prompt differs from the parent's")
+    if " ".join(item.prompt.split()).casefold() == " ".join(parent.prompt.split()).casefold():
+        problems.append("prompt is the parent's text, not a paraphrase")
+    mine, theirs = numbers_in(item.prompt), numbers_in(parent.prompt)
+    if mine != theirs:
+        problems.append(f"numbers {mine} differ from the parent's {theirs}")
+    return problems
+
+
+def check_paraphrases(items: Iterable[Item]) -> list[str]:
+    """Suite-level rules for the paraphrase block: every paraphrase has its parent in the
+    suite and passes `check_paraphrase`; every parent that has one paraphrase has both, and
+    the two differ from each other."""
+    all_items = list(items)
+    by_id = {it.id: it for it in all_items}
+    problems: list[str] = []
+    siblings: dict[str, list[Item]] = {}
+    for it in all_items:
+        if it.block != "paraphrase_robustness":
+            continue
+        parent = by_id.get(it.parent_id or "")
+        if parent is None:
+            problems.append(f"{it.id}: parent {it.parent_id!r} is not in the suite")
+            continue
+        problems.extend(f"{it.id}: {p}" for p in check_paraphrase(it, parent))
+        siblings.setdefault(parent.id, []).append(it)
+    for parent_id, sibs in sorted(siblings.items()):
+        suffixes = sorted(s.id.rsplit("-", 1)[1] for s in sibs)
+        if suffixes != ["p1", "p2"]:
+            problems.append(f"{parent_id}: paraphrases {suffixes}, expected exactly p1 and p2")
+        elif (
+            " ".join(sibs[0].prompt.split()).casefold()
+            == " ".join(sibs[1].prompt.split()).casefold()
+        ):
+            problems.append(f"{parent_id}: its two paraphrases are the same text")
     return problems
 
 

@@ -1,5 +1,5 @@
-"""Command line: drift run | collect | replay | report | sample | items validate | suite freeze
-| suite verify | panel show | panel providers | panel candidates.
+"""Command line: drift run | collect | replay | report | sample | longcontext | items validate
+| suite freeze | suite verify | panel show | panel providers | panel candidates.
 
 Paths default to the repository layout in PLAN.md section 5. The runner's boundary
 configuration lives in drift/config so the drift record owns its own price snapshot.
@@ -35,6 +35,7 @@ from drift.items import read_items, validate_file
 from drift.panel import MODEL_LIST_PATHS, Arm, load_panel, parse_model_list, snapshot_alias_pairs
 from drift.runner.records import summarise_month
 from drift.runner.run import Callers, RunConfig, run_month
+from drift.sampling import longcontext, paraphrase
 from drift.sampling.sample import (
     DEFAULT_SEED,
     SOURCES,
@@ -60,9 +61,11 @@ app = typer.Typer(add_completion=False, help=f"drift {__version__}: the frozen-s
 items_app = typer.Typer(help="item files")
 suite_app = typer.Typer(help="the frozen suite")
 panel_app = typer.Typer(help="the model panel")
+paraphrase_app = typer.Typer(help="the paraphrase robustness block")
 app.add_typer(items_app, name="items")
 app.add_typer(suite_app, name="suite")
 app.add_typer(panel_app, name="panel")
+app.add_typer(paraphrase_app, name="paraphrase")
 
 ROOT = Path(__file__).resolve().parent.parent
 DRIFT = ROOT / "drift"
@@ -291,6 +294,85 @@ def sample(
         raise typer.Exit(1 if problems else 0)
     path = write_draws(SUITE_ROOT, draws, items, seed=seed, sampled_on=sampled_on)
     typer.echo(f"{sum(len(v) for v in items.values())} items written; manifest {path.name}")
+
+
+@app.command("longcontext")
+def longcontext_(
+    seed: int = DEFAULT_SEED,
+    check: Annotated[
+        bool,
+        typer.Option(
+            "--check", help="compare a fresh generation with the file on disk, write nothing"
+        ),
+    ] = False,
+    refresh: Annotated[
+        bool, typer.Option("--refresh", help="re-fetch the books instead of using the cache")
+    ] = False,
+    cache: Path = ROOT / ".cache" / "sources",
+) -> None:
+    """Generate the long-context recall block of suite v1 from public-domain texts, once
+    (PLAN.md section 3): one passage per book, one invented fact planted at a seeded depth.
+
+    Writes drift/suite/v1/long_context_recall-gutenberg.jsonl and LONGCONTEXT.json, and refuses
+    to run against a frozen suite. --check regenerates into memory and reports any difference
+    from the file, which is how the published passages are audited after the freeze.
+    """
+    loaded = []
+    for book in longcontext.BOOKS:
+        paras, provenance = longcontext.load_book(book, cache, refresh=refresh)
+        loaded.append((paras, provenance))
+        typer.echo(f"{book.title}: {len(paras)} paragraphs, {provenance.sha256[:16]}")
+    generated_on = today()
+    generated = longcontext.generate(longcontext.BOOKS, loaded, seed=seed)
+    items = longcontext.items_for(generated, seed=seed, generated_on=generated_on)
+    for g, it in zip(generated, items, strict=True):
+        p = g.passage
+        typer.echo(
+            f"{it.id}: {p.book.title}, paragraphs {p.start} to {p.end - 1}, {p.words} words, "
+            f"fact {p.fact.key} at depth {p.depth:.2f}"
+        )
+    if check:
+        problems = longcontext.differences(SUITE_ROOT, items)
+        for pr in problems:
+            typer.echo(pr, err=True)
+        typer.echo(
+            "the file on disk is the generation for this seed"
+            if not problems
+            else f"{len(problems)} file(s) differ from the generation"
+        )
+        raise typer.Exit(1 if problems else 0)
+    path = longcontext.write(SUITE_ROOT, generated, items, seed=seed, generated_on=generated_on)
+    typer.echo(f"{len(items)} items written; manifest {path.name}")
+
+
+@paraphrase_app.command("parents")
+def paraphrase_parents(seed: int = DEFAULT_SEED, prompts: bool = False) -> None:
+    """The seeded choice of the twenty reasoning items the paraphrase block rephrases
+    (PLAN.md section 3), from the suite files on disk. The paraphrases are written by hand
+    against this list; `drift paraphrase check` confirms the file matches it."""
+    for it in paraphrase.parents(load_suite(SUITE_ROOT).items, seed=seed):
+        typer.echo(f"{it.id}  {it.expected['value']:g}")
+        if prompts:
+            typer.echo(f"  {it.prompt}\n")
+
+
+@paraphrase_app.command("check")
+def paraphrase_check(seed: int = DEFAULT_SEED) -> None:
+    """The paraphrase file rephrases exactly the seeded parents, two paraphrases each. The
+    per-item rules (same grader, same answer, every number kept) are enforced when the suite
+    loads, so a file that breaks them fails before this runs."""
+    suite = load_suite(SUITE_ROOT)
+    want = [it.id for it in paraphrase.parents(suite.items, seed=seed)]
+    paras = [it for it in suite.items if it.block == "paraphrase_robustness"]
+    have = paraphrase.parent_ids_in(paras)
+    missing = sorted(set(want) - set(have))
+    extra = sorted(set(have) - set(want))
+    for pid in missing:
+        typer.echo(f"{pid}: no paraphrases yet", err=True)
+    for pid in extra:
+        typer.echo(f"{pid}: paraphrased but not among the seeded parents", err=True)
+    typer.echo(f"{len(paras)} paraphrases of {len(have)} parents; {len(want)} parents expected")
+    raise typer.Exit(1 if missing or extra else 0)
 
 
 @items_app.command("validate")
