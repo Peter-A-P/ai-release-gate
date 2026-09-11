@@ -186,30 +186,87 @@ What only you can do:
 
 ## The second pass
 
-Rule 7 says write the item, then a day later re-derive the expected value without looking at
-the first answer. `drift items secondpass` runs exactly that:
+Rule 7 says check the answer key again, independently, a day after writing it. `drift items
+secondpass` runs that, asking each block the cheapest question that still proves what that
+block needs proved.
+
+| Block | What it asks | You type | Blind |
+|---|---|---|---|
+| Structured extraction | The passage, then one key at a time | The value for each key | yes |
+| Instruction following | The prompt, then the checker's rules in plain English | y or n | no |
+| Refusal calibration | The request | a or r | yes |
+| Paraphrase robustness | The parent problem and the reworded one, side by side | y or n | no |
+
+**Extraction stays blind, and it is the only one that has to be.** Whether two careful readers
+pull the same value out of a passage is exactly what that block is for, so the answer key is
+withheld and you type what you read. Nothing is typed as JSON: it asks key by key, with the
+type it needs, and builds the object for you. `14,200` and `14200` are both accepted; a value
+of the wrong type is asked for again rather than counted as a disagreement, because a typo is
+not a second opinion.
+
+**The other three are comparisons, not derivations.** For instruction following there is no
+value to re-derive, because the constraints are written down. What can be wrong is the prompt,
+which may fail to say what the checker will check, and then every model fails that item every
+month for a reason that is not the model's. So it shows the rules in plain English, including
+how the checker really applies them, and asks whether the prompt says all of that. That is the
+same defect [sampling.md](sampling.md) rejected 372 IFEval rows to avoid, tested directly and
+in a few seconds. Satisfiability, the thing writing an answer out would prove, is already
+proved by machine: a stored compliant answer for every one of those 30 items is graded in
+`tests/test_hand_items.py`.
+
+For a paraphrase the parent is the ground truth and it is on screen, so the question is whether
+the two ask the same thing. The loader already refuses a paraphrase that changed a number, the
+grader or the answer.
+
+`--blind` restores the slower, stronger form on the two comparison blocks: write a compliant
+answer, or work out the paraphrase's answer, and let the grader judge it. Worth spending on a
+sample rather than on all seventy.
+
+### The order to do them in, and what each costs
 
 ```powershell
+# 1. Five extraction items first, as a canary: if the passages are systematically ambiguous,
+#    you want to know that before doing forty of them.
+uv run drift items secondpass drift/suite/v1/structured_extraction-hand.jsonl --limit 5
+
+# 2. The rest of the extraction items, public then held out. This is the bulk of the time.
 uv run drift items secondpass drift/suite/v1/structured_extraction-hand.jsonl
+uv run drift items secondpass ..\03-ai-release-gate-heldout\heldout-extract.jsonl
+
+# 3. The quick ones, in any order.
 uv run drift items secondpass drift/suite/v1/instruction_following-hand.jsonl
 uv run drift items secondpass drift/suite/v1/refusal_calibration-hand.jsonl
 uv run drift items secondpass drift/suite/v1/paraphrase_robustness-gsm8k.jsonl
-uv run drift items secondpass ..\03-ai-release-gate-heldout\heldout-extract.jsonl
+
+# 4. A spot check with the stronger form, on a handful.
+uv run drift items secondpass drift/suite/v1/instruction_following-hand.jsonl --redo --blind --limit 5
 ```
 
-It shows each item's prompt with the expected value withheld, takes your answer, and grades it
-with the item's own grader. What it asks depends on the block: type the JSON for an extraction
-item, write a compliant answer for an instruction item, type `answer` or `refuse` for a
-refusal item, type the number for a paraphrase. End a typed answer with a line containing only
-a full stop.
+| File | Items | Keystrokes each | Rough time |
+|---|---:|---|---:|
+| structured_extraction-hand | 20 | four values | 15 to 20 min |
+| heldout-extract | 20 | four values | 15 to 20 min |
+| instruction_following-hand | 30 | one | 8 min |
+| paraphrase_robustness-gsm8k | 40 | one | 8 min |
+| refusal_calibration-hand | 20 | one | 4 min |
 
-On agreement it writes `second pass <date>` into that item's `source` at once, so an
-interrupted session keeps what it earned and `--redo` is only needed to go over an item again.
-On disagreement it prints both answers, leaves the item pending, and one of the two is wrong:
-rewrite the item or drop it. `--only <id>` comes back to a single item.
+About an hour in total, and it does not have to be in one sitting.
 
-`drift items summary <file>` gives a one-screen view of any file: blocks, graders, which
-constraint types it leans on, which schema field types it covers, and what is still pending.
+### While you are in it
+
+- **Ctrl-C loses nothing.** Every agreement is written into the file the moment it is made,
+  so the next run picks up exactly where the last one stopped. `--limit N` stops after N items
+  on purpose; `--only <id>` comes back to one.
+- **Enter on the first value skips an item**, leaving it pending, for anything you want to
+  think about rather than decide now.
+- **A disagreement prints both answers and leaves the item pending.** One of the two is wrong.
+  If the item is wrong, edit it in the file and run `--only <id>` again. If you were wrong, run
+  `--only <id>` again and answer as you now read it. A disagreement on a re-check also
+  withdraws any earlier agreement, so a doubtful item cannot slip through still marked as
+  checked.
+- **The refusal block is also where you satisfy PLAN.md section 8.** Ten of those items are
+  published in full, so read them rather than just pressing r.
+- `drift items summary <file>` at any point shows what is left.
 
 ## The freeze gate
 

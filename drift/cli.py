@@ -15,10 +15,11 @@ from __future__ import annotations
 
 import json
 import sys
+import textwrap
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 
@@ -32,7 +33,7 @@ from drift.analysis.report import (
     write_readme,
 )
 from drift.graders import GRADERS, grader
-from drift.items import pending_review, read_items, validate_file, write_items
+from drift.items import Item, read_items, validate_file, write_items
 from drift.panel import MODEL_LIST_PATHS, Arm, load_panel, parse_model_list, snapshot_alias_pairs
 from drift.runner.records import summarise_month
 from drift.runner.run import Callers, RunConfig, run_month
@@ -404,12 +405,15 @@ def items_summary(path: Path) -> None:
         typer.echo(line)
 
 
-def _read_block(kind: str) -> str | None:
-    """One typed answer. A single line for a choice; otherwise lines until a lone full stop,
-    so a bulleted or multi-paragraph answer can be typed in full. None at end of input."""
-    if kind == "choice":
-        line = sys.stdin.readline()
-        return None if line == "" else line.strip()
+def _ask(label: str) -> str | None:
+    """One typed line, with the cursor left on the same line. None at end of input."""
+    typer.echo(label, nl=False)
+    line = sys.stdin.readline()
+    return None if line == "" else line.rstrip("\n")
+
+
+def _read_free_text() -> str | None:
+    """Lines until a lone full stop, so a bulleted or multi-paragraph answer can be typed."""
     lines: list[str] = []
     while True:
         line = sys.stdin.readline()
@@ -420,6 +424,40 @@ def _read_block(kind: str) -> str | None:
         lines.append(line.rstrip("\n"))
 
 
+def _wrap(text: str, width: int = 94) -> str:
+    """A prompt laid out to be read quickly, its paragraphs kept apart."""
+    return "\n\n".join(
+        textwrap.fill(para.strip(), width=width) for para in text.split("\n\n") if para.strip()
+    )
+
+
+def _read_fields(question: review.Question) -> str | None:
+    """One value per key, typed as itself, assembled into the JSON a model would return.
+
+    Nothing is typed as JSON: no braces, no quotes, no commas between keys. An empty first
+    value skips the item; a value of the wrong type is asked for again rather than counted
+    as a disagreement, because a typo is not a second opinion.
+    """
+    values: dict[str, Any] = {}
+    for n, spec in enumerate(question.fields):
+        while True:
+            typed = _ask(f"  {spec.key} ({spec.hint}): ")
+            if typed is None:
+                return None
+            if not typed.strip():
+                if n == 0:
+                    return ""
+                typer.echo(f"  {spec.key} needs a value (Ctrl-C to stop for now)")
+                continue
+            try:
+                values[spec.key] = review.coerce_field(spec, typed)
+            except review.FieldError as e:
+                typer.echo(f"  {e}")
+                continue
+            break
+    return json.dumps(values, ensure_ascii=False)
+
+
 @items_app.command("secondpass")
 def items_secondpass(
     path: Path,
@@ -428,16 +466,28 @@ def items_secondpass(
     redo: Annotated[
         bool, typer.Option("--redo", help="include items already second-passed")
     ] = False,
+    blind: Annotated[
+        bool,
+        typer.Option(
+            "--blind",
+            help="the slower, stronger form: write a compliant answer or work out the number,"
+            " instead of confirming the item against its rules",
+        ),
+    ] = False,
+    limit: Annotated[int | None, typer.Option(help="stop after this many items")] = None,
 ) -> None:
-    """The blind second pass over a hand-written item file (docs/writing-items.md rule 7).
+    """The second pass over a hand-written item file (docs/writing-items.md rule 7).
 
-    Shows each item's prompt with its expected value withheld, takes your answer, and grades
-    it with the item's own grader. On agreement the pass and its date are written into
-    `source` straight away, so an interrupted session keeps what it earned. On disagreement
-    the item is left pending and both answers are shown, and one of the two is wrong.
+    Each block is asked the cheapest question that still proves what it needs to prove.
+    Extraction is blind and stays blind: the passage is shown, the answer key is not, and you
+    type a value per key with no JSON to write. Instruction following shows the checker's rules
+    in plain English and asks whether the prompt states them. Refusal asks a or r. A paraphrase
+    is shown beside its parent. `--blind` restores the slower form for the last two.
 
-    Type your answer, then a line containing only a full stop. Exits 1 while any item is
-    still pending, which is also what `drift suite freeze` refuses on.
+    On agreement the pass and its date go into `source` at once, so Ctrl-C loses nothing and
+    the next run picks up where this one stopped. A disagreement leaves the item pending and
+    withdraws any earlier agreement. Exits 1 while anything in the file is still pending, which
+    is what `drift suite freeze` refuses on.
     """
     on = date or today()
     items = list(read_items(path))
@@ -448,27 +498,58 @@ def items_secondpass(
         and it.block in review.REVIEWABLE
         and (redo or review.needs_second_pass(it))
     ]
+    if limit is not None:
+        chosen = chosen[:limit]
     if not chosen:
         typer.echo(f"{path.name}: nothing to second-pass (use --redo to go over them again)")
         return
+    # Paraphrases are shown beside the item they reword, which lives in the suite, not here.
+    parents: dict[str, Item] = {}
+    if any(items[i].block == "paraphrase_robustness" for i in chosen):
+        parents = {it.id: it for it in load_suite(SUITE_ROOT).items}
     agreed: list[str] = []
     disagreed: list[str] = []
-    for i in chosen:
-        question = review.question_for(items[i])
+    skipped: list[str] = []
+    for done, i in enumerate(chosen):
+        item = items[i]
+        question = review.question_for(item, parent=parents.get(item.parent_id or ""), blind=blind)
         typer.echo("")
-        typer.echo(f"--- {question.item_id}  ({question.block}) " + "-" * 30)
-        typer.echo(question.prompt)
+        typer.echo(
+            f"--- {question.item_id}  ({done + 1} of {len(chosen)})  {question.block} " + "-" * 20
+        )
+        if question.context:
+            typer.echo("ORIGINAL")
+            typer.echo(_wrap(question.context))
+            typer.echo("")
+            typer.echo("REWORDED")
+        typer.echo(_wrap(question.prompt))
         typer.echo("")
+        if question.rules:
+            typer.echo("The checker will require:")
+            for rule in question.rules:
+                typer.echo(
+                    textwrap.fill(rule, width=94, initial_indent="  - ", subsequent_indent="    ")
+                )
+            typer.echo("")
         typer.echo(question.ask)
-        if question.choices:
-            typer.echo("  one of: " + ", ".join(question.choices))
+        answer: str | None
+        if question.kind == "fields":
+            answer = _read_fields(question)
+        elif question.kind == "choice":
+            answer = _ask("  [a]nswer / [r]efuse: ")
+        elif question.kind == "confirm":
+            answer = _ask("  [y]es / [n]o: ")
         else:
             typer.echo("  end with a line containing only a full stop")
-        answer = _read_block(question.kind)
+            answer = _read_free_text()
         if answer is None:
             typer.echo("(end of input)")
             break
-        outcome = review.judge(items[i], answer)
+        if answer == "":
+            skipped.append(question.item_id)
+            typer.echo("skipped, still pending")
+            continue
+        outcome = review.judge(item, answer, kind=question.kind)
         if outcome.agreed:
             items[i] = review.mark_second_pass(items[i], on)
             write_items(path, items)
@@ -483,12 +564,17 @@ def items_secondpass(
             typer.echo(f"DISAGREES: {outcome.detail}")
             typer.echo(f"  the item expects: {json.dumps(items[i].expected, ensure_ascii=False)}")
             typer.echo("  left pending: rewrite the item, or drop it")
+    progress = review.progress_of(items)
     typer.echo("")
-    typer.echo(f"{len(agreed)} agreed, {len(disagreed)} disagreed, {len(chosen)} attempted")
-    still = pending_review(items)
-    if still:
-        typer.echo(f"{len(still)} item(s) in {path.name} still pending", err=True)
-    raise typer.Exit(1 if disagreed or still else 0)
+    typer.echo(
+        f"{len(agreed)} agreed, {len(disagreed)} disagreed, {len(skipped)} skipped; "
+        f"{path.name} is {progress.done} of {progress.total} done, {progress.left} left"
+    )
+    if disagreed:
+        typer.echo("to look at again: " + ", ".join(disagreed))
+    if progress.left:
+        typer.echo(f"{progress.left} item(s) in {path.name} still pending", err=True)
+    raise typer.Exit(1 if disagreed or progress.left else 0)
 
 
 @suite_app.command("freeze")
