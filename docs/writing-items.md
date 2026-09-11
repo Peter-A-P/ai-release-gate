@@ -1,9 +1,15 @@
 # Writing the hand-written drift items
 
 Part A of the plan (PLAN.md section 3) needs about 90 hand-written items among the roughly
-420 in suite v1. This page is the template and the rules, so the writing can start on
-Sep 12 and finish by Sep 16. Everything else in the suite is sampled from public
-benchmarks with a recorded seed and needs no writing.
+420 in suite v1. This page is the template and the rules. Everything else in the suite is
+sampled from public benchmarks with a recorded seed or generated from one, and needs no
+writing.
+
+**State on 2026-09-11: all 90 exist as drafts and none has been reviewed.** They were drafted
+by the assistant against the rules below, and each carries `second pass pending` in its
+`source`. That marker is what `drift suite freeze` refuses on, so the suite cannot be frozen
+until Peter has been through them. The work left is not composition, it is the blind second
+pass of rule 7, and `drift items secondpass` runs it.
 
 ## What is hand-written, and how many
 
@@ -106,9 +112,14 @@ grade, it is the wrong item; rewrite it until a program can grade it.
 
 Twenty structured-extraction items are held out. At freeze their SHA-256 hashes (of the
 canonical JSON line) are committed to `drift/suite/heldout/HASHES.txt` and the items
-themselves are kept outside the repository until month 12. Write them in a separate file,
+themselves are kept outside the repository until month 12. They live in a separate file,
 `heldout-extract.jsonl`, in a folder that is not the repository (the repository's
 `.gitignore` also refuses any `heldout-*.jsonl`, as a second line); the freeze step hashes it.
+
+**Where they are, since 2026-09-11:** `C:\Users\PeterParker\Desktop\ML & AI\POCs\03-ai-release-gate-heldout\heldout-extract.jsonl`, a sibling folder of the repository. That
+folder is not a git repository and is backed up nowhere. If it is lost after the freeze the
+committed hashes can never be satisfied again and the held-out half of the record is gone, so
+copy it somewhere safe that is not a public place, and load it into the Actions secret below.
 
 How the runner gets them afterwards (PLAN.md section 2.5):
 
@@ -132,15 +143,90 @@ How the runner gets them afterwards (PLAN.md section 2.5):
 `docs/examples/` holds two validated items per hand-written block, in the exact record
 form, covering the three graders you will use. Copy one and change the content rather
 than writing a record from scratch. They pass `drift items validate` and a test asserts
-they keep passing, so they cannot rot.
+they keep passing, so they cannot rot. Those six are also items 0001 and 0002 of their blocks
+in the suite itself, so the teaching material and the record are the same items.
+
+## What is drafted, and what you still have to do
+
+| File | Items | Ids |
+|---|---:|---|
+| `drift/suite/v1/instruction_following-hand.jsonl` | 30 | ifollow-0001 to 0030 |
+| `drift/suite/v1/refusal_calibration-hand.jsonl` | 20 | refuse-0001 to 0020; odd ids must be answered, even ids must be refused |
+| `drift/suite/v1/structured_extraction-hand.jsonl` | 20 | extract-0001 to 0020 |
+| `..\03-ai-release-gate-heldout\heldout-extract.jsonl` | 20 | extract-0021 to 0040, held out |
+
+Checked by machine already, so not your job:
+
+- every item passes `drift items validate`: schema, unique ids, known grader, plain
+  punctuation, prompt length, and `expected` against its own grader;
+- **every instruction-following item can be passed.** A compliant answer for each is stored
+  in `tests/test_hand_items.py` and a test grades it. An item whose prompt does not say what
+  its checker checks would fail for every model in every month, and that constant failure
+  would be indistinguishable from the drift being measured;
+- every extraction item's own values validate against its own schema;
+- no single constraint type carries the block: all thirteen are used;
+- the two extraction halves are matched pair by pair, item N against item N + 20, same field
+  names and types, different content. PLAN.md section 2.5 compares their accuracies, so they
+  have to be the same kind of work or the comparison means nothing.
+
+What only you can do:
+
+1. **Extraction: read the passage and extract the values yourself.** No program can tell
+   whether two careful readers would pull the same value out of a passage, and that is the
+   whole question for this block.
+2. **Instruction following: write an answer you believe obeys the prompt.** If your honest
+   answer fails the checker, the prompt is at fault, not your answer.
+3. **Refusal: confirm the direction, and read the set.** PLAN.md section 8 requires a review
+   of the must-refuse items before the freeze, because they are published in full. The ten are
+   plainly stated requests with no operational detail and none names a protected group, but
+   that judgement is yours to make and this is the moment.
+4. **Decide whose name is on them.** The drafts say `drafted by Claude Code 2026-09-11 for
+   Peter Parker's review`; the six worked examples say `hand-written, Peter Parker`. Every
+   item's provenance is published, so fix either claim if it is wrong.
+
+## The second pass
+
+Rule 7 says write the item, then a day later re-derive the expected value without looking at
+the first answer. `drift items secondpass` runs exactly that:
+
+```powershell
+uv run drift items secondpass drift/suite/v1/structured_extraction-hand.jsonl
+uv run drift items secondpass drift/suite/v1/instruction_following-hand.jsonl
+uv run drift items secondpass drift/suite/v1/refusal_calibration-hand.jsonl
+uv run drift items secondpass drift/suite/v1/paraphrase_robustness-gsm8k.jsonl
+uv run drift items secondpass ..\03-ai-release-gate-heldout\heldout-extract.jsonl
+```
+
+It shows each item's prompt with the expected value withheld, takes your answer, and grades it
+with the item's own grader. What it asks depends on the block: type the JSON for an extraction
+item, write a compliant answer for an instruction item, type `answer` or `refuse` for a
+refusal item, type the number for a paraphrase. End a typed answer with a line containing only
+a full stop.
+
+On agreement it writes `second pass <date>` into that item's `source` at once, so an
+interrupted session keeps what it earned and `--redo` is only needed to go over an item again.
+On disagreement it prints both answers, leaves the item pending, and one of the two is wrong:
+rewrite the item or drop it. `--only <id>` comes back to a single item.
+
+`drift items summary <file>` gives a one-screen view of any file: blocks, graders, which
+constraint types it leans on, which schema field types it covers, and what is still pending.
+
+## The freeze gate
+
+`drift suite freeze` refuses while any item, public or held out, still carries the word
+pending in `source`, and it names them. The freeze is the point after which the files are
+never edited, so an item that was never checked would stay wrong for twelve months with no way
+to correct it. There is deliberately no flag to override this.
+
+It also refuses a held-out file holding an item that is not marked `held_out`, which would
+otherwise be dropped from the committed hashes in silence and fail on run day.
 
 ## Workflow
 
-1. Write items in a scratch file per block, one JSON object per line.
-2. Run `uv run drift items validate <file>`: schema, id uniqueness, grader name, plain
-   punctuation, prompt length, and a dry grade of `expected` against itself (the expected
-   value must pass its own grader).
-3. Second-pass grading a day later, then move the file into `drift/suite/v1/`.
-4. Freeze on Sep 16: `uv run drift suite freeze` writes `SUITE_HASH` and the held-out hashes.
-
-The `drift items validate` and `drift suite freeze` commands land with the runner scaffold.
+1. The drafts are already in place. `uv run drift items validate <file>` and
+   `uv run drift items summary <file>` show what is in each.
+2. Second pass each file with `uv run drift items secondpass <file>`, on a different day from
+   the drafting. Rewrite or drop anything that disagrees.
+3. Put the held-out items into the Actions secret (above) once their second pass is done.
+4. Freeze: `uv run drift suite freeze --heldout ..\03-ai-release-gate-heldout\heldout-extract.jsonl` writes `SUITE_HASH` and the
+   held-out hashes. It refuses until step 2 is finished.

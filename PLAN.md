@@ -200,6 +200,31 @@ Decisions taken that the plan did not settle:
   the parent's grader, answer, system prompt and every number, so a paraphrase that quietly
   changed a quantity cannot enter the suite. Ids name the parent (`para-1017-p1` rephrases
   `reason-1017`).
+**The hand-written items (drafted 2026-09-11, 90 items).** Drafted by the assistant against
+[docs/writing-items.md](docs/writing-items.md) and awaiting Peter's blind second pass, which
+`drift suite freeze` now refuses to proceed without. Decisions taken that the plan did not
+settle:
+
+- **The six worked examples are items 0001 and 0002 of their blocks**, rather than separate
+  teaching material that could drift away from the suite.
+- **The refusal block is split by id parity**: odd ids must be answered, even ids must be
+  refused, so the balance of the block is inspectable without reading the graders. Keyword
+  lists on the must-answer side carry at least four alternatives each, because a narrow list
+  would fail a correct answer that used other words, every month, for no reason of the
+  model's.
+- **All thirteen checkable constraint types are used** in the instruction-following half, and
+  a stored compliant answer for every one of the 30 items is graded by a test. An item whose
+  prompt does not state what its checker checks is a permanent false failure, which is the
+  same defect that cost 372 IFEval rows in the public draw.
+- **The two structured-extraction halves are matched pair by pair**: item N and item N + 20
+  share their field names and types and differ only in content. Section 2.5 reads the gap
+  between public and held-out accuracy as contamination, and that reading is only available if
+  the two halves are the same kind of work. Three pairs differ in the polarity of a boolean
+  field, so a model cannot score by always answering true.
+- **Held-out items live at `..\03-ai-release-gate-heldout\heldout-extract.jsonl`**, a sibling
+  folder of the repository, backed up nowhere yet. After the freeze the committed hashes can
+  never be satisfied again if that file is lost.
+
 - **Exact match on the recall block is strict on purpose.** "Bramblewick." passes, "The cat
   was called Bramblewick" does not. The system prompt asks for the answer only and the rule is
   the same every month, so it lowers the baseline rather than creating a false signal, the same
@@ -312,7 +337,7 @@ items.
 | Date | Step | Output |
 |---|---|---|
 | Sep 8 - 12 | Repo scaffold, item schema, grader modules with tests | `drift/graders` green in CI |
-| Sep 12 - 16 | Sample and freeze public items; write 90 hand-written items; grade by hand twice | `drift/suite/v1` and `SUITE_HASH` committed; held-out hashes committed. **Public draw done 2026-09-10: 270 items, `SOURCES.json` committed. Generated items done 2026-09-11: 20 long-context and 40 paraphrase items, `LONGCONTEXT.json` committed. The freeze now waits on the 90 hand-written items and on Peter's review of the 40 paraphrases** |
+| Sep 12 - 16 | Sample and freeze public items; write 90 hand-written items; grade by hand twice | `drift/suite/v1` and `SUITE_HASH` committed; held-out hashes committed. **Public draw done 2026-09-10: 270 items, `SOURCES.json` committed. Generated items done 2026-09-11: 20 long-context and 40 paraphrase items, `LONGCONTEXT.json` committed. Hand-written items drafted 2026-09-11: all 420 items now exist. The freeze waits only on Peter's blind second pass of the 90 hand-written and 40 paraphrase items, which `drift suite freeze` enforces** |
 | Sep 16 - 19 | Runner with raw HTTP per vendor, retry policy, spend cap, JSONL recording | Dry run on 20 items, 1 repeat, all arms |
 | Sep 19 - 21 | Analysis and report rendering; regrade-from-store path | Report renders from the dry run |
 | Sep 22 - 24 | Full dry run (all items, k = 5) after vendor caps are set | Cost check against section 6; fix graders that misfire |

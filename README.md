@@ -5,10 +5,12 @@ discipline a test suite gives code, applied to AI, with an audit trail a regulat
 read. Plus a public, month-by-month record of how the major vendors' "frozen" models
 silently change, on a fixed suite, with error bars.
 
-**Status: Part A runner built; 330 of the 420 suite items in place: 270 drawn from public
-sets on 2026-09-10 ([how](docs/sampling.md)) and 60 generated on 2026-09-11 (20 long-context
-recall passages and 40 paraphrases, [how](docs/long-context.md)); the 90 hand-written items
-in progress; first run targeted 2026-09-27.** Both phases are planned in [PLAN.md](PLAN.md):
+**Status: Part A runner built; all 420 suite items now exist: 270 drawn from public sets on
+2026-09-10 ([how](docs/sampling.md)), 60 generated on 2026-09-11 (20 long-context recall
+passages and 40 paraphrases, [how](docs/long-context.md)) and 90 written by hand
+([how](docs/writing-items.md)). The suite is not frozen: every hand-written and paraphrase
+item is awaiting its second pass, which the freeze refuses to proceed without. First run
+targeted 2026-09-27.** Both phases are planned in [PLAN.md](PLAN.md):
 Part A, the monthly drift record, with the first official run targeted for 2026-09-27; Part
 B, the release gate itself, built Dec 2026 to Jan 2027.
 

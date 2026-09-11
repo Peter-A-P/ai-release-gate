@@ -1,4 +1,5 @@
-"""Command line: drift run | collect | replay | report | sample | longcontext | items validate
+"""Command line: drift run | collect | replay | report | sample | longcontext
+| paraphrase parents | paraphrase check | items validate | items summary | items secondpass
 | suite freeze | suite verify | panel show | panel providers | panel candidates.
 
 Paths default to the repository layout in PLAN.md section 5. The runner's boundary
@@ -21,7 +22,7 @@ from typing import Annotated
 
 import typer
 
-from drift import __version__
+from drift import __version__, review
 from drift.analysis.report import (
     build_report,
     metrics_for_month,
@@ -31,7 +32,7 @@ from drift.analysis.report import (
     write_readme,
 )
 from drift.graders import GRADERS, grader
-from drift.items import read_items, validate_file
+from drift.items import pending_review, read_items, validate_file, write_items
 from drift.panel import MODEL_LIST_PATHS, Arm, load_panel, parse_model_list, snapshot_alias_pairs
 from drift.runner.records import summarise_month
 from drift.runner.run import Callers, RunConfig, run_month
@@ -50,6 +51,7 @@ from drift.sampling.sample import draw as make_draw
 from drift.suite import (
     HeldoutError,
     NotFrozenError,
+    NotReviewedError,
     Suite,
     freeze,
     load_heldout,
@@ -394,10 +396,112 @@ def items_validate(path: Path) -> None:
     raise typer.Exit(1 if problems else 0)
 
 
+@items_app.command("summary")
+def items_summary(path: Path) -> None:
+    """What is in an item file: blocks, graders, which constraint types it leans on, which
+    schema field types it covers, and how many items still await a second pass."""
+    for line in review.summary_lines(list(read_items(path))):
+        typer.echo(line)
+
+
+def _read_block(kind: str) -> str | None:
+    """One typed answer. A single line for a choice; otherwise lines until a lone full stop,
+    so a bulleted or multi-paragraph answer can be typed in full. None at end of input."""
+    if kind == "choice":
+        line = sys.stdin.readline()
+        return None if line == "" else line.strip()
+    lines: list[str] = []
+    while True:
+        line = sys.stdin.readline()
+        if line == "":
+            return "\n".join(lines) if lines else None
+        if line.rstrip("\n") == ".":
+            return "\n".join(lines)
+        lines.append(line.rstrip("\n"))
+
+
+@items_app.command("secondpass")
+def items_secondpass(
+    path: Path,
+    only: Annotated[str | None, typer.Option(help="just this item id")] = None,
+    date: Annotated[str | None, typer.Option(help="the date to record; default today")] = None,
+    redo: Annotated[
+        bool, typer.Option("--redo", help="include items already second-passed")
+    ] = False,
+) -> None:
+    """The blind second pass over a hand-written item file (docs/writing-items.md rule 7).
+
+    Shows each item's prompt with its expected value withheld, takes your answer, and grades
+    it with the item's own grader. On agreement the pass and its date are written into
+    `source` straight away, so an interrupted session keeps what it earned. On disagreement
+    the item is left pending and both answers are shown, and one of the two is wrong.
+
+    Type your answer, then a line containing only a full stop. Exits 1 while any item is
+    still pending, which is also what `drift suite freeze` refuses on.
+    """
+    on = date or today()
+    items = list(read_items(path))
+    chosen = [
+        i
+        for i, it in enumerate(items)
+        if (only is None or it.id == only)
+        and it.block in review.REVIEWABLE
+        and (redo or review.needs_second_pass(it))
+    ]
+    if not chosen:
+        typer.echo(f"{path.name}: nothing to second-pass (use --redo to go over them again)")
+        return
+    agreed: list[str] = []
+    disagreed: list[str] = []
+    for i in chosen:
+        question = review.question_for(items[i])
+        typer.echo("")
+        typer.echo(f"--- {question.item_id}  ({question.block}) " + "-" * 30)
+        typer.echo(question.prompt)
+        typer.echo("")
+        typer.echo(question.ask)
+        if question.choices:
+            typer.echo("  one of: " + ", ".join(question.choices))
+        else:
+            typer.echo("  end with a line containing only a full stop")
+        answer = _read_block(question.kind)
+        if answer is None:
+            typer.echo("(end of input)")
+            break
+        outcome = review.judge(items[i], answer)
+        if outcome.agreed:
+            items[i] = review.mark_second_pass(items[i], on)
+            write_items(path, items)
+            agreed.append(question.item_id)
+            typer.echo(f"agreed ({outcome.detail}); second pass {on} recorded")
+        else:
+            # A disagreement withdraws any earlier agreement, so the item goes back in front
+            # of the freeze gate rather than staying marked as passed.
+            items[i] = review.clear_second_pass(items[i])
+            write_items(path, items)
+            disagreed.append(question.item_id)
+            typer.echo(f"DISAGREES: {outcome.detail}")
+            typer.echo(f"  the item expects: {json.dumps(items[i].expected, ensure_ascii=False)}")
+            typer.echo("  left pending: rewrite the item, or drop it")
+    typer.echo("")
+    typer.echo(f"{len(agreed)} agreed, {len(disagreed)} disagreed, {len(chosen)} attempted")
+    still = pending_review(items)
+    if still:
+        typer.echo(f"{len(still)} item(s) in {path.name} still pending", err=True)
+    raise typer.Exit(1 if disagreed or still else 0)
+
+
 @suite_app.command("freeze")
 def suite_freeze(heldout: Path | None = None) -> None:
-    """Write SUITE_HASH and, with --heldout FILE, the held-out hashes."""
-    h, n = freeze(SUITE_ROOT, heldout_file=heldout)
+    """Write SUITE_HASH and, with --heldout FILE, the held-out hashes.
+
+    Refuses while any item is still marked pending: the freeze is the point after which the
+    files are never edited."""
+    try:
+        h, n = freeze(SUITE_ROOT, heldout_file=heldout)
+    except NotReviewedError as e:
+        typer.echo(f"not frozen: {e}", err=True)
+        raise typer.Exit(2) from e
     typer.echo(f"SUITE_HASH {h}; {n} held-out hashes")
 
 

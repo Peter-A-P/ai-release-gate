@@ -64,6 +64,11 @@ TYPOGRAPHIC = re.compile(
     "[" + "".join(chr(c) for c in (0x2013, 0x2014, 0x2018, 0x2019, 0x201C, 0x201D, 0x2026)) + "]"
 )
 MAX_PROMPT_WORDS = 300
+# An item whose `source` still contains this word has not been through its second pass
+# (docs/writing-items.md rule 7) or, for a drafted paraphrase, not through Peter's review.
+# `freeze` refuses while any item carries it, so an unreviewed item cannot reach a frozen
+# suite, where it could never be corrected.
+PENDING_MARKER = "pending"
 
 
 class ItemError(ValueError):
@@ -123,6 +128,12 @@ def check_item(item: Item, *, grader_names: Iterable[str], long_context: bool = 
     if item.block != "paraphrase_robustness" and item.parent_id:
         problems.append("parent_id is only for paraphrase items")
     return problems
+
+
+def pending_review(items: Iterable[Item]) -> list[str]:
+    """The ids of items still marked pending in `source`, sorted. Empty means every item has
+    been reviewed and the suite may be frozen."""
+    return sorted(it.id for it in items if PENDING_MARKER in it.source.casefold())
 
 
 def numbers_in(text: str) -> list[str]:

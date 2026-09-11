@@ -18,7 +18,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from drift.items import Item, ItemError, check_paraphrases, read_items, read_items_text
+from drift.items import (
+    Item,
+    ItemError,
+    check_paraphrases,
+    pending_review,
+    read_items,
+    read_items_text,
+)
 
 SUITE_HASH_FILE = "SUITE_HASH"
 HELDOUT_HASHES_FILE = "HASHES.txt"
@@ -87,17 +94,45 @@ def load_suite(root: Path, version: str = "v1") -> Suite:
     return Suite(version=version, items=tuple(items), hash=suite_hash(items))
 
 
+class NotReviewedError(ValueError):
+    """Items are still marked pending, so the suite may not be frozen yet.
+
+    The freeze is the point of no return: after it the files are never edited, so an item that
+    was never checked would stay wrong for twelve months with no way to correct it.
+    """
+
+
 def freeze(root: Path, version: str = "v1", *, heldout_file: Path | None = None) -> tuple[str, int]:
     """Write SUITE_HASH for the public items and, if given, the held-out items' hashes.
 
     The held-out items live outside the repository until month 12; only their hashes are
     committed, one per line, sorted, so the file itself reveals nothing about the items.
+
+    Refuses while any item, public or held out, is still marked pending in `source`
+    (`drift items secondpass` clears that), and refuses a held-out file holding an item that is
+    not marked `held_out`, which would otherwise be dropped from the hashes in silence and then
+    fail the run.
     """
     suite = load_suite(root, version)
+    held = list(read_items(heldout_file)) if heldout_file is not None else []
+    not_held = [it.id for it in held if not it.held_out]
+    if not_held:
+        raise ValueError(
+            f"{heldout_file}: {', '.join(not_held)} not marked held_out; every item in the "
+            "held-out file is held out, or its hash would not be committed"
+        )
+    waiting = pending_review([*suite.items, *held])
+    if waiting:
+        raise NotReviewedError(
+            f"{len(waiting)} item(s) are still marked pending, and a frozen suite is never "
+            f"edited: {', '.join(waiting[:10])}"
+            + (" ..." if len(waiting) > 10 else "")
+            + ". Run `drift items secondpass <file>` on each block first"
+        )
     (root / version / SUITE_HASH_FILE).write_text(suite.hash + "\n", encoding="utf-8")
     n_heldout = 0
-    if heldout_file is not None:
-        hashes = sorted(it.sha256() for it in read_items(heldout_file) if it.held_out)
+    if held:
+        hashes = sorted(it.sha256() for it in held)
         n_heldout = len(hashes)
         heldout_dir = root / "heldout"
         heldout_dir.mkdir(parents=True, exist_ok=True)
