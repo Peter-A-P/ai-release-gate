@@ -45,7 +45,7 @@ suites, an append-only ledger, and a dashboard at gate.peterparker.ca.
 
 ## Part of a portfolio
 
-One of ten projects built over twelve months. This one is the measurement layer for the
+One of fifteen projects built over twelve months. This one is the measurement layer for the
 others: the compliant gateway, the filings analyst, the small-model cost frontier and the
 self-healing production AI all use it to make their claims.
 
