@@ -404,37 +404,50 @@ To be tested during the dry runs and documented with evidence, whichever fails:
 # Part B. The release gate
 
 **Build window:** 8 weeks, 2026-12-01 to 2027-01-31, evenings and weekends, across the
-holidays. Depends on `mselect` v0.1.0 from project 02 (**landed early: tagged 2026-09-11**, see
-below) and on the shared VPS (portfolio action 2b) by week 6.
+holidays. Depends on `mselect` from project 02 (**landed early: v0.1.0 and v0.2.0 both tagged
+2026-09-11**, see below) and on the shared VPS (portfolio action 2b) by week 6.
 
-**`mselect` v0.1.0, available now.** Project 02 tagged it seven weeks ahead of its slot, so the
+**`mselect` v0.2.0, available now.** Project 02 tagged it seven weeks ahead of its slot, so the
 week-1 fallback is not needed. Install it the way `boundary` is installed, from the private
 repository with the same fine-grained token (extended to `model-selection-tenth-cost` on
 2026-09-11):
 
 ```toml
-dependencies = ["mselect>=0.1,<0.2"]
+dependencies = ["mselect>=0.2,<0.3"]
 
 [tool.uv.sources]
-mselect = { git = "https://github.com/Peter-A-P/model-selection-tenth-cost", tag = "v0.1.0" }
+mselect = { git = "https://github.com/Peter-A-P/model-selection-tenth-cost", tag = "v0.2.0" }
 ```
 
-What it gives, and the three things to read before trusting a number from it:
+What it gives, and the four things to read before trusting a number from it:
 
 - `mselect.items_needed(delta, 0.8, ability)` returns items per model, defaulting to the bank
   that ships inside the package, exactly as B5 assumes. On that bank a three-point drop needs
-  118 items and a one-point drop needs 3,559.
+  118 items and a one-point drop needs 3,559. v0.2.0 did not move either number: it adds a
+  second bank without changing the default.
 - **It is optimistic for large effects.** Validated against 02's own simulation, it is well
   calibrated for small gaps and over-promises for large ones. Treat it as a floor on the items
   needed, and say so wherever the gate reports "under-powered".
 - `mselect.dependence()` is the local-dependence correction B2.2's intervals need. A hundred
-  items of one benchmark are not a hundred pieces of independent evidence: on 02's bank a
-  hundred MATH items are worth about six, a hundred MMLU items about forty-seven. Bootstrap
-  intervals over items that ignore this are too narrow, and this is the number that fixes them.
+  items of one benchmark are not a hundred pieces of independent evidence: on bank v1 a hundred
+  MATH items are worth about six and a hundred MMLU items about forty-seven. Bootstrap intervals
+  over items that ignore this are too narrow, and this is the number that fixes them. **v0.2.0
+  adds the caveat that it is not a property of the benchmark alone**: the same MATH items are
+  worth about eleven on bank v2, which was calibrated on a different panel through a different
+  harness. Take the correction from the bank whose parameters you are using.
+- **Filter on discrimination before importing difficulty.** This is v0.2.0's finding and the one
+  that changes how this project should use the bank. Project 02 built a second bank from the Open
+  LLM Leaderboard that shares 998 MMLU-Pro questions with the first, and correlated the two
+  calibrations of those questions: over all 998, difficulty correlates -0.04, and over the 532
+  that discriminate above 0.3 in both banks it correlates +0.71. Difficulty is `-d/a`, so an item
+  whose slope is near zero has a difficulty that is a division rather than a measurement. Any
+  suite this project builds out of 02's items should drop the ones below that discrimination
+  floor first; `docs/items-that-measure-nothing.md` in project 02 names them.
 - `mselect.reliability()` is a noise floor of 95.3 percent agreement across repeated public
-  administrations, which is **not** the temperature-0 test-retest 02 planned; that arrives in
-  `mselect` v0.2.0 with 02's own-run panel, and the drift suite's own five-repeat noise floor
-  (A2) remains the number this project relies on.
+  administrations, which is **not** the temperature-0 test-retest 02 planned; that still needs
+  02's own-run panel, and the drift suite's own five-repeat noise floor (A2) remains the number
+  this project relies on. `reliability("v2")` returns no figure at all and says so, because that
+  bank has no repeated administrations in it.
 
 ## B1. What this produces
 
@@ -704,6 +717,7 @@ Mirrors the portfolio's definition:
 - [ ] Judge calibrated against human labels, kappa and alpha reported with CIs
 - [ ] Corrected pass rates reported next to raw
 - [ ] Every reported score carries a bootstrap CI
+- [ ] Items filtered on discrimination before any of 02's difficulty parameters are used
 - [ ] Power analysis published: items needed per effect size, from `mselect`, validated
 - [ ] False-block rate published from the A/A study
 - [ ] GitHub Action gating a real repository, with a PR history showing passes and blocks
