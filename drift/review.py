@@ -255,7 +255,8 @@ def question_for(item: Item, *, parent: Item | None = None, blind: bool = False)
         return Question(
             item.id,
             item.block,
-            "Read the passage and type the value for each key.",
+            "Read the passage, then type the value for each key, one at a time."
+            " Press Enter after each. No quotes, no braces, nothing typed as JSON.",
             item.prompt,
             kind,
             fields=schema_fields(item),

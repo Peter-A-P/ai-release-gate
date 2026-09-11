@@ -8,9 +8,9 @@ silently change, on a fixed suite, with error bars.
 **Status: Part A runner built; all 420 suite items now exist: 270 drawn from public sets on
 2026-09-10 ([how](docs/sampling.md)), 60 generated on 2026-09-11 (20 long-context recall
 passages and 40 paraphrases, [how](docs/long-context.md)) and 90 written by hand
-([how](docs/writing-items.md)). The suite is not frozen: every hand-written and paraphrase
-item is awaiting its second pass, which the freeze refuses to proceed without. First run
-targeted 2026-09-27.** Both phases are planned in [PLAN.md](PLAN.md):
+([how](docs/writing-items.md)). All 130 drafted items passed their second pass on
+2026-09-11 with no item rewritten. The suite is checked but not yet frozen; the panel of
+models is still to be chosen. First run targeted 2026-09-27.** Both phases are planned in [PLAN.md](PLAN.md):
 Part A, the monthly drift record, with the first official run targeted for 2026-09-27; Part
 B, the release gate itself, built Dec 2026 to Jan 2027.
 

@@ -70,10 +70,18 @@ retirement floor is 2026-10-15. A fourth snapshot-only arm on the current Anthro
 model (Sonnet 5) is carried from the first run so the Anthropic series survives a Haiku
 retirement. Eight arms in total: four snapshot, three alias, one control. Frontier-tier models are excluded from
 the monthly run on cost; one frontier snapshot per vendor is run once a quarter if budget
-allows (see section 6). Model identifiers are chosen on the day of the first run from each
-vendor's current list and recorded in `drift/panel.yaml` with the date. **The panel is part
-of the data, not a configuration to tune.** When a vendor retires an identifier, the runner
-keeps calling it until the vendor returns an error, and the error is recorded as the result.
+allows (see section 6). **The panel is part of the data, not a configuration to tune.** When
+a vendor retires an identifier, the runner keeps calling it until the vendor returns an error,
+and the error is recorded as the result.
+
+**When identifiers are chosen (changed 2026-09-11).** The plan said "on the day of the first
+run". That cannot work: the dry runs need a panel from Sep 16, and the runner refuses to call
+anything while any identifier is unchosen. So identifiers are chosen from each vendor's current
+list at the start of the dry runs and dated in `drift/panel.yaml`, then read from the vendors'
+lists again on run day and confirmed unchanged. A difference between the two dates is recorded
+in that month's report rather than quietly corrected: a model that disappeared or was renamed
+in the eleven days before the first run is exactly the kind of thing this project exists to
+show.
 
 ### 2.3 Everything held fixed
 
@@ -243,6 +251,13 @@ settle:
   accuracy. The exact figure is computed from the observed same-day disagreement after
   the first two runs and published in the October report. Smaller changes are reported
   but not called drift.
+- **Refusal classifier error (added 2026-09-11):** the classifier is a fixed list of regular
+  expressions, so it has an error rate of its own, and a refusal it fails to recognise is
+  scored as compliance. That rate is measured by hand-labelling the refusal block's stored
+  outputs from the first dry run and is published in the first report and whenever the
+  classifier changes. It cannot be measured before the freeze, as `drift/graders/refusal.py`
+  originally said, because it needs real model outputs and the runner will not produce any
+  against an unfrozen suite.
 - **Twelve-month view:** per model, a time series of accuracy with intervals, cumulative
   flip count, refusal rate, latency, and cost. Snapshot and alias arms overlaid.
 - **Control arm:** the open-weights model's month-over-month flip rate is the
@@ -337,7 +352,7 @@ items.
 | Date | Step | Output |
 |---|---|---|
 | Sep 8 - 12 | Repo scaffold, item schema, grader modules with tests | `drift/graders` green in CI |
-| Sep 12 - 16 | Sample and freeze public items; write 90 hand-written items; grade by hand twice | `drift/suite/v1` and `SUITE_HASH` committed; held-out hashes committed. **Public draw done 2026-09-10: 270 items, `SOURCES.json` committed. Generated items done 2026-09-11: 20 long-context and 40 paraphrase items, `LONGCONTEXT.json` committed. Hand-written items drafted 2026-09-11: all 420 items now exist. The freeze waits only on Peter's blind second pass of the 90 hand-written and 40 paraphrase items, which `drift suite freeze` enforces** |
+| Sep 12 - 16 | Sample and freeze public items; write 90 hand-written items; grade by hand twice | `drift/suite/v1` and `SUITE_HASH` committed; held-out hashes committed. **Public draw done 2026-09-10: 270 items, `SOURCES.json` committed. Generated items done 2026-09-11: 20 long-context and 40 paraphrase items, `LONGCONTEXT.json` committed. Hand-written items drafted 2026-09-11: all 420 items now exist. Second pass done 2026-09-11: all 130 drafted items checked, none rewritten, so `drift suite freeze` no longer refuses. Left before the dry runs: the panel and the two vendor request settings** |
 | Sep 16 - 19 | Runner with raw HTTP per vendor, retry policy, spend cap, JSONL recording | Dry run on 20 items, 1 repeat, all arms |
 | Sep 19 - 21 | Analysis and report rendering; regrade-from-store path | Report renders from the dry run |
 | Sep 22 - 24 | Full dry run (all items, k = 5) after vendor caps are set | Cost check against section 6; fix graders that misfire |
@@ -358,6 +373,7 @@ Effort: about 25 hours across three weeks, alongside the start of project 01.
 | Vendor retires a snapshot mid-year | Keep calling; the error is the data. Add the successor snapshot as a new arm the same month so the family's series continues |
 | API shape or auth changes | Raw HTTP with pinned version headers; a failed month is recorded as a failed month, then fixed |
 | Rate limits during the run | One job per provider, its arms one after another, a pause sized to the vendor's entry-tier limit (Anthropic: 50 requests a minute). Pass-through never retries, so a 429 is recorded as the result, and a month with rate-limit errors says so |
+| An arm returns no text at all (added 2026-09-11) | A vendor default can consume the whole output budget before any text is produced: on 2026-09-10 a Gemini Flash arm returned nothing within 64 tokens because thinking is on by default, and the OpenAI reasoning models reject `reasoning_effort: minimal`. Multiple choice runs at 16 tokens and long-context recall at 64, so an unconfigured arm would score near zero on two whole blocks for a reason that is not the model's. Each arm's fixed request fields live in `panel.yaml` `extra` and are proved by a live smoke call before the first dry run, not during it |
 | Cost overrun | Console caps plus the runner's 150% abort. First two runs at k = 5 decide whether k stays |
 | GitHub cron slips or skips | Record actual start time; `workflow_dispatch` rerun within 72 hours, marked |
 | Contamination of public items | Held-out half with committed hashes; report public and held-out separately |

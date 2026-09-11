@@ -51,26 +51,49 @@ arms:
     model: CHOOSE-sonnet-5-pinned-id
     arm: snapshot
     family: claude-sonnet
+  # The `extra` fields below are set from the live findings of 2026-09-10 and are NOT yet
+  # proved. Both vendors have a default that can eat the whole output budget before any text
+  # is produced, and multiple choice runs at 16 tokens and long-context recall at 64, so an
+  # unconfigured arm would score near zero on two whole blocks for a reason that is not the
+  # model's (PLAN.md section 8). Prove both with a live smoke call BEFORE the first dry run.
+  # Either way the failure is loud: a rejected field is an error, not a silent empty answer.
   - key: openai-snapshot
     provider: openai
     model: CHOOSE-dated-mid-tier-snapshot
     arm: snapshot
     family: gpt
+    # The gpt-5.4 family rejects "minimal" and accepts "none"; without it a reasoning model
+    # spends the token budget thinking and returns no text.
+    extra:
+      reasoning_effort: none
   - key: openai-alias
     provider: openai
     model: CHOOSE-floating-alias
     arm: alias
     family: gpt
+    extra:
+      reasoning_effort: none
+  # Google: thinking is on by default on the Flash tier and off on Flash-Lite, so which of
+  # these two lines is right depends on the tier chosen on panel day. Drop the thinkingConfig
+  # if the panel lands on Flash-Lite. boundary merges generationConfig rather than replacing it.
   - key: google-snapshot
     provider: google
     model: CHOOSE-dated-mid-tier-snapshot
     arm: snapshot
     family: gemini
+    extra:
+      generationConfig:
+        thinkingConfig:
+          thinkingBudget: 0
   - key: google-alias
     provider: google
     model: CHOOSE-floating-alias
     arm: alias
     family: gemini
+    extra:
+      generationConfig:
+        thinkingConfig:
+          thinkingBudget: 0
   - key: openweights-control
     provider: openweights
     model: CHOOSE-open-weights-model-with-fixed-weights
