@@ -420,27 +420,28 @@ To be tested during the dry runs and documented with evidence, whichever fails:
 # Part B. The release gate
 
 **Build window:** 8 weeks, 2026-12-01 to 2027-01-31, evenings and weekends, across the
-holidays. Depends on `mselect` from project 02 (**landed early: v0.1.0 and v0.2.0 both tagged
+holidays. Depends on `mselect` from project 02 (**landed early: v0.1.0 through v0.3.0 all tagged
 2026-09-11**, see below) and on the shared VPS (portfolio action 2b) by week 6.
 
-**`mselect` v0.2.0, available now.** Project 02 tagged it seven weeks ahead of its slot, so the
+**`mselect` v0.3.0, available now.** Project 02 tagged it seven weeks ahead of its slot, so the
 week-1 fallback is not needed. Install it the way `boundary` is installed, from the private
 repository with the same fine-grained token (extended to `model-selection-tenth-cost` on
 2026-09-11):
 
 ```toml
-dependencies = ["mselect>=0.2,<0.3"]
+dependencies = ["mselect>=0.3,<0.4"]
 
 [tool.uv.sources]
-mselect = { git = "https://github.com/Peter-A-P/model-selection-tenth-cost", tag = "v0.2.0" }
+mselect = { git = "https://github.com/Peter-A-P/model-selection-tenth-cost", tag = "v0.3.0" }
 ```
 
 What it gives, and the four things to read before trusting a number from it:
 
 - `mselect.items_needed(delta, 0.8, ability)` returns items per model, defaulting to the bank
   that ships inside the package, exactly as B5 assumes. On that bank a three-point drop needs
-  118 items and a one-point drop needs 3,559. v0.2.0 did not move either number: it adds a
-  second bank without changing the default.
+  118 items and a one-point drop needs 3,559. Neither v0.2.0 nor v0.3.0 moved either number:
+  the first adds a second bank without changing the default, and the second removed committed
+  benchmark text and rebuilt both banks, which changed their content hashes and nothing else.
 - **It is optimistic for large effects.** Validated against 02's own simulation, it is well
   calibrated for small gaps and over-promises for large ones. Treat it as a floor on the items
   needed, and say so wherever the gate reports "under-powered".
