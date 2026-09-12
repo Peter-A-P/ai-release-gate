@@ -1,0 +1,29 @@
+{
+  "run_id": "drift-2026-09-dry6",
+  "month": "2026-09-dry6",
+  "started_utc": "2026-09-12T13:18:58Z",
+  "finished_utc": "2026-09-12T13:21:18Z",
+  "status": "complete",
+  "reason": null,
+  "suite_version": "v1",
+  "suite_hash": "72f780dfb525d84da3c20b31012e30f495d79fd972aee35fdbd745088048f8a1",
+  "heldout_items": 3,
+  "panel_chosen": "2026-09-12",
+  "boundary_version": "0.1.0",
+  "drift_version": "0.1.0.dev1",
+  "repeats": 1,
+  "items": 35,
+  "arms": [
+    "anthropic-sonnet-snapshot"
+  ],
+  "seed": 20260927,
+  "expected_cost_usd": 0.12585,
+  "abort_multiplier": 1.5,
+  "spent_usd": 0.186018,
+  "calls": 35,
+  "rerun_of": null,
+  "runner": {
+    "python": "3.13.15",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39"
+  }
+}
