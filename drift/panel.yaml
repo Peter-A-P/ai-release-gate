@@ -119,6 +119,9 @@ arms:
   # gemini-3.8-flash answered with thoughtsTokenCount 12, finishReason MAX_TOKENS and empty
   # content: the setting was not wrong, it was not honoured. thinkingBudget is the Gemini 2.5
   # control; Gemini 3 takes thinkingLevel, whose lowest value on 3.8 Flash is "low", not off.
+  # thinkingLevel lives INSIDE thinkingConfig, where thinkingBudget was. Put directly in
+  # generationConfig it returns 400 "Unknown name \"thinkingLevel\" at 'generation_config'",
+  # which is the second dry run of 2026-09-12 and the reason both Google arms failed it.
   #
   # So the budget has to make room for thinking that cannot be refused, which is why
   # multiple_choice rose from 16 tokens to 64 in RunConfig. That is a change to the measurement
@@ -136,7 +139,8 @@ arms:
     family: gemini
     extra:
       generationConfig:
-        thinkingLevel: low
+        thinkingConfig:
+          thinkingLevel: low
   - key: google-alias
     provider: google
     model: gemini-flash-latest
@@ -144,7 +148,8 @@ arms:
     family: gemini
     extra:
       generationConfig:
-        thinkingLevel: low
+        thinkingConfig:
+          thinkingLevel: low
   # The control, chosen 2026-09-12. Fixed weights served by Together, so anything that moves
   # in this arm across twelve months is measurement noise rather than the model changing: that
   # is the baseline every drift call is made against. `-Turbo` is Together's FP8 serving of the
