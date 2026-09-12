@@ -35,6 +35,10 @@ on:
         description: "abort an arm past this multiple of its expected cost (dry runs need more than 1.5)"
         required: false
         default: "1.5"
+      dry_run:
+        description: "a rehearsal: own month, never writes the README table. Implied by `items`; set it for a FULL dry run"
+        required: false
+        default: "false"
 
 permissions:
   contents: write
@@ -54,6 +58,7 @@ jobs:
     outputs:
       month: ${{ steps.plan.outputs.month }}
       providers: ${{ steps.plan.outputs.providers }}
+      dry: ${{ steps.plan.outputs.dry }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -66,6 +71,14 @@ jobs:
         env:
           DRIFT_HELDOUT_ITEMS: ${{ secrets.DRIFT_HELDOUT_ITEMS }}
         run: |
+          # A dry run is anything with an item limit, plus anything that says so. The limit
+          # alone is not enough: a FULL dry run is all items at k = 5 and so sets no limit,
+          # which is exactly the run whose records must not land in the official month and
+          # whose numbers must not reach the README. That run is the most expensive one to get
+          # wrong, so it gets an explicit flag rather than an inference.
+          DRY="false"
+          if [ -n "${{ inputs.items }}" ] || [ "${{ inputs.dry_run }}" = "true" ]; then DRY="true"; fi
+          echo "dry=$DRY" >> "$GITHUB_OUTPUT"
           MONTH="${{ inputs.month }}"
           if [ -z "$MONTH" ]; then
             MONTH=$(date -u +%Y-%m)
@@ -74,7 +87,7 @@ jobs:
             # official run as work already done, and those items would never be asked. So an
             # unlabelled dry run gets its own month and cannot touch the real one. Passing
             # `month` explicitly overrides this, deliberately.
-            if [ -n "${{ inputs.items }}" ]; then MONTH="$MONTH-dry"; fi
+            if [ "$DRY" = "true" ]; then MONTH="$MONTH-dry"; fi
           fi
           echo "month=$MONTH" >> "$GITHUB_OUTPUT"
           echo "providers=$(uv run drift panel providers --json)" >> "$GITHUB_OUTPUT"
@@ -178,7 +191,7 @@ jobs:
         # publish itself as the project's measured result.
         run: |
           ARGS="--month ${{ needs.plan.outputs.month }}"
-          if [ -n "${{ inputs.items }}" ]; then ARGS="$ARGS --no-readme"; fi
+          if [ "${{ needs.plan.outputs.dry }}" = "true" ]; then ARGS="$ARGS --no-readme"; fi
           uv run drift collect $ARGS || echo "month is not complete; the record is still committed"
       - name: Commit the record
         run: |
