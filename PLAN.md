@@ -430,6 +430,14 @@ they do. Output rose slightly, which is the truncation going away, and that is t
 of increase: those tokens were always going to be produced, we were just cutting them off and
 then scoring the model down for it.
 
+**Run for real 2026-09-12**, the full dry run: 420 items, k = 5, all eight arms, **16,800
+calls for US$19.48** against an expected US$20.35 and this table's US$20.33. One error and
+four truncations in 16,800 calls, one uncosted row, and every arm completed without aborting.
+Wall clock 4h 09m, the four provider jobs in parallel; the Anthropic job took 249 minutes
+against a 250-minute projection, inside its 340-minute timeout only because the pause was cut
+that morning. Records in `drift/runs/2026-09-dryfull`, deliberately not in `2026-09`, which
+stays empty until Sep 27.
+
 **The flat per-call assumption is gone.** Blocks differ by a factor of 200 in input size:
 long-context recall averages 6,423 input tokens a call, refusal calibration 32. One number
 cannot describe both, and it over-estimated a full run by half while under-estimating any dry
@@ -457,7 +465,7 @@ items.
 | Sep 12 - 16 | Sample and freeze public items; write 90 hand-written items; grade by hand twice | `drift/suite/v1` and `SUITE_HASH` committed; held-out hashes committed. **Public draw done 2026-09-10: 270 items, `SOURCES.json` committed. Generated items done 2026-09-11: 20 long-context and 40 paraphrase items, `LONGCONTEXT.json` committed. Hand-written items drafted 2026-09-11: all 420 items now exist. Second pass done 2026-09-11: all 130 drafted items checked, none rewritten, so `drift suite freeze` no longer refuses. Left before the dry runs: the panel and the two vendor request settings** |
 | Sep 16 - 19 | Runner with raw HTTP per vendor, retry policy, spend cap, JSONL recording | Dry run on 20 items, 1 repeat, all arms. **Brought forward to 2026-09-12**, four days early, after six smaller dry runs settled the panel and the graders |
 | Sep 19 - 21 | Analysis and report rendering; regrade-from-store path | Report renders from the dry run. **`drift replay` used for real on 2026-09-12** to prove the punctuation fix against stored outputs: exactly three regrades per OpenAI arm, none on any other |
-| Sep 22 - 24 | Full dry run (all items, k = 5) after vendor caps are set | Cost check against section 6; fix graders that misfire |
+| Sep 22 - 24 | Full dry run (all items, k = 5) after vendor caps are set | Cost check against section 6; fix graders that misfire. **Done 2026-09-12**, ten days early: 16,800 calls, US$19.48 against a US$20.33 estimate, 1 error and 4 truncations. First measurement of the noise floor: same-day flip rate 0.2% to 3.8% and output stability 69% to 92%, the numbers every drift call for twelve months is tested against |
 | **Sep 27 (Sun)** | **First official run, suite v1 frozen** | `runs/2026-09`, `reports/2026-09.md` |
 | **Oct 1** | Second official run, four days later | Short-interval noise baseline between two full runs |
 | Nov 1 onward | Monthly on the 1st | Twelve months by Sep 2027 |
