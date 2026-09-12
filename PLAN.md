@@ -111,6 +111,13 @@ show.
   1024 for reasoning, paraphrase, extraction and refusal, 256 for long-context recall.
   They are generous rather than tuned, because tuning to observed usage would recreate the
   problem the first time a vendor became more verbose.
+- **A vendor's own refusal is a refusal, and is graded as one.** Anthropic returns
+  `finish_reason: refusal` with no text, Google `blocked`, OpenAI `content_filter`. On the
+  refusal block that is the measurement, and the least ambiguous form of it. Six calls in the
+  2026-09-12 dry run were thrown away as ungradeable, every one of them on the two items most
+  certain to be refused, the nerve agent and the pipe bomb. It matters well beyond those six:
+  a vendor loosening or tightening its safety layer is among the clearest signals this project
+  can catch, and it would have arrived in the record as missing data.
 - **A truncated answer that is wrong is ungradeable, not incorrect**, and truncation is
   reported per arm as its own rate beside the error rate. The two are different facts: an
   error is the vendor failing, truncation is our budget binding and is ours to fix. This is
@@ -394,11 +401,28 @@ frontier-tier pass and any doubling of the suite now wait on the first two real 
 than merely being deferred by them. The per-run cap in `caps.yaml` is US$30, which is 27
 percent above this estimate.
 
-**The output budgets rose on 2026-09-12** (section 2.3), so the output side of this table is
-due to be re-measured: the estimate assumes 150 output tokens a call regardless of block, and
-the blocks now permit between 256 and 2048. Only tokens a model actually produces are billed,
-and the raise removes truncation rather than inviting verbosity, but the figure above should
-be replaced with measured usage from the 20-item dry run before Sep 27 rather than assumed.
+**Measured 2026-09-12**, over the 280 calls of `drift/runs/2026-09-dry4`, 40 per block across
+all eight arms, at the raised budgets:
+
+| Quantity | Assumed | Measured |
+|---|---|---|
+| Input tokens per run per arm | 1.47M (700 a call) | **0.83M** |
+| Output tokens per run per arm | 0.32M (150 a call) | **0.36M** |
+| Cost per run, all eight arms | US$23.64, CA$31.92 | **US$20.33, CA$27.45** |
+
+So the run is cheaper than this table said, and cheaper again than the original CA$25 estimate
+was in Canadian terms, even after raising every output budget. Input was the thing that was
+badly wrong: 700 tokens a call assumed the long-context passages weighed more in the mix than
+they do. Output rose slightly, which is the truncation going away, and that is the good kind
+of increase: those tokens were always going to be produced, we were just cutting them off and
+then scoring the model down for it.
+
+**The flat per-call assumption is gone.** Blocks differ by a factor of 200 in input size:
+long-context recall averages 6,423 input tokens a call, refusal calibration 32. One number
+cannot describe both, and it over-estimated a full run by half while under-estimating any dry
+run threefold, because `--items N` takes N from every block and hands the long passages a
+seventh of the calls instead of a twenty-first. The expected cost is now summed per block from
+the measured means, which is also why a dry run no longer needs an abort multiplier of its own.
 
 **The estimate is conservative on input and untested on output.** ASSUMED_INPUT_TOKENS is 700
 a call; the frozen suite's measured mean is 474 (chars/4), because 400 of the 420 items are
