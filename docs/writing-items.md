@@ -117,9 +117,16 @@ themselves are kept outside the repository until month 12. They live in a separa
 `.gitignore` also refuses any `heldout-*.jsonl`, as a second line); the freeze step hashes it.
 
 **Where they are, since 2026-09-11:** `C:\Users\PeterParker\Desktop\ML & AI\POCs\03-ai-release-gate-heldout\heldout-extract.jsonl`, a sibling folder of the repository. That
-folder is not a git repository and is backed up nowhere. If it is lost after the freeze the
-committed hashes can never be satisfied again and the held-out half of the record is gone, so
-copy it somewhere safe that is not a public place, and load it into the Actions secret below.
+folder is not a git repository. If it is lost the committed hashes can never be satisfied
+again and the held-out half of the record is gone, so it must exist in at least two places
+that are not public and not that folder alone.
+
+**The file's SHA-256 at the freeze was**
+`41222a9049daea5a3eef2123920d116296204b1be035245601359daff1aeaab5`, 28,741 bytes, 20 lines,
+pure ASCII with LF endings. Check a restored backup against that hash rather than against its
+size. **Frozen 2026-09-11**: `SUITE_HASH`
+`3d2d8266d61cca1bf7a18b50ca386050070c4f2d8e92395ecdf9f5568caf8bc6` over the 400 public items,
+20 hashes in `heldout/HASHES.txt`, and the `DRIFT_HELDOUT_ITEMS` secret set the same day.
 
 How the runner gets them afterwards (PLAN.md section 2.5):
 
@@ -287,3 +294,16 @@ otherwise be dropped from the committed hashes in silence and fail on run day.
 3. Put the held-out items into the Actions secret (above) once their second pass is done.
 4. Freeze: `uv run drift suite freeze --heldout ..\03-ai-release-gate-heldout\heldout-extract.jsonl` writes `SUITE_HASH` and the
    held-out hashes. It refuses until step 2 is finished.
+5. Verify both ways before committing, because the secret is a different path from the file:
+   set `DRIFT_HELDOUT_FILE` to the path and run `drift suite verify --heldout`, then clear
+   that variable and set `DRIFT_HELDOUT_ITEMS` to the file's text and run it again. The
+   loader prefers the file when both are set, so the second check proves nothing unless the
+   first variable is removed.
+6. Commit `SUITE_HASH` and `heldout/HASHES.txt` by explicit path, having confirmed
+   HASHES.txt is hashes and nothing else. It is the only trace of the held-out items that
+   ever leaves this machine.
+
+**All six done 2026-09-11.** What none of them proves is that GitHub stored the same bytes
+that were hashed here. Only the `plan` job of `drift.yml` does, by running
+`drift suite verify --heldout` before any vendor is called. Until the panel is chosen and
+that job has run green, treat the secret as set but unconfirmed.
