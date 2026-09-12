@@ -31,6 +31,10 @@ on:
         description: "public items only (dry runs before the held-out secret exists)"
         required: false
         default: "false"
+      abort_multiplier:
+        description: "abort an arm past this multiple of its expected cost (dry runs need more than 1.5)"
+        required: false
+        default: "1.5"
 
 permissions:
   contents: write
@@ -105,6 +109,13 @@ jobs:
             *) PAUSE=0.2 ;;
           esac
           ARGS="--month ${{ needs.plan.outputs.month }} --provider ${{ matrix.provider }} --repeats ${{ inputs.repeats || '5' }} --pause $PAUSE --no-collect"
+          # The expected cost assumes 700 input tokens a call, which is right for the whole
+          # suite (measured mean 474) but wrong for a dry run: --items takes N from EVERY
+          # block, so the 20 long-context items become one call in seven instead of one in 21
+          # and the mean input rises to about 1,240. Every arm would then sit near 1.9x its
+          # expected cost with no vendor having done anything unusual. The monthly run keeps
+          # 1.5x; a dry run says so explicitly.
+          ARGS="$ARGS --abort-multiplier ${{ inputs.abort_multiplier || '1.5' }}"
           if [ -n "${{ inputs.items }}" ]; then ARGS="$ARGS --items ${{ inputs.items }}"; fi
           if [ -n "${{ inputs.rerun_of }}" ]; then ARGS="$ARGS --rerun-of ${{ inputs.rerun_of }}"; fi
           if [ "${{ inputs.without_heldout }}" = "true" ]; then ARGS="$ARGS --without-heldout"; fi
