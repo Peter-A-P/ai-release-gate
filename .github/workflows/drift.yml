@@ -67,7 +67,15 @@ jobs:
           DRIFT_HELDOUT_ITEMS: ${{ secrets.DRIFT_HELDOUT_ITEMS }}
         run: |
           MONTH="${{ inputs.month }}"
-          if [ -z "$MONTH" ]; then MONTH=$(date -u +%Y-%m); fi
+          if [ -z "$MONTH" ]; then
+            MONTH=$(date -u +%Y-%m)
+            # Records live in drift/runs/<month>/<arm>/ and a run RESUMES from whatever is
+            # already there. A dry run on the plain month would therefore be read by the
+            # official run as work already done, and those items would never be asked. So an
+            # unlabelled dry run gets its own month and cannot touch the real one. Passing
+            # `month` explicitly overrides this, deliberately.
+            if [ -n "${{ inputs.items }}" ]; then MONTH="$MONTH-dry"; fi
+          fi
           echo "month=$MONTH" >> "$GITHUB_OUTPUT"
           echo "providers=$(uv run drift panel providers --json)" >> "$GITHUB_OUTPUT"
           uv run drift panel show
@@ -151,7 +159,13 @@ jobs:
           path: drift/runs/${{ needs.plan.outputs.month }}
           merge-multiple: true
       - name: Fold the arms into the month
-        run: uv run drift collect --month ${{ needs.plan.outputs.month }} || echo "month is not complete; the record is still committed"
+        # --no-readme on a dry run. `collect` writes the README results table by default and
+        # the next step commits and pushes it, so without this a seven-item dry run would
+        # publish itself as the project's measured result.
+        run: |
+          ARGS="--month ${{ needs.plan.outputs.month }}"
+          if [ -n "${{ inputs.items }}" ]; then ARGS="$ARGS --no-readme"; fi
+          uv run drift collect $ARGS || echo "month is not complete; the record is still committed"
       - name: Commit the record
         run: |
           git config user.name "Peter Parker"

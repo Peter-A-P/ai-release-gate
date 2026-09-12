@@ -423,3 +423,14 @@ def test_report_replay_and_readme(suite: Suite, panel: Panel, tmp_path: Path) ->
     write_readme(readme, readme_rows("2026-09", metrics_for_month(runs, "2026-09"), {}))
     t = readme.read_text(encoding="utf-8")
     assert "| old |" not in t and "| 2026-09 | anthropic-snapshot |" in t and "first month" in t
+
+
+def test_previous_month_survives_a_dry_run_label() -> None:
+    """A dry run labels its month so its records cannot be read as the official run's work
+    already done. The label has to parse: `build_report` asks for the previous month on every
+    report, so a label that crashed here would take the dry run's whole report with it."""
+    from drift.analysis.report import previous_month
+
+    assert previous_month("2026-09") == "2026-08"
+    assert previous_month("2026-01") == "2025-12"
+    assert previous_month("2026-09-dry") == "2026-08"

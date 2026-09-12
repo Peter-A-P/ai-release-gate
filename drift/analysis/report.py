@@ -21,7 +21,11 @@ README_END = "<!-- drift:end -->"
 
 
 def previous_month(month: str) -> str:
-    y, m = (int(x) for x in month.split("-"))
+    """The month before this one. A dry run labels its month "2026-09-dry" so its records can
+    never be mistaken for the official run's, and that label has to survive being parsed: the
+    answer for a dry month is the real previous month, which has no records, which is what the
+    report already knows how to say."""
+    y, m = (int(x) for x in month.split("-")[:2])
     return f"{y - 1}-12" if m == 1 else f"{y}-{m - 1:02d}"
 
 
