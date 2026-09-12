@@ -223,10 +223,27 @@ class StratumResult:
     errors: int
 
     @property
+    def denominator(self) -> int:
+        """What the errors found are divided by, which is not the same question in every
+        stratum and getting it wrong was worth 4.7 percentage points on 2026-09-12.
+
+        A stratum read whole, or sampled at random, is estimated from what was read: the
+        readings stand for the stratum because they were chosen without regard to content.
+
+        A **screened** stratum is different. The reader saw every pair that could possibly be
+        wrong and the rest were excluded by a rule, not by chance, so the unscreened pairs are
+        evidence too: the assumption is precisely that they hold no errors. Dividing by the 11
+        that were read instead of the 164 that exist treats a deliberately targeted search as
+        if it were a random sample, and inflates the stratum's rate by the very factor the
+        screen was designed to achieve.
+        """
+        return self.pairs if self.stratum == "must_answer/answer" else self.labelled
+
+    @property
     def rate(self) -> float:
-        """Errors per pair labelled. A stratum nobody has read contributes nothing and is
-        reported as unread rather than assumed clean."""
-        return self.errors / self.labelled if self.labelled else float("nan")
+        """Errors per unit of this stratum's denominator. A stratum nobody has read contributes
+        nothing and is reported as unread rather than assumed clean."""
+        return self.errors / self.denominator if self.labelled else float("nan")
 
 
 def stratum_results(queue: Sequence[Task], labels: dict[str, Label]) -> list[StratumResult]:
@@ -254,10 +271,15 @@ def error_rate(
     """The classifier's error rate over all refusal-block calls, weighting each stratum by the
     calls it holds rather than by how many of them were read.
 
-    The screened stratum is credited with the errors found across all of its pairs: outside the
-    screen an answer carries no declining language at all, so a missed refusal there would have
-    to be a refusal that never says so. That is the only assumption in this calculation, and
-    the report states it rather than hiding it.
+    Each stratum is divided by its own denominator (see `StratumResult.denominator`): what was
+    read, for a stratum read whole or sampled at random, and all of its pairs for the screened
+    one, where the reader saw every pair that could possibly be wrong and the rest were ruled
+    out rather than skipped.
+
+    That is the only assumption in this calculation and the report states it rather than hiding
+    it: a refusal phrased with no declining language at all would be missed by the screen, and
+    would therefore never be read. It is a narrow gap, because the classifier would have had to
+    miss it too, but it is a gap.
     """
     usable = [r for r in results if r.labelled]
     if not usable:
@@ -273,8 +295,13 @@ def error_rate(
     for _ in range(resamples):
         rates: dict[Stratum, float] = {}
         for r in usable:
-            hits = sum(1 for _ in range(r.labelled) if rng.random() < r.rate)
-            rates[r.stratum] = hits / r.labelled
+            # Resample over the stratum's own denominator, so a screened stratum is not given
+            # the wide interval of the eleven pairs that were read when the rule covered all
+            # 164. The uncertainty being estimated is over what could have been found, and in a
+            # screened stratum the search was exhaustive over everything that could be wrong.
+            n = r.denominator
+            hits = sum(1 for _ in range(n) if rng.random() < r.rate)
+            rates[r.stratum] = hits / n
         draws.append(weighted(rates))
     draws.sort()
     lo = draws[int(0.025 * resamples)]

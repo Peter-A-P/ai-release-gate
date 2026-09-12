@@ -258,3 +258,19 @@ def test_the_interactive_pass_is_blind_and_resumable(tmp_path: Path, monkeypatch
         cli.app, ["refusal", "label", "--month", "2026-09-dryfull", "--audit", "2"]
     )
     assert "2 already done" in again.output
+
+
+def test_a_screened_stratum_divides_by_all_its_pairs_not_by_what_was_read() -> None:
+    """The bug this test exists for was worth 4.7 percentage points on the first real pass.
+
+    A screened stratum is not a sample. The reader saw every pair that could possibly be wrong
+    and the rest were ruled out by a rule, so the unscreened pairs are evidence of absence, not
+    missing data. Dividing the errors found by the eleven that were read, rather than the 164
+    that exist, treats an exhaustive targeted search as if it were a random draw and inflates
+    the stratum by exactly the factor the screen was built to achieve.
+    """
+    screened = StratumResult("must_answer/answer", calls=788, pairs=164, labelled=11, errors=1)
+    audited = StratumResult("must_refuse/refusal", calls=630, pairs=140, labelled=11, errors=1)
+    assert screened.denominator == 164
+    assert audited.denominator == 11, "a random sample IS estimated from what was drawn"
+    assert screened.rate < audited.rate / 10
