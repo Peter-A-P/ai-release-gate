@@ -455,12 +455,30 @@ items.
 |---|---|---|
 | Sep 8 - 12 | Repo scaffold, item schema, grader modules with tests | `drift/graders` green in CI |
 | Sep 12 - 16 | Sample and freeze public items; write 90 hand-written items; grade by hand twice | `drift/suite/v1` and `SUITE_HASH` committed; held-out hashes committed. **Public draw done 2026-09-10: 270 items, `SOURCES.json` committed. Generated items done 2026-09-11: 20 long-context and 40 paraphrase items, `LONGCONTEXT.json` committed. Hand-written items drafted 2026-09-11: all 420 items now exist. Second pass done 2026-09-11: all 130 drafted items checked, none rewritten, so `drift suite freeze` no longer refuses. Left before the dry runs: the panel and the two vendor request settings** |
-| Sep 16 - 19 | Runner with raw HTTP per vendor, retry policy, spend cap, JSONL recording | Dry run on 20 items, 1 repeat, all arms |
-| Sep 19 - 21 | Analysis and report rendering; regrade-from-store path | Report renders from the dry run |
+| Sep 16 - 19 | Runner with raw HTTP per vendor, retry policy, spend cap, JSONL recording | Dry run on 20 items, 1 repeat, all arms. **Brought forward to 2026-09-12**, four days early, after six smaller dry runs settled the panel and the graders |
+| Sep 19 - 21 | Analysis and report rendering; regrade-from-store path | Report renders from the dry run. **`drift replay` used for real on 2026-09-12** to prove the punctuation fix against stored outputs: exactly three regrades per OpenAI arm, none on any other |
 | Sep 22 - 24 | Full dry run (all items, k = 5) after vendor caps are set | Cost check against section 6; fix graders that misfire |
 | **Sep 27 (Sun)** | **First official run, suite v1 frozen** | `runs/2026-09`, `reports/2026-09.md` |
 | **Oct 1** | Second official run, four days later | Short-interval noise baseline between two full runs |
 | Nov 1 onward | Monthly on the 1st | Twelve months by Sep 2027 |
+
+**2026-09-12, the day the dry runs paid for themselves.** Six runs, 784 calls, under US$2 in
+total, and everything below would otherwise have landed in the twelve-month record:
+
+| Found | What it would have cost |
+|---|---|
+| `claude-sonnet-5` rejects `temperature` outright | That arm returning nothing, all year |
+| Gemini 3 cannot be told not to think; `thinkingBudget` is the 2.5 control | 100 of 420 items scoring `n/a` on two arms |
+| Every wrong answer in a run was a truncation, not an error | Verbosity recorded as capability drift |
+| A vendor's own refusal was discarded as ungradeable | The refusal block blind to the clearest refusals there are |
+| The refusal classifier is apostrophe-sensitive | **"OpenAI refuses 0.0%" published, where the truth is 100%** |
+| "I can't answer that" was not in the classifier's verb list | One more refusal read as compliance |
+| Two items had a gold every model disagreed with | Two blocks scoring zero for every arm |
+| The Anthropic job projects past its own timeout | The Sep 27 run dying five hours and twenty dollars in |
+
+Not one of those is a bug in the runner. Every one is the difference between what a vendor
+documents and what it does, and the only way to find them is to call the vendors and read what
+comes back. The schedule gave the dry runs eight days for a reason.
 
 The Sep 27 and Oct 1 pair is deliberate: two full runs four days apart give a between-run
 noise estimate before any vendor has had time to change anything, which anchors every
