@@ -393,9 +393,20 @@ Effort: about 25 hours across three weeks, alongside the start of project 01.
 
 To be tested during the dry runs and documented with evidence, whichever fails:
 
+**Decided 2026-09-11: candidate 3 is the committed one and candidate 1 is attempted as well.**
+Candidate 3 costs nothing extra and the Sep 27 and Oct 1 pair proves it by itself, so the
+definition of done is satisfied whatever else happens. Candidate 1 is the better write-up and
+costs about a dollar, so it is built into the dry-run week rather than bolted on afterwards;
+`drift rulec judge` is the harness and `drift/experiments/judge.py` explains the design.
+
 1. **LLM-as-judge for drift.** Run a judge over 50 items alongside the programmatic
    grader for one dry run and show the judge's own repeat disagreement. Expected: the
-   judge's noise floor is higher than the effect being measured.
+   judge's noise floor is higher than the effect being measured. **Design, 2026-09-11:** the
+   judge is given the item, the reference answer and one stored model output, and asked for
+   one word. It is run k times over the identical input at temperature 0, so its disagreement
+   with itself is measured under the most favourable conditions the approach allows: this
+   rejects the strongest form of the idea, not a straw man. Its verdicts never touch the drift
+   record and live under `drift/experiments/`, because no model grades anything in Part A.
 2. **Public benchmark items alone.** Expected: contamination makes them drift upward
    without capability change; the held-out half is the control.
 3. **k = 1, no repeats.** Expected: every month looks like drift. The Sep 27 and Oct 1

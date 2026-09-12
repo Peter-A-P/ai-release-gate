@@ -1,4 +1,4 @@
-"""Command line: drift run | collect | replay | report | sample | longcontext
+"""Command line: drift run | collect | replay | report | sample | longcontext | rulec judge
 | paraphrase parents | paraphrase check | items validate | items summary | items secondpass
 | suite freeze | suite verify | panel show | panel providers | panel candidates.
 
@@ -32,10 +32,11 @@ from drift.analysis.report import (
     regrade,
     write_readme,
 )
+from drift.experiments import judge
 from drift.graders import GRADERS, grader
 from drift.items import Item, read_items, validate_file, write_items
 from drift.panel import MODEL_LIST_PATHS, Arm, load_panel, parse_model_list, snapshot_alias_pairs
-from drift.runner.records import summarise_month
+from drift.runner.records import arms_recorded, read_records, records_path, summarise_month
 from drift.runner.run import Callers, RunConfig, run_month
 from drift.sampling import longcontext, paraphrase
 from drift.sampling.sample import (
@@ -65,16 +66,19 @@ items_app = typer.Typer(help="item files")
 suite_app = typer.Typer(help="the frozen suite")
 panel_app = typer.Typer(help="the model panel")
 paraphrase_app = typer.Typer(help="the paraphrase robustness block")
+rulec_app = typer.Typer(help="Rule C: the approaches this project rejects, with evidence")
 app.add_typer(items_app, name="items")
 app.add_typer(suite_app, name="suite")
 app.add_typer(panel_app, name="panel")
 app.add_typer(paraphrase_app, name="paraphrase")
+app.add_typer(rulec_app, name="rulec")
 
 ROOT = Path(__file__).resolve().parent.parent
 DRIFT = ROOT / "drift"
 SUITE_ROOT = DRIFT / "suite"
 RUNS = DRIFT / "runs"
 REPORTS = DRIFT / "reports"
+EXPERIMENTS = DRIFT / "experiments"
 PANEL = DRIFT / "panel.yaml"
 BOUNDARY_CONFIG = DRIFT / "config" / "boundary.yaml"
 PROJECT = "ai-release-gate"
@@ -395,6 +399,73 @@ def items_validate(path: Path) -> None:
         f"{path.name}: {'ok, ' + str(n) + ' items' if not problems else str(len(problems)) + ' problem(s)'}"
     )
     raise typer.Exit(1 if problems else 0)
+
+
+@rulec_app.command("judge")
+def rulec_judge(
+    month: Annotated[str, typer.Option(help="the run whose stored answers are judged")],
+    model: Annotated[
+        str, typer.Option(help="the judge, as provider/model-id")
+    ] = "anthropic/claude-haiku-4-5",
+    items: int = judge.DEFAULT_ITEMS,
+    repeats: int = judge.DEFAULT_REPEATS,
+    seed: int = judge.DEFAULT_SEED,
+    replay: Annotated[
+        bool, typer.Option("--replay", help="recompute from stored verdicts, call nothing")
+    ] = False,
+) -> None:
+    """Rule C: measure how much an LLM judge disagrees with itself, and reject it on that.
+
+    Judges stored answers from a run that has already happened, several times over identical
+    input at temperature 0, and reports its self-disagreement against the programmatic
+    grader's, which is zero by construction. Nothing here touches the drift record: no drift
+    item is graded by a model and no number reaches the results table (PLAN.md section 10).
+
+    Resumable and replayable. Every verdict is stored with its raw reply, so --replay
+    reproduces every number offline.
+    """
+    out_dir = judge.out_dir_for(EXPERIMENTS, month)
+    if not replay:
+        suite = load_suite(SUITE_ROOT)
+        records = [
+            r
+            for key in arms_recorded(RUNS, month)
+            for r in read_records(records_path(RUNS, month, key))
+        ]
+        if not records:
+            typer.echo(f"no stored answers for {month}; run the suite first", err=True)
+            raise typer.Exit(1)
+        from boundary import Gateway
+
+        out_dir.mkdir(parents=True, exist_ok=True)
+        with Gateway.from_config(
+            BOUNDARY_CONFIG,
+            project=PROJECT,
+            ledger_path=out_dir / "ledger.sqlite",
+            raw_store=out_dir / "raw",
+        ) as gateway:
+            judge.run(
+                month=month,
+                suite=suite,
+                records=records,
+                caller=gateway,
+                config=judge.JudgeConfig(
+                    judge_model=model, items=items, repeats=repeats, seed=seed
+                ),
+                out_dir=out_dir,
+                log=typer.echo,
+            )
+    verdicts = judge.read_verdicts(out_dir / judge.VERDICTS_FILE)
+    if not verdicts:
+        typer.echo(f"no verdicts under {out_dir}", err=True)
+        raise typer.Exit(1)
+    report = judge.analyse(verdicts)
+    typer.echo(
+        f"{report.items} answers judged {report.repeats} times: the judge disagrees with "
+        f"itself on {report.self_disagreement.fmt()} of them, and agrees with the "
+        f"programmatic grader on {report.agreement_with_grader.fmt()}"
+    )
+    typer.echo(f"report: {judge.write_report(out_dir, report)}")
 
 
 @items_app.command("summary")

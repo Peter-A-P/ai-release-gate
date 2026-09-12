@@ -35,3 +35,6 @@ drift/runs/*/*/raw/*.tmp
 # and boundary's raw store for their calls is never committed. Belt and braces.
 heldout-*.jsonl
 drift/runs/*/*/raw-heldout/
+
+# The Rule C judge experiment keeps its raw store like the record does; only temp files go.
+drift/experiments/*/*/raw/*.tmp

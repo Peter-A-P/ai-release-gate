@@ -73,12 +73,23 @@ arms:
     family: gpt
     extra:
       reasoning_effort: none
-  # Google: thinking is on by default on the Flash tier and off on Flash-Lite, so which of
-  # these two lines is right depends on the tier chosen on panel day. Drop the thinkingConfig
-  # if the panel lands on Flash-Lite. boundary merges generationConfig rather than replacing it.
+  # Google tier decided 2026-09-11: Flash, not Flash-Lite. The plan says each vendor's
+  # mid-tier, and Flash is that; Flash-Lite is a tier below what Anthropic and OpenAI are
+  # compared at. Measured from the sealed suite, Flash costs about CA$1.70 a run more than
+  # Flash-Lite and the whole eight-arm panel lands near CA$19 against the CA$25 budgeted, so
+  # the choice was made on what it measures, not on price.
+  #
+  # Thinking is on by default on Flash, so the thinkingConfig below is required or the arm
+  # returns no text inside the 16-token multiple-choice budget. boundary merges
+  # generationConfig rather than replacing it.
+  #
+  # Google's identifiers are versioned, not dated, so `snapshot_alias_pairs` cannot detect
+  # this pair and it is named by hand: a pinned version as the snapshot, the floating
+  # `gemini-flash-latest` as the alias. That alias moving from one version to another is the
+  # single most valuable signal in the panel.
   - key: google-snapshot
     provider: google
-    model: CHOOSE-dated-mid-tier-snapshot
+    model: CHOOSE-pinned-flash-version-that-gemini-flash-latest-resolves-to
     arm: snapshot
     family: gemini
     extra:
@@ -87,7 +98,7 @@ arms:
           thinkingBudget: 0
   - key: google-alias
     provider: google
-    model: CHOOSE-floating-alias
+    model: gemini-flash-latest
     arm: alias
     family: gemini
     extra:
