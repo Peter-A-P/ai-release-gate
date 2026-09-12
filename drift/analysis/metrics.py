@@ -3,6 +3,13 @@
 Item outcome for a run: the majority over the item's gradeable repeats (ties count as
 incorrect). Accuracy is over items with at least one gradeable repeat; errors are reported as
 an error rate, not hidden in the denominator.
+
+A call the vendor cut off at the token budget is ungradeable too, unless it happened to be
+right anyway. The third dry run of 2026-09-12 is why: every single wrong answer in it was a
+truncated one, so the suite was scoring verbosity rather than capability. Vendors retune how
+much a model says without announcing it, and a budget that silently turns that into "the model
+got worse" would be the exact confound this project exists to rule out. Truncation is
+therefore its own reported rate, next to the error rate.
 """
 
 from __future__ import annotations
@@ -45,6 +52,10 @@ class ArmMetrics:
     calls: int
     items: int
     error_rate: Estimate
+    # The share of calls the token budget cut short. Reported next to accuracy rather than
+    # inside it: a truncated wrong answer is ungradeable, so a budget that starts biting
+    # shows up here and widens the intervals instead of looking like the model got worse.
+    truncation_rate: Estimate
     accuracy: Estimate
     accuracy_by_block: dict[str, Estimate]
     same_day_flip_rate: Estimate
@@ -86,7 +97,10 @@ def arm_metrics(arm_key: str, records: list[CallRecord], *, seed: int = 0) -> Ar
         refused = 1.0 if is_refusal(r.output) else 0.0
         (should_answer if r.grader == "must_answer" else should_refuse).append(refused)
 
-    errors = [0.0 if r.gradeable else 1.0 for r in records]
+    # A failed call and a call cut off at the budget are different facts. Errors are the
+    # vendor failing; truncation is our own budget binding, and it is ours to fix.
+    errors = [1.0 if r.errored else 0.0 for r in records]
+    truncations = [1.0 if r.truncated else 0.0 for r in records]
     latencies = [r.latency_ms for r in records if r.gradeable]
     cost = sum(r.cost_usd or 0.0 for r in records if r.costed)
     n = len(records)
@@ -95,6 +109,7 @@ def arm_metrics(arm_key: str, records: list[CallRecord], *, seed: int = 0) -> Ar
         calls=n,
         items=len(by),
         error_rate=bootstrap_mean(errors, seed=seed),
+        truncation_rate=bootstrap_mean(truncations, seed=seed),
         accuracy=bootstrap_mean(acc_values, seed=seed),
         accuracy_by_block={b: bootstrap_mean(v, seed=seed) for b, v in sorted(by_block.items())},
         same_day_flip_rate=bootstrap_mean(flips, seed=seed),

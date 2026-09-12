@@ -68,6 +68,24 @@ class CallRecord(BaseModel):
     def gradeable(self) -> bool:
         return self.correct is not None
 
+    @property
+    def truncated(self) -> bool:
+        """The vendor stopped this call at the token budget rather than at the end of the
+        answer. Each vendor has its own word for it."""
+        return (self.finish_reason or "").lower() in TRUNCATED_FINISH_REASONS
+
+    @property
+    def errored(self) -> bool:
+        """The call failed. Distinct from truncated, which is the budget binding rather than
+        the vendor failing, and from ungradeable, which is either of them."""
+        return self.error_type is not None
+
+
+# What each vendor calls "I stopped because the budget ran out": Anthropic and Google say
+# max_tokens, OpenAI says length, and Google's REST form shouts it. All three are the same
+# event and all three are seen in drift/runs/2026-09-dry*.
+TRUNCATED_FINISH_REASONS: frozenset[str] = frozenset({"max_tokens", "length"})
+
 
 class RunMeta(BaseModel):
     model_config = ConfigDict(extra="forbid")

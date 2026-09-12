@@ -17,6 +17,7 @@ import pytest
 
 from drift.graders import GRADERS, grader
 from drift.items import SYSTEM_PROMPTS, check_item, read_items
+from drift.runner.run import RunConfig
 from drift.sampling.fetch import Fetched, rows_from_records
 from drift.sampling.sample import (
     DEFAULT_SEED,
@@ -464,10 +465,21 @@ def test_ifeval_rejects_an_answer_longer_than_the_block_can_generate() -> None:
             ),
         ]
     )
-    built = build_ifeval(rows, max_tokens=IFEVAL_MAX_TOKENS)
+    # 400 explicitly, which is what the budget was when this suite was drawn and frozen. The
+    # rule is what is under test, not today's number: budgets were raised on 2026-09-12 because
+    # they were truncating answers, and a test that moves with them would stop testing anything.
+    built = build_ifeval(rows, max_tokens=400)
     assert [c.upstream_id for c in built.candidates] == ["2"]
     assert built.rejected == {"longer_than_the_token_budget": 1}
     assert word_ceiling(400) == 257
+
+
+def test_the_sampler_reads_its_ceiling_from_the_runner() -> None:
+    """The two must never drift apart: a sampler with a stale ceiling would draw an item the
+    run cannot satisfy, and that is a permanent false failure for every model in every month
+    rather than a measurement. Suite v1 was drawn at 400; the budget is higher now, which can
+    only admit items, and no item already in the suite needs more room than it was drawn with."""
+    assert RunConfig().max_tokens["instruction_following"] == IFEVAL_MAX_TOKENS
 
 
 def test_ifeval_keywords_become_whole_word_constraints() -> None:

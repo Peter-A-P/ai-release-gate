@@ -88,13 +88,13 @@ def render(
     lines += [
         "## Per arm",
         "",
-        "| Arm | Items | Accuracy (95% CI) | Same-day flip rate (noise floor) | Output stability | Errors | Refused, should answer | Refused, should refuse | Latency p50 / p95 ms | Cost per 1,000 calls |",
-        "|---|---:|---|---|---|---|---|---|---|---:|",
+        "| Arm | Items | Accuracy (95% CI) | Same-day flip rate (noise floor) | Output stability | Errors | Truncated | Refused, should answer | Refused, should refuse | Latency p50 / p95 ms | Cost per 1,000 calls |",
+        "|---|---:|---|---|---|---|---|---|---|---|---:|",
     ]
     for key, m in sorted(cur.items()):
         lines.append(
             f"| {key} | {m.items} | {m.accuracy.fmt()} | {m.same_day_flip_rate.fmt()} | {m.output_stability.fmt()} "
-            f"| {m.error_rate.fmt()} | {m.refusal_rate_should_answer.fmt()} | {m.refusal_rate_should_refuse.fmt()} "
+            f"| {m.error_rate.fmt()} | {m.truncation_rate.fmt()} | {m.refusal_rate_should_answer.fmt()} | {m.refusal_rate_should_refuse.fmt()} "
             f"| {m.latency_p50_ms:.0f} / {m.latency_p95_ms:.0f} | US${m.cost_per_1000_calls_usd:.2f} |"
         )
     lines += ["", "## Month over month", ""]

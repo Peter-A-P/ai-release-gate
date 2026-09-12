@@ -36,6 +36,7 @@ from drift.graders import grader
 from drift.items import Item
 from drift.panel import Arm, Panel
 from drift.runner.records import (
+    TRUNCATED_FINISH_REASONS,
     CallRecord,
     RunMeta,
     append_record,
@@ -102,20 +103,44 @@ class RunConfig:
     repeats: int = 5
     seed: int = 20260927
     temperature: float = 0.0
+    # Output budgets, raised across the board on 2026-09-12 so that they stop being a variable.
+    #
+    # The third dry run settled it: 8 of 56 calls hit the budget, and every single wrong answer
+    # in the whole run was one of them. Nothing was wrong on the merits. At the old numbers the
+    # suite was measuring how much a model says, and vendors retune verbosity without
+    # announcing it, so twelve months of that would have put "how talkative is this model this
+    # month" straight into the drift signal.
+    #
+    # The rule now: a budget must be large enough that no current arm reaches it, so that the
+    # only thing ending a response is the model deciding it has finished. Truncation is
+    # reported per arm (`truncation_rate`) precisely so that a budget which starts to bind
+    # again announces itself instead of looking like a capability change.
+    #
+    # These are generous rather than tuned. Tuning them to observed usage would recreate the
+    # problem the first time a vendor became more verbose. What the raise costs is only the
+    # tokens a model actually produces, which is what it would have produced anyway.
     max_tokens: dict[str, int] = field(
         default_factory=lambda: {
-            "closed_form_reasoning": 512,
-            # 16 until 2026-09-12. Gemini 3 cannot be told not to think: the first dry run
-            # sent thinkingBudget 0, the model spent 12 tokens thinking anyway and hit
-            # MAX_TOKENS with nothing written, so both Google arms scored n/a on the largest
-            # block. A budget has to cover overhead the vendor will not let the caller refuse.
-            # 64 is what long_context_recall already uses, and Google answered that block.
-            "multiple_choice": 64,
-            "instruction_following": 400,
-            "structured_extraction": 400,
-            "refusal_calibration": 300,
-            "long_context_recall": 64,
-            "paraphrase_robustness": 512,
+            # 512 before. No arm truncated here; raised for headroom on a reasoning model.
+            "closed_form_reasoning": 1024,
+            # 16, then 64, now 512. Gemini 3 cannot be told not to think, and Haiku reasons
+            # out loud rather than answering with a letter: at 64 it spent the whole budget
+            # and the grader pulled a stray "A" out of its unfinished working. A block that
+            # asks which option is right must not score a model on how briefly it can say so.
+            "multiple_choice": 512,
+            # 400 before, and the worst offender: Sonnet and both Google arms wrote long prose
+            # and were cut off before reaching words the constraints grader required. They
+            # failed on our ceiling, not on the instruction.
+            "instruction_following": 2048,
+            "structured_extraction": 1024,
+            # 300 before. Three of eight truncated here. They still graded correct, because a
+            # refusal is recognisable from its opening, but a correct grade off a truncated
+            # answer is luck rather than measurement.
+            "refusal_calibration": 1024,
+            # 64 before, enough for every arm, since the answers are a few words. Raised only
+            # so that Gemini's unrefusable thinking is never the thing that fills it.
+            "long_context_recall": 256,
+            "paraphrase_robustness": 1024,
         }
     )
     # Expected cost of the arms being run in this invocation. None means: estimate from the
@@ -198,6 +223,13 @@ def record_for(
     if resp.ok and resp.text is not None:
         g = grader(item.grader).grade(resp.text, item.expected)
         correct, normalised, detail = g.correct, g.normalised, g.detail
+        if correct is False and (resp.finish_reason or "").lower() in TRUNCATED_FINISH_REASONS:
+            # The budget cut the answer off, so this says nothing about the model. Ungradeable
+            # rather than incorrect: scoring it wrong would put "how talkative is this vendor
+            # this month" inside the drift signal, and vendors retune verbosity constantly.
+            # A truncated answer that is still RIGHT keeps its grade: the answer was found.
+            correct = None
+            detail = f"truncated at the token budget; {detail}"
     output = resp.text
     output_sha256: str | None = None
     if item.held_out:

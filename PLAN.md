@@ -101,6 +101,26 @@ show.
 - A fixed budget is only fixed if it covers overhead the vendor imposes. A budget that
   produces no text is not a measurement of the model, and on the largest block it would have
   been recorded as two arms scoring nothing for twelve months.
+- **`max_tokens` is fixed, and on 2026-09-12 it was fixed at the wrong values and raised.**
+  The third dry run: 8 of 56 calls hit the budget, and **every wrong answer in the run was one
+  of them**. Not one arm got anything wrong on the merits. Sonnet and both Google arms wrote
+  long prose for instruction-following and were cut off before reaching words the constraints
+  grader required; Haiku reasons out loud on multiple choice and spent all 64 tokens doing it,
+  leaving the grader to pull a stray "A" from unfinished working. Budgets are now large enough
+  that no current arm reaches them: 512 for multiple choice, 2048 for instruction-following,
+  1024 for reasoning, paraphrase, extraction and refusal, 256 for long-context recall.
+  They are generous rather than tuned, because tuning to observed usage would recreate the
+  problem the first time a vendor became more verbose.
+- **A truncated answer that is wrong is ungradeable, not incorrect**, and truncation is
+  reported per arm as its own rate beside the error rate. The two are different facts: an
+  error is the vendor failing, truncation is our budget binding and is ours to fix. This is
+  the guard rather than the budget: vendors retune how much a model says without announcing
+  it, and without this a verbosity change would arrive in the record as a capability drop,
+  which is exactly the confound this project exists to rule out. A truncated answer that is
+  still right keeps its grade, since the answer was found.
+- Suite v1's instruction-following items were drawn against the old 400-token ceiling, so
+  every one of them fits inside the new budget with room to spare. Raising a ceiling can only
+  admit items a future draw might take; it cannot invalidate items already frozen.
 - One pinned HTTP client and pinned API version headers per vendor, raw HTTP rather than
   vendor SDKs, so an SDK release cannot change the request. The calls go through the
   portfolio's gateway library (project 04, version 0) in **pass-through mode**: raw
@@ -373,6 +393,12 @@ Against the CA$35 per month line, CA$32 for one run leaves almost nothing: the q
 frontier-tier pass and any doubling of the suite now wait on the first two real bills rather
 than merely being deferred by them. The per-run cap in `caps.yaml` is US$30, which is 27
 percent above this estimate.
+
+**The output budgets rose on 2026-09-12** (section 2.3), so the output side of this table is
+due to be re-measured: the estimate assumes 150 output tokens a call regardless of block, and
+the blocks now permit between 256 and 2048. Only tokens a model actually produces are billed,
+and the raise removes truncation rather than inviting verbosity, but the figure above should
+be replaced with measured usage from the 20-item dry run before Sep 27 rather than assumed.
 
 **The estimate is conservative on input and untested on output.** ASSUMED_INPUT_TOKENS is 700
 a call; the frozen suite's measured mean is 474 (chars/4), because 400 of the 420 items are

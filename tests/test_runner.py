@@ -480,3 +480,53 @@ def test_an_arm_can_omit_temperature_and_the_others_still_send_it(
     assert by_model["anthropic/claude-haiku-4-5-20251001"] == {0.0}, (
         "and the drop must not leak into any other arm"
     )
+
+
+def _table_shapes(markdown: str) -> list[tuple[int, int, str]]:
+    """(header cells, separator cells, header text) for every markdown table in the text."""
+    out = []
+    rows = markdown.splitlines()
+    for i, line in enumerate(rows[:-1]):
+        nxt = rows[i + 1]
+        if line.startswith("|") and nxt.startswith("|") and set(nxt) <= set("|-: "):
+            out.append((line.count("|"), nxt.count("|"), line.strip()))
+    return out
+
+
+def test_every_table_in_a_rendered_report_lines_up(tmp_path: Path, suite: Suite) -> None:
+    """A separator row one cell short renders as plain text, silently, everywhere the report is
+    read. Adding the Truncated column on 2026-09-12 did exactly that, and nothing caught it
+    because every other assertion was about the numbers rather than the shape. This renders a
+    real report and checks the artefact."""
+    import datetime as dt
+
+    from drift.panel import Arm, Panel
+
+    panel = Panel(
+        version=1,
+        chosen=dt.date(2026, 9, 12),
+        arms=[
+            Arm(
+                key="openweights-control",
+                provider="openweights",
+                model="m",
+                arm="control",
+                family="c",
+            )
+        ],
+    )
+    runs = tmp_path / "runs"
+    run(suite, panel, FakeGateway(), runs, RunConfig(repeats=2, expected_cost_usd=10.0))
+    text = build_report(runs, tmp_path / "reports", "2026-09", panel).read_text(encoding="utf-8")
+
+    shapes = _table_shapes(text)
+    assert shapes, "the report rendered no tables at all"
+    for header_cells, sep_cells, header in shapes:
+        assert header_cells == sep_cells, (
+            "header and separator disagree on column count: "
+            + header
+            + " has "
+            + str(header_cells - 1)
+            + " columns, its separator has "
+            + str(sep_cells - 1)
+        )
