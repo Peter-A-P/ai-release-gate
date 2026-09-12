@@ -110,10 +110,24 @@ jobs:
           OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
           DRIFT_HELDOUT_ITEMS: ${{ secrets.DRIFT_HELDOUT_ITEMS }}
         run: |
-          # Anthropic's entry tier allows 50 requests a minute; the pause keeps three sequential
-          # arms comfortably under it. The others allow hundreds.
+          # Anthropic's entry tier allows 50 requests a minute. Its three arms run one after
+          # another inside this one job, so only one call is ever in flight and the rate is
+          # 60 / (latency + pause). At the measured mean latencies of 2026-09-12, 2.1s for the
+          # two Haiku arms and 3.0s for Sonnet, a 0.2s pause gives 20 to 26 requests a minute,
+          # comfortably inside the tier.
+          #
+          # It was 1.0s until 2026-09-12 and that no longer fits the clock. Raising the output
+          # budgets made responses longer, and 3.1 to 4.0 seconds a call across 6,300 calls
+          # projects to 356 minutes, past this job's 340-minute timeout and close to GitHub's
+          # six-hour hard limit. The full dry run and then the Sep 27 official run would both
+          # have died partway through the Anthropic arms, after spending the money. At 0.2s the
+          # projection is 272 minutes, which leaves an hour of margin.
+          #
+          # If it ever needs to be faster than this, the next move is one job per arm rather
+          # than per provider, but that puts three jobs on one key at once and the tier will
+          # not take it. The pause is the safe lever; the job split is not.
           case "${{ matrix.provider }}" in
-            anthropic) PAUSE=1.0 ;;
+            anthropic) PAUSE=0.2 ;;
             *) PAUSE=0.2 ;;
           esac
           ARGS="--month ${{ needs.plan.outputs.month }} --provider ${{ matrix.provider }} --repeats ${{ inputs.repeats || '5' }} --pause $PAUSE --no-collect"
