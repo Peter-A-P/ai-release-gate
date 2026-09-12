@@ -282,11 +282,47 @@ def test_arm_extra_fields_are_sent_with_every_call(suite: Suite, tmp_path: Path)
 
 
 def test_refuses_an_unchosen_panel(suite: Suite, tmp_path: Path) -> None:
-    from drift.panel import load_panel
+    """Built here rather than loaded from the repository: the repository's panel was chosen on
+    2026-09-12, and a test of the refusal must not depend on it being unchosen."""
+    from drift.panel import Arm, Panel
 
-    panel = load_panel(Path(__file__).resolve().parent.parent / "drift" / "panel.yaml")
+    unchosen = Panel(
+        version=1,
+        chosen=None,
+        arms=[
+            Arm(
+                key="openweights-control",
+                provider="openweights",
+                model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
+                arm="control",
+                family="control",
+            )
+        ],
+    )
     with pytest.raises(ValueError, match="choose"):
-        run(suite, panel, FakeGateway(), tmp_path, RunConfig(expected_cost_usd=1.0))
+        run(suite, unchosen, FakeGateway(), tmp_path, RunConfig(expected_cost_usd=1.0))
+
+
+def test_refuses_a_panel_with_an_identifier_still_to_choose(suite: Suite, tmp_path: Path) -> None:
+    """Dated but still carrying a placeholder: `ready` requires both, so a half-filled panel
+    cannot be run by setting the date."""
+    from drift.panel import Arm, Panel
+
+    half_filled = Panel(
+        version=1,
+        chosen=dt.date(2026, 9, 12),
+        arms=[
+            Arm(
+                key="openweights-control",
+                provider="openweights",
+                model="CHOOSE-open-weights-model-with-fixed-weights",
+                arm="control",
+                family="control",
+            )
+        ],
+    )
+    with pytest.raises(ValueError, match="choose"):
+        run(suite, half_filled, FakeGateway(), tmp_path, RunConfig(expected_cost_usd=1.0))
 
 
 def _heldout_items() -> list[Item]:

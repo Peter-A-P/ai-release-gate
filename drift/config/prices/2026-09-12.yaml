@@ -1,0 +1,186 @@
+# Price list, USD per million tokens, copied from each vendor's price page on 2026-09-10 and
+# re-read on 2026-09-12. Repricing is a new dated file, never an edit to an older one. This
+# file supersedes 2026-09-10.yaml: the same rates, plus the two panel identifiers that had no
+# entry.
+#
+# Why those two, added 2026-09-12. The runner estimates an arm's cost with
+# `prices.lookup(provider, arm.model)`, using the identifier exactly as `panel.yaml` writes it,
+# and refuses to start when any selected arm has none. Both arms below would have stopped the
+# first dry run before it made a call:
+#
+#   openai/gpt-5.4-mini-2026-03-17  the snapshot half of the OpenAI pair. A dated snapshot and
+#                                   its alias are the same model at the same price, which is
+#                                   the rule this file already applies to gpt-5-nano.
+#   google/gemini-flash-latest      the alias half of the Google pair. A live call on
+#                                   2026-09-12 resolved it to gemini-3.8-flash, so it carries
+#                                   that model's rate.
+#
+# **A caveat on the alias entry.** Pricing a floating alias by name means that if it moves to a
+# version this file does not list, the returned id misses, the requested id hits, and the call
+# is priced at the old version's rate instead of being written uncosted. The move itself is
+# still visible: `model_returned` is in every ledger row and a resolution change is the single
+# most valuable signal this panel produces. The cost is what would be quietly wrong, and the
+# monthly ledger-against-invoice check is where it would surface. Re-read this file whenever
+# the report shows the alias resolving somewhere new.
+#
+# Rules: a model missing here is written to the ledger as uncosted; a call that used a cache
+# or batch feature with no rate here is uncosted. The library never fills a rate in.
+#
+# Model keys are identifiers. The ledger prices by the identifier the vendor RETURNS and, when
+# that one is not listed, by the identifier that was REQUESTED (OpenAI returns dated ids such
+# as gpt-5-nano-2025-08-07 for a request of gpt-5-nano; the price is the same). Both ids are
+# in the ledger row, so which one priced the call is auditable.
+#
+# Sources:
+#   Anthropic: https://platform.claude.com/docs/en/about-claude/pricing (cache read 0.1x input,
+#              5-minute cache write 1.25x input, batch 50%). The models endpoint on 2026-09-10
+#              lists claude-haiku-4-5-20251001 as the only dated id with a documented alias.
+#   OpenAI:    https://developers.openai.com/api/docs/pricing (cached input shown per model,
+#              batch 50%).
+#   Google:    https://ai.google.dev/gemini-api/docs/pricing (paid tier; context-cache read shown
+#              per model; cache storage is billed per hour, not per token, so no cache_write rate;
+#              batch 50%). gemini-2.5-flash-lite returned 404 "no longer available to new
+#              users" on 2026-09-10; kept here for any ledger row that still names it.
+#   Together:  https://www.together.ai/pricing (serverless; one price for input and output on
+#              Llama 3.3 70B).
+
+version: 1
+date: 2026-09-12
+currency: USD
+source: "Vendor price pages fetched 2026-09-09 and 2026-09-10; panel identifiers reconciled 2026-09-12 against the vendors' model lists and live resolutions; see comments for URLs and rules"
+
+per_million_tokens:
+  anthropic:
+    claude-haiku-4-5-20251001:
+      input: 1.00
+      output: 5.00
+      cache_read: 0.10
+      cache_write: 1.25
+      batch_multiplier: 0.5
+    claude-haiku-4-5:
+      input: 1.00
+      output: 5.00
+      cache_read: 0.10
+      cache_write: 1.25
+      batch_multiplier: 0.5
+    claude-sonnet-5:
+      input: 2.00
+      output: 10.00
+      cache_read: 0.20
+      cache_write: 2.50
+      batch_multiplier: 0.5
+    claude-opus-5:
+      input: 5.00
+      output: 25.00
+      cache_read: 0.50
+      cache_write: 6.25
+      batch_multiplier: 0.5
+    claude-sonnet-4-6:
+      input: 3.00
+      output: 15.00
+      cache_read: 0.30
+      cache_write: 3.75
+      batch_multiplier: 0.5
+
+  openai:
+    gpt-5-mini:
+      input: 0.25
+      output: 2.00
+      cache_read: 0.025
+      batch_multiplier: 0.5
+    gpt-5-nano:
+      input: 0.05
+      output: 0.40
+      cache_read: 0.005
+      batch_multiplier: 0.5
+    gpt-5:
+      input: 1.25
+      output: 10.00
+      cache_read: 0.125
+      batch_multiplier: 0.5
+    gpt-5.4-nano:
+      input: 0.20
+      output: 1.25
+      cache_read: 0.02
+      batch_multiplier: 0.5
+    gpt-5.4-mini:
+      input: 0.75
+      output: 4.50
+      cache_read: 0.075
+      batch_multiplier: 0.5
+    # The snapshot half of the panel's OpenAI pair. Same model, same price as the alias
+    # above; listed so the arm is costed by its own returned id rather than by a fallback.
+    gpt-5.4-mini-2026-03-17:
+      input: 0.75
+      output: 4.50
+      cache_read: 0.075
+      batch_multiplier: 0.5
+    gpt-5.4:
+      input: 2.50
+      output: 15.00
+      cache_read: 0.25
+      batch_multiplier: 0.5
+    gpt-5.5:
+      input: 5.00
+      output: 30.00
+      cache_read: 0.50
+      batch_multiplier: 0.5
+    gpt-4o-mini:
+      input: 0.15
+      output: 0.60
+      cache_read: 0.075
+      batch_multiplier: 0.5
+
+  google:
+    gemini-2.5-flash:
+      input: 0.30
+      output: 2.50
+      cache_read: 0.03
+      batch_multiplier: 0.5
+    gemini-2.5-flash-lite:
+      input: 0.10
+      output: 0.40
+      cache_read: 0.01
+      batch_multiplier: 0.5
+    gemini-3.5-flash:
+      input: 1.50
+      output: 9.00
+      cache_read: 0.15
+      batch_multiplier: 0.5
+    gemini-3.5-flash-lite:
+      input: 0.30
+      output: 2.50
+      cache_read: 0.03
+      batch_multiplier: 0.5
+    gemini-3.6-flash:
+      input: 0.75
+      output: 3.75
+      cache_read: 0.075
+      batch_multiplier: 0.5
+    gemini-3.7-flash:
+      input: 0.75
+      output: 3.75
+      cache_read: 0.075
+      batch_multiplier: 0.5
+    gemini-3.8-flash:
+      input: 0.75
+      output: 3.75
+      cache_read: 0.075
+      batch_multiplier: 0.5
+    # The alias half of the panel's Google pair. A live call on 2026-09-12 resolved
+    # gemini-flash-latest to gemini-3.8-flash, so it is priced at that model's rate. The
+    # returned id takes precedence, so this entry only prices a call whose resolved version is
+    # not listed above; see the caveat in the header.
+    gemini-flash-latest:
+      input: 0.75
+      output: 3.75
+      cache_read: 0.075
+      batch_multiplier: 0.5
+
+  openweights:
+    meta-llama/Llama-3.3-70B-Instruct-Turbo:
+      input: 1.04
+      output: 1.04
+    openai/gpt-oss-120b:
+      input: 0.15
+      output: 0.60

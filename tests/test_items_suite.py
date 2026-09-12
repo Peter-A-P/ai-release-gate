@@ -88,12 +88,35 @@ def test_duplicate_ids_across_files_refused(suite_root: Path) -> None:
         load_suite(suite_root)
 
 
-def test_repo_panel_loads_but_is_not_ready() -> None:
+def test_repo_panel_is_chosen_and_ready() -> None:
+    """The panel was chosen and dated on 2026-09-12 from the vendors' own lists. Until then
+    this test asserted the opposite; the shape assertions are the part that never changes."""
     panel = load_panel(Path(__file__).resolve().parent.parent / "drift" / "panel.yaml")
-    assert isinstance(panel, Panel) and not panel.ready
+    assert isinstance(panel, Panel) and panel.ready
+    assert panel.chosen is not None
     assert panel.control() is not None and len(panel.arms) == 8
     assert panel.providers == ["anthropic", "openai", "google", "openweights"]
     assert sum(1 for a in panel.arms if a.provider == "anthropic") == 3
+    assert not [a.key for a in panel.arms if "CHOOSE" in a.model]
+    control = panel.control()
+    assert control is not None and control.weight_hash, (
+        "the control arm is the noise floor; without a pinned checkpoint hash there is nothing "
+        "to say the weights did not move"
+    )
+
+
+def test_every_panel_identifier_has_a_price() -> None:
+    """A panel arm with no price entry stops the run dead, because `estimate_arm_cost_usd`
+    looks the identifier up exactly as panel.yaml writes it and the runner refuses to size an
+    abort cap it cannot compute. That is the right behaviour and a terrible way to find out on
+    run day, which is what happened on 2026-09-12 to two arms."""
+    from boundary.config import latest_price_list, load_config
+
+    root = Path(__file__).resolve().parent.parent
+    panel = load_panel(root / "drift" / "panel.yaml")
+    prices = latest_price_list(load_config(root / "drift" / "config" / "boundary.yaml").prices)
+    missing = [a.explicit for a in panel.arms if prices.lookup(a.provider, a.model) is None]
+    assert not missing, f"no price for {missing} in {prices.name}; add a dated price file"
 
 
 def test_panel_arm_keys_must_start_with_the_provider() -> None:

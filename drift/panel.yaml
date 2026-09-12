@@ -31,24 +31,54 @@
 #              tier is "mid" for Google on run day.
 #   openweights: 275 identifiers, none dated; the control stays a fixed named checkpoint.
 
+# Confirmed 2026-09-12 from the vendors' current lists (run 34664503257) and live resolutions
+# (run 34664591064):
+#
+#   anthropic  11 identifiers. claude-haiku-4-5-20251001 is listed; the undated
+#              claude-haiku-4-5 is NOT, and `panel candidates` therefore reports no pair for
+#              this vendor at all. A live call to the undated id returned
+#              claude-haiku-4-5-20251001, so the pair is real and is named by hand. That the
+#              alias works while being unlisted is itself worth having on the record.
+#              claude-sonnet-5 is undated and is the only Sonnet 5 id, which is the pinned
+#              snapshot this generation offers.
+#   openai     130 identifiers, 41 detected pairs, including
+#              gpt-5.4-mini-2026-03-17 <-> gpt-5.4-mini. The mini line stops at 5.4: there is
+#              no gpt-5.5-mini, so 5.4-mini is still the current mid-tier.
+#   google     55 identifiers. gemini-flash-latest resolved to gemini-3.8-flash on 2026-09-12,
+#              the same version as on 2026-09-10. Versioned rather than dated, so the pair
+#              cannot be detected automatically and both halves are named by hand.
+#   openweights 275 identifiers, none dated.
+#
+# Also reproduced live on 2026-09-12, and the reason the `extra` blocks below exist:
+# gemini-flash-latest returned 8 in / 61 out and NO TEXT inside the smoke budget, while the
+# same model called directly returned 'OK' at 8 in / 60 out. The same model, the same budget,
+# text one time and not the other. Thinking is on by default and the answer only fits when it
+# happens to think less, which is exactly the silent near-zero this panel must not measure.
+#
+# The OpenAI setting is confirmed by the vendor's own refusal: a call carrying
+# reasoning_effort "minimal" returned 400 "Unsupported value ... Supported values are: 'none',
+# 'low', 'medium', 'high', and 'xhigh'". So "none" is the right value, and a wrong one is an
+# error rather than an empty answer. Neither `extra` block has yet been proved to PRODUCE text
+# at the panel's budgets; the first dry run is what proves that.
+
 version: 1
-chosen: null
-notes: "Identifiers to be chosen on the first run day, targeted 2026-09-27; dry runs from Sep 16 may name them explicitly with --arm."
+chosen: 2026-09-12
+notes: "Seven identifiers confirmed 2026-09-12 against the vendors' own model lists and, where a list does not publish an alias, against a live call that showed what it resolves to (run 34664591064). The open-weights control is the one arm still to choose. Re-read on run day and report any difference rather than correcting it silently."
 
 arms:
   - key: anthropic-snapshot
     provider: anthropic
-    model: CHOOSE-dated-haiku-4-5-snapshot
+    model: claude-haiku-4-5-20251001
     arm: snapshot
     family: claude-haiku
   - key: anthropic-alias
     provider: anthropic
-    model: CHOOSE-haiku-4-5-floating-alias
+    model: claude-haiku-4-5
     arm: alias
     family: claude-haiku
   - key: anthropic-sonnet-snapshot
     provider: anthropic
-    model: CHOOSE-sonnet-5-pinned-id
+    model: claude-sonnet-5
     arm: snapshot
     family: claude-sonnet
   # The `extra` fields below are set from the live findings of 2026-09-10 and are NOT yet
@@ -59,7 +89,7 @@ arms:
   # Either way the failure is loud: a rejected field is an error, not a silent empty answer.
   - key: openai-snapshot
     provider: openai
-    model: CHOOSE-dated-mid-tier-snapshot
+    model: gpt-5.4-mini-2026-03-17
     arm: snapshot
     family: gpt
     # The gpt-5.4 family rejects "minimal" and accepts "none"; without it a reasoning model
@@ -68,7 +98,7 @@ arms:
       reasoning_effort: none
   - key: openai-alias
     provider: openai
-    model: CHOOSE-floating-alias
+    model: gpt-5.4-mini
     arm: alias
     family: gpt
     extra:
@@ -89,7 +119,7 @@ arms:
   # single most valuable signal in the panel.
   - key: google-snapshot
     provider: google
-    model: CHOOSE-pinned-flash-version-that-gemini-flash-latest-resolves-to
+    model: gemini-3.8-flash
     arm: snapshot
     family: gemini
     extra:
@@ -105,9 +135,16 @@ arms:
       generationConfig:
         thinkingConfig:
           thinkingBudget: 0
+  # The control, chosen 2026-09-12. Fixed weights served by Together, so anything that moves
+  # in this arm across twelve months is measurement noise rather than the model changing: that
+  # is the baseline every drift call is made against. `-Turbo` is Together's FP8 serving of the
+  # checkpoint below, so the weights are pinned but the serving stack is theirs; if that ever
+  # changes underneath us it shows up here as noise, which is the honest place for it to land.
+  # weight_hash is the HuggingFace main-branch commit of meta-llama/Llama-3.3-70B-Instruct,
+  # read 2026-09-12, last modified 2024-12-21.
   - key: openweights-control
     provider: openweights
-    model: CHOOSE-open-weights-model-with-fixed-weights
+    model: meta-llama/Llama-3.3-70B-Instruct-Turbo
     arm: control
     family: control
-    weight_hash: null
+    weight_hash: 6f6073b423013f6a7d4d9f39144961bfbfbc386b

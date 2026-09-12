@@ -331,18 +331,36 @@ same estimate from the price list on run day to size its abort cap:
 | Average tokens per call | ~700 in (long-context block raises the mean), ~150 out |
 | Models per run | 8 (4 snapshot + 3 alias + 1 control) |
 | Tokens per run | ~11.8M in, ~2.5M out |
-| Anthropic Haiku 4.5, snapshot and alias, US$1 in and US$5 out per M | ~US$3.05 each, US$6.1 |
-| Anthropic Sonnet 5, snapshot only, US$2 in and US$10 out | ~US$6.1 |
-| OpenAI mid-tier (gpt-5-mini), snapshot and alias, US$0.25 and US$2.00 | ~US$1.0 each, US$2.0 |
-| Google Gemini 2.5 Flash, snapshot and alias, US$0.30 and US$2.50 | ~US$1.2 each, US$2.5 |
-| Control (Llama 3.3 70B on Together), US$1.04 both ways | ~US$1.9 |
-| Estimated cost per run | ~US$18.5, about **CA$25** |
+| Anthropic Haiku 4.5, snapshot and alias, US$1 in and US$5 out per M | US$3.04 each, US$6.09 |
+| Anthropic Sonnet 5, snapshot only, US$2 in and US$10 out | US$6.09 |
+| OpenAI gpt-5.4-mini, snapshot and alias, US$0.75 and US$4.50 | US$2.52 each, US$5.04 |
+| Google Gemini 3.8 Flash, snapshot and alias, US$0.75 and US$3.75 | US$2.28 each, US$4.56 |
+| Control (Llama 3.3 70B Turbo on Together), US$1.04 both ways | US$1.86 |
+| Estimated cost per run | **US$23.64, about CA$32** |
 
-The original plan-day figure was about US$9 on a blended mid-tier price; Anthropic's
-mid-tier price is higher than that blend and the Sonnet arm is new. Against the CA$35 per
-month line for drift runs, CA$25 leaves little headroom: the quarterly frontier-tier pass
-and any doubling of the suite wait for the first two real bills. Record the actual invoice
-in the portfolio's STATUS next to the estimate.
+**Re-costed 2026-09-12 against the chosen panel** (section 2.2), replacing the US$18.5 and
+CA$25 this table carried before. Nothing was mis-estimated: the market moved. The Sep 10
+figure priced OpenAI's mid-tier at gpt-5-mini's US$0.25 and US$2.00 and Google's at Gemini
+2.5 Flash's US$0.30 and US$2.50. The models that are actually each vendor's mid-tier now are
+gpt-5.4-mini at US$0.75 and US$4.50 and Gemini 3.8 Flash at US$0.75 and US$3.75, roughly
+triple and double. The cheaper gpt-5.6-luna (US$0.20 and US$1.20) was considered on
+2026-09-12 and rejected: OpenAI publishes no dated snapshot for the 5.6 line, so the
+snapshot-and-alias pair cannot be formed and the two OpenAI arms would stop measuring the one
+thing they exist to measure. Price is not a reason to give up the comparison.
+
+Against the CA$35 per month line, CA$32 for one run leaves almost nothing: the quarterly
+frontier-tier pass and any doubling of the suite now wait on the first two real bills rather
+than merely being deferred by them. The per-run cap in `caps.yaml` is US$30, which is 27
+percent above this estimate.
+
+**The estimate is conservative on input and untested on output.** ASSUMED_INPUT_TOKENS is 700
+a call; the frozen suite's measured mean is 474 (chars/4), because 400 of the 420 items are
+short and only the 20 long-context passages are large. So a full run should come in under this
+table. A dry run is the opposite case: `--items N` takes N from every block, which makes the
+long-context block one call in seven instead of one in 21 and raises the mean input to about
+1,240. Every arm then sits near 1.9x its expected cost with no vendor having done anything
+unusual, which is why `drift.yml` takes an `abort_multiplier` input and the monthly run alone
+keeps 1.5x. Replace both assumptions with the dry run's measured usage before Sep 27.
 
 If the first dry run shows the estimate is off by more than 2x, cut k to 3 before cutting
 items.
