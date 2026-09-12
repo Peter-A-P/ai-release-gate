@@ -17,6 +17,11 @@ dependencies = [
   "jsonschema>=4,<5",
   # Command line. 0.x is the only line; pinned below 1.
   "typer>=0.15,<1",
+  # Declared even though typer already brings it: `drift refusal label` imports click directly
+  # for getchar(), a single keypress per answer rather than a keypress and a return. Over the
+  # 77 answers of a labelling pass that is 77 fewer keystrokes, and an import that is used is
+  # an import that is declared.
+  "click>=8,<9",
 ]
 
 [dependency-groups]

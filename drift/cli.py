@@ -67,11 +67,13 @@ suite_app = typer.Typer(help="the frozen suite")
 panel_app = typer.Typer(help="the model panel")
 paraphrase_app = typer.Typer(help="the paraphrase robustness block")
 rulec_app = typer.Typer(help="Rule C: the approaches this project rejects, with evidence")
+refusal_app = typer.Typer(help="the refusal classifier's own error rate, measured by hand")
 app.add_typer(items_app, name="items")
 app.add_typer(suite_app, name="suite")
 app.add_typer(panel_app, name="panel")
 app.add_typer(paraphrase_app, name="paraphrase")
 app.add_typer(rulec_app, name="rulec")
+app.add_typer(refusal_app, name="refusal")
 
 ROOT = Path(__file__).resolve().parent.parent
 DRIFT = ROOT / "drift"
@@ -736,6 +738,133 @@ def panel_candidates(
                     typer.echo(f"    snapshot {snap}  <->  alias {alias}")
             else:
                 typer.echo("  no dated snapshot with a matching undated alias")
+
+
+@refusal_app.command("label")
+def refusal_label(
+    month: Annotated[str, typer.Option(help="the run whose stored answers to read")],
+    audit: Annotated[
+        int, typer.Option(help="how many of the large safe stratum to spot-check")
+    ] = 40,
+) -> None:
+    """Read model answers and say what the model did. Resumable; stop whenever you like.
+
+    You never see what the classifier decided. That is the whole point: the pass measures how
+    often the classifier is wrong, and a labeller who has seen its answer cannot measure that.
+    The queue is ordered so the answers that decide a published number come first, so stopping
+    early costs the least valuable labels rather than the most.
+    """
+    import datetime as dt
+
+    import click
+
+    from drift.labelling import (
+        Judgement,
+        Label,
+        append_label,
+        build_queue,
+        labels_path,
+        read_labels,
+        refusal_records,
+    )
+
+    records = refusal_records(RUNS, month)
+    if not records:
+        typer.echo(f"no refusal-block answers recorded for {month}", err=True)
+        raise typer.Exit(2)
+    queue = build_queue(records, audit=audit)
+    by_key = {f"{r.arm_key}|{r.item_id}|{r.repeat}": r for r in records}
+    suite = load_suite(SUITE_ROOT)
+    path = labels_path(DRIFT, month)
+    labels = read_labels(path)
+
+    todo = [t for t in queue if t.key not in labels]
+    typer.echo(f"{len(queue)} answers to read, {len(labels)} already done, {len(todo)} left.")
+    typer.echo("  a = the model answered      r = the model refused")
+    typer.echo("  h = refused one reading, then answered the other")
+    typer.echo("  f = show the full answer    s = skip     q = stop (progress is saved)\n")
+
+    done = 0
+    keys: dict[str, Judgement] = {"a": "answered", "r": "refused", "h": "hedged"}
+    for i, task in enumerate(todo, 1):
+        rec = by_key[task.key]
+        item = suite.get(task.item_id)
+        text = " ".join(str(rec.output).split())
+        shown = 700
+        while True:
+            typer.echo(f"[{i}/{len(todo)}] {task.item_id}  {task.arm_key}")
+            typer.echo(f"  asked : {' '.join(item.prompt.split())[:200]}")
+            typer.echo(f"  answer: {text[:shown]}{'...' if len(text) > shown else ''}")
+            ch = click.getchar().lower()
+            if ch == "f" and len(text) > shown:
+                shown = len(text)
+                typer.echo("")
+                continue
+            break
+        if ch == "q":
+            typer.echo("stopped; run the same command again to carry on")
+            break
+        if ch == "s" or ch not in keys:
+            typer.echo("  skipped\n")
+            continue
+        append_label(
+            path,
+            Label(
+                key=task.key,
+                stratum=task.stratum,
+                verdict=task.verdict,
+                judgement=keys[ch],
+                output_sha256=task.output_sha256,
+                labelled_utc=dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            ),
+        )
+        done += 1
+        # Deliberately no running error rate here. It would say, after every keypress, whether
+        # you had just agreed with the machine, and every label after the first would be made
+        # by someone who knows what the machine thinks. `drift refusal rate` is one command
+        # away once the reading is done.
+        typer.echo(f"  recorded: {keys[ch]}  ({done} of {len(todo)} this session)\n")
+    typer.echo(f"labels are in {path}")
+
+
+@refusal_app.command("rate")
+def refusal_rate(
+    month: Annotated[str, typer.Option(help="the run whose labels to score")],
+    audit: Annotated[int, typer.Option()] = 40,
+) -> None:
+    """The classifier's error rate from the labels, weighted by how many calls each stratum
+    holds rather than by how many were read."""
+    from drift.labelling import (
+        STRATUM_RULE,
+        build_queue,
+        error_rate,
+        labels_path,
+        read_labels,
+        refusal_records,
+        stratum_results,
+    )
+
+    records = refusal_records(RUNS, month)
+    queue = build_queue(records, audit=audit)
+    labels = read_labels(labels_path(DRIFT, month))
+    results = stratum_results(queue, labels)
+    typer.echo(f"{'stratum':<22}{'calls':>7}{'pairs':>7}{'read':>6}{'wrong':>7}   rule")
+    for r in results:
+        typer.echo(
+            f"  {r.stratum:<20}{r.calls:>7}{r.pairs:>7}{r.labelled:>6}{r.errors:>7}   "
+            f"{STRATUM_RULE[r.stratum].split(':')[0]}"
+        )
+    unread = [r.stratum for r in results if not r.labelled]
+    if unread:
+        typer.echo(f"\nnot yet read, so not counted: {', '.join(unread)}")
+    typer.echo(f"\nclassifier error rate over all refusal-block calls: {error_rate(results).fmt()}")
+    hedged = sum(1 for label in labels.values() if label.judgement == "hedged")
+    if hedged:
+        typer.echo(
+            f"{hedged} answer(s) declined one reading and answered the other. Counted as "
+            "compliance here; flip that convention and the rate changes, which is why they "
+            "are labelled separately."
+        )
 
 
 def main() -> None:

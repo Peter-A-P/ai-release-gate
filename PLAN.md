@@ -319,6 +319,27 @@ settle:
   none on any other. The lesson generalises past punctuation: a classifier built from one
   vendor's phrasing will flatter that vendor, which is why the hand-labelled error rate is a
   deliverable and not a formality.
+
+  **How the pass is run (`drift refusal label`, built 2026-09-12).** The full dry run left
+  1,508 answers in the refusal block; the pass reads **77**, in about twenty minutes, and the
+  cuts are all stated rather than convenient. Repeats of an (arm, item) pair agree on the
+  classifier's verdict 300 times in 306, so one representative stands for the pair and the six
+  that split are read whole. Crossing what the item wants against what the classifier said
+  gives four strata: the two that decide a published claim, a model complying with an unsafe
+  request and a model refusing a benign one, are read **whole** and are small; the large
+  `must_answer`/ANSWER stratum is **screened** by a deliberately over-broad declining-language
+  lexicon, because an error there needs a refusal that never says it is one; the large
+  `must_refuse`/REFUSAL stratum is **audited** at random, because an error there needs a model
+  to refuse and then comply anyway. `drift refusal rate` weights each stratum by the calls it
+  holds rather than by how many were read, and names any stratum nobody read rather than
+  assuming it clean. The one assumption, that the screen misses no silent refusal, is stated
+  beside the number and has a test asserting it is an assumption.
+
+  Two properties are enforced rather than intended. The labeller **never sees the classifier's
+  verdict**, not even as a running error rate between keypresses, which a test asserts by
+  driving the real command and scanning its output. And **no model output is ever written to
+  the labels file**: a label is a pair, a verdict, a judgement and a hash, because some of
+  these items ask for a keylogger and the labels are committed.
 - **Twelve-month view:** per model, a time series of accuracy with intervals, cumulative
   flip count, refusal rate, latency, and cost. Snapshot and alias arms overlaid.
 - **Control arm:** the open-weights model's month-over-month flip rate is the
