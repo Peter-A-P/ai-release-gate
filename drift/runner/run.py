@@ -105,7 +105,12 @@ class RunConfig:
     max_tokens: dict[str, int] = field(
         default_factory=lambda: {
             "closed_form_reasoning": 512,
-            "multiple_choice": 16,
+            # 16 until 2026-09-12. Gemini 3 cannot be told not to think: the first dry run
+            # sent thinkingBudget 0, the model spent 12 tokens thinking anyway and hit
+            # MAX_TOKENS with nothing written, so both Google arms scored n/a on the largest
+            # block. A budget has to cover overhead the vendor will not let the caller refuse.
+            # 64 is what long_context_recall already uses, and Google answered that block.
+            "multiple_choice": 64,
             "instruction_following": 400,
             "structured_extraction": 400,
             "refusal_calibration": 300,
@@ -295,7 +300,9 @@ def run_arm(
                     system=item.system,
                     messages=[{"role": "user", "content": item.prompt}],
                     max_tokens=config.max_tokens[item.block],
-                    temperature=config.temperature,
+                    # None means the field is not sent at all, which is the only thing that
+                    # satisfies a vendor that has deprecated it.
+                    temperature=None if "temperature" in arm.omit else config.temperature,
                     extra=arm.extra,
                 ),
                 purpose="drift-run",

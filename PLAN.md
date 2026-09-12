@@ -87,6 +87,20 @@ show.
 
 - Temperature 0, fixed `max_tokens`, fixed system prompt, no tools, no vendor-side
   caching or "prompt caching" features.
+- **Two exceptions, both forced by a vendor and both found by the first dry run on
+  2026-09-12, both recorded in `panel.yaml` rather than applied globally.**
+  `claude-sonnet-5` returns 400 "`temperature` is deprecated for this model", so that arm
+  sends no temperature field at all (`omit: [temperature]`); Haiku 4.5 accepts the field, so
+  it keeps it, and "temperature 0" still describes every arm that is allowed to say so.
+  Gemini 3 cannot be told not to think: the dry run sent `thinkingBudget: 0`, the model spent
+  12 tokens thinking anyway and returned empty content at MAX_TOKENS. `thinkingBudget` is the
+  Gemini 2.5 control; Gemini 3 takes `thinkingLevel`, whose lowest value on 3.8 Flash is
+  "low", not off. Both arms now ask for "low" and the multiple-choice budget rose from 16
+  tokens to 64 so that thinking the caller cannot refuse still leaves room for an answer. 64
+  is what long-context recall already uses and Google answered that block at it.
+- A fixed budget is only fixed if it covers overhead the vendor imposes. A budget that
+  produces no text is not a measurement of the model, and on the largest block it would have
+  been recorded as two arms scoring nothing for twelve months.
 - One pinned HTTP client and pinned API version headers per vendor, raw HTTP rather than
   vendor SDKs, so an SDK release cannot change the request. The calls go through the
   portfolio's gateway library (project 04, version 0) in **pass-through mode**: raw
@@ -97,7 +111,14 @@ show.
 - Request and response headers stored with every call: request identifiers, any model or
   version header the vendor returns, rate-limit headers.
 - The suite is content-hashed. The hash is printed in every report. Any change to an item
-  creates suite v2, which is run alongside v1 for one bridging month.
+  creates suite v2, which is run alongside v1 for one bridging month. **One change was made
+  before the first official run and therefore inside v1** (2026-09-12, `SUITE_HASH`
+  `3d2d8266` to `72f780df`): `reason-1052` and its two paraphrases had the GSM8K gold of
+  170.0 and every one of the eight arms answered 140.0, reading "sold another 1/4 of his
+  land" as a quarter of the original rather than of the remainder. The gold was changed to
+  140.0 and the divergence from the dataset is recorded in each item's `source`. The bridging
+  rule protects the twelve-month record; on 2026-09-12 there was no record yet, and that
+  window shut on the first official run.
 - Development caching is banned on the monthly run. Caching is for building the graders,
   never for the record.
 

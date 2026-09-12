@@ -128,6 +128,14 @@ size. **Frozen 2026-09-11**: `SUITE_HASH`
 `3d2d8266d61cca1bf7a18b50ca386050070c4f2d8e92395ecdf9f5568caf8bc6` over the 400 public items,
 20 hashes in `heldout/HASHES.txt`, and the `DRIFT_HELDOUT_ITEMS` secret set the same day.
 
+**Re-frozen 2026-09-12**, before the first official run and therefore still v1: `SUITE_HASH`
+is now `72f780dfb525d84da3c20b31012e30f495d79fd972aee35fdbd745088048f8a1`, after the first dry
+run showed that `reason-1052` and its two paraphrases carried a gold every model disagreed
+with (PLAN.md section 2.3). **The held-out hashes did not change**, because no held-out item
+did, so the Actions secret still matches and did not need re-uploading. After the first
+official run this is no longer available: a change then means suite v2 and a bridging
+month.
+
 How the runner gets them afterwards (PLAN.md section 2.5):
 
 - Locally, set `DRIFT_HELDOUT_FILE` to the file's path before `drift run`. Without it, a run

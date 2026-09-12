@@ -30,6 +30,13 @@ MODEL_LIST_PATHS: dict[str, str] = {
 # candidate, which is a pair only when the vendor also offers that undated identifier.
 _DATED = re.compile(r"^(?P<base>.+?)[-@](?P<date>\d{8}|\d{4}-\d{2}-\d{2})$")
 
+# Request fields an arm may drop. `extra` can only add fields, and some vendors reject a field
+# outright rather than ignoring it: claude-sonnet-5 answers a request with no temperature and
+# returns 400 "`temperature` is deprecated for this model" when one is present. Dropping is
+# therefore a separate thing from setting, and the allowed set is closed so that a typo fails
+# when the panel loads rather than doing nothing quietly on run day.
+OMITTABLE: frozenset[str] = frozenset({"temperature"})
+
 
 class Arm(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -46,6 +53,18 @@ class Arm(BaseModel):
     # OpenAI reasoning model, which otherwise spends the whole token budget thinking and
     # returns no text. Part of the data, recorded here, never varied between months.
     extra: dict[str, Any] = Field(default_factory=dict)
+    # Request fields this arm must NOT send, for the life of the panel, for the same reason
+    # `extra` exists: it is part of the data. See OMITTABLE above.
+    omit: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def _omittable(self) -> Arm:
+        unknown = sorted(set(self.omit) - OMITTABLE)
+        if unknown:
+            raise ValueError(
+                f"{self.key}: cannot omit {unknown}; omittable fields are {sorted(OMITTABLE)}"
+            )
+        return self
 
     @property
     def explicit(self) -> str:

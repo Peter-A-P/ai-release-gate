@@ -434,3 +434,49 @@ def test_previous_month_survives_a_dry_run_label() -> None:
     assert previous_month("2026-09") == "2026-08"
     assert previous_month("2026-01") == "2025-12"
     assert previous_month("2026-09-dry") == "2026-08"
+
+
+def test_an_arm_can_omit_temperature_and_the_others_still_send_it(
+    suite: Suite, tmp_path: Path
+) -> None:
+    """claude-sonnet-5 returns 400 "`temperature` is deprecated for this model" and Haiku 4.5
+    accepts the same field, so the drop has to be per arm. `extra` cannot express this: it
+    merges fields in and has no way to remove one. Found by the first dry run, 2026-09-12,
+    which lost all seven of that arm's calls to it."""
+    from drift.panel import Arm, Panel
+
+    panel = Panel(
+        version=1,
+        chosen=dt.date(2026, 9, 12),
+        arms=[
+            Arm(
+                key="anthropic-sonnet",
+                provider="anthropic",
+                model="claude-sonnet-5",
+                arm="snapshot",
+                family="s",
+                omit=("temperature",),
+            ),
+            Arm(
+                key="anthropic-haiku",
+                provider="anthropic",
+                model="claude-haiku-4-5-20251001",
+                arm="snapshot",
+                family="h",
+            ),
+        ],
+    )
+    gw = FakeGateway()
+    run(suite, panel, gw, tmp_path, RunConfig(repeats=1, expected_cost_usd=10.0))
+
+    by_model: dict[str, set[float | None]] = {}
+    for request, _purpose, _mode in gw.requests:
+        by_model.setdefault(request.model, set()).add(request.temperature)
+
+    assert by_model["anthropic/claude-sonnet-5"] == {None}, (
+        "the omitting arm must send no temperature at all; None is what keeps the field out "
+        "of the body"
+    )
+    assert by_model["anthropic/claude-haiku-4-5-20251001"] == {0.0}, (
+        "and the drop must not leak into any other arm"
+    )

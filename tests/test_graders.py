@@ -88,6 +88,34 @@ def test_exact_grader_ignores_case_whitespace_and_edge_punctuation() -> None:
     assert not g.grade("the red door", {"answer": "the blue door"}).correct
 
 
+@pytest.mark.parametrize(
+    ("output", "answer", "correct", "why"),
+    [
+        ("41 pounds", "41", True, "the 2026-09-12 dry run: every arm answered this"),
+        ("the marrow weighed 41 pounds.", "41", True, "prose carrying one number"),
+        ("41", "41", True, "equality still passes first"),
+        ("The answer is 41", "41", True, "an answer marker is stripped"),
+        ("4,718", "4718", True, "a thousands separator is not a different number"),
+        ("not 41 but 42", "41", False, "two numbers, and nothing says which was meant"),
+        ("42 pounds", "41", False, "the wrong number, decorated the same way"),
+        ("410", "41", False, "a longer number is not the answer"),
+        ("", "41", False, "nothing is not an answer"),
+        ("Dunmorrow", "Dunmorrow", True, "a worded answer, exact"),
+        ("The village is Dunmorrow.", "Dunmorrow", True, "a worded answer in prose"),
+        ("Dunmorrows", "Dunmorrow", False, "whole words only"),
+        ("Merrowgate", "Dunmorrow", False, "a different name from the same passage"),
+    ],
+)
+def test_exact_grader_credits_a_decorated_answer_but_not_an_ambiguous_one(
+    output: str, answer: str, correct: bool, why: str
+) -> None:
+    """Strict equality was measuring format, not recall. Nine of the twenty long-context items
+    are a bare number, and on 2026-09-12 every arm answered one of them correctly and scored
+    zero for adding the unit. The allowance is narrow on purpose: a numeric answer must be the
+    only number in the output, so a model naming two candidates is still wrong."""
+    assert grader("exact").grade(output, {"answer": answer}).correct is correct, why
+
+
 # -- constraints ------------------------------------------------------------------------------
 
 

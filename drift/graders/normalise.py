@@ -62,6 +62,24 @@ def last_number(text: str) -> float | None:
         return None
 
 
+def all_numbers(text: str) -> set[float]:
+    """Every distinct number in the text. Used to tell "41 pounds" (one number, the answer
+    decorated with its unit) from "not 41 but 42" (two numbers, and no way to say which was
+    meant)."""
+    out: set[float] = set()
+    for raw in _NUMBER.findall(ascii_digits(text)):
+        try:
+            out.add(float(raw.replace(",", "")))
+        except ValueError:
+            continue
+    return out
+
+
+def after_answer_marker(text: str) -> str:
+    """The text after the last "the answer is" style marker, or the text unchanged."""
+    return _after_last_answer_marker(text)
+
+
 def answer_letter(text: str) -> str | None:
     """The chosen option letter A to E: after an answer marker if present, else the first
     standalone letter."""

@@ -7,9 +7,18 @@ import re
 from typing import Any, ClassVar
 
 from drift.graders.base import Grade
-from drift.graders.normalise import answer_letter, last_number, normalise
+from drift.graders.normalise import (
+    after_answer_marker,
+    all_numbers,
+    answer_letter,
+    last_number,
+    normalise,
+)
 
 _EDGE_PUNCT = re.compile(r"^[\s\.\,\;\:\!\?\"'\(\)\[\]]+|[\s\.\,\;\:\!\?\"'\(\)\[\]]+$")
+# Anything in an expected answer that is not part of a plain number, so that "41" takes the
+# numeric path and "41 pounds" or "Dunmorrow" does not.
+_NON_NUMERIC = re.compile(r"[^0-9.,\s-]")
 
 
 class NumericGrader:
@@ -68,6 +77,37 @@ class ExactGrader:
         return _EDGE_PUNCT.sub("", normalise(text))
 
     def grade(self, output: str, expected: Any) -> Grade:
-        got = self._form(output)
+        """Equality first, then two narrow allowances, because strict equality was measuring
+        the wrong thing.
+
+        The first dry run, 2026-09-12: every arm answered `recall-1014` with "41 pounds"
+        against an expected "41" and every arm was marked wrong. Nine of the twenty
+        long-context items are a bare number, so strict equality made almost half the block a
+        test of whether a model repeats the unit, not of whether it found the fact. The item's
+        own system prompt already asks for the answer alone; a model that obeys it and adds
+        the unit anyway has still recalled the fact.
+
+        So: an answer marker is stripped, and then
+        * a numeric expected value matches when the output contains that number and no other.
+          "41 pounds" passes; "not 41 but 42" does not, because nothing there says which was
+          meant.
+        * a worded expected value matches when it appears as a whole word. These are invented
+          proper nouns, unique in their passage, so "the village is Dunmorrow" passes.
+
+        The cost is a model naming two candidates and being credited for the right one, which
+        this accepts for worded answers and refuses for numeric ones. The benefit is not
+        recording a correct answer as wrong, which was happening to every arm at once.
+        """
         want = self._form(str(expected["answer"]))
-        return Grade(got == want, got, f"want {want!r}")
+        for candidate in (output, after_answer_marker(output)):
+            if self._form(candidate) == want:
+                return Grade(True, self._form(candidate), f"want {want!r}")
+
+        got = self._form(after_answer_marker(output))
+        wanted_numbers = all_numbers(want)
+        if len(wanted_numbers) == 1 and not _NON_NUMERIC.search(want):
+            found = all_numbers(got)
+            ok = found == wanted_numbers
+            return Grade(ok, got, f"want the number {want!r} and no other")
+        ok = re.search(rf"(?<!\w){re.escape(want)}(?!\w)", got) is not None
+        return Grade(ok, got, f"want {want!r}")

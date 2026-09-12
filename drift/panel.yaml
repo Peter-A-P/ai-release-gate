@@ -76,11 +76,16 @@ arms:
     model: claude-haiku-4-5
     arm: alias
     family: claude-haiku
+  # The first dry run, 2026-09-12, failed all seven calls on this arm with
+  # 400 "`temperature` is deprecated for this model". Haiku 4.5 accepts temperature and Sonnet
+  # 5 refuses it, so the field is dropped here rather than for the whole run. `extra` could not
+  # do this: it adds fields and cannot remove one.
   - key: anthropic-sonnet-snapshot
     provider: anthropic
     model: claude-sonnet-5
     arm: snapshot
     family: claude-sonnet
+    omit: [temperature]
   # The `extra` fields below are set from the live findings of 2026-09-10 and are NOT yet
   # proved. Both vendors have a default that can eat the whole output budget before any text
   # is produced, and multiple choice runs at 16 tokens and long-context recall at 64, so an
@@ -109,9 +114,16 @@ arms:
   # Flash-Lite and the whole eight-arm panel lands near CA$19 against the CA$25 budgeted, so
   # the choice was made on what it measures, not on price.
   #
-  # Thinking is on by default on Flash, so the thinkingConfig below is required or the arm
-  # returns no text inside the 16-token multiple-choice budget. boundary merges
-  # generationConfig rather than replacing it.
+  # Thinking is on by default on Flash and CANNOT BE TURNED OFF on the Gemini 3 line. The
+  # first dry run, 2026-09-12, sent thinkingConfig.thinkingBudget 0 exactly as configured and
+  # gemini-3.8-flash answered with thoughtsTokenCount 12, finishReason MAX_TOKENS and empty
+  # content: the setting was not wrong, it was not honoured. thinkingBudget is the Gemini 2.5
+  # control; Gemini 3 takes thinkingLevel, whose lowest value on 3.8 Flash is "low", not off.
+  #
+  # So the budget has to make room for thinking that cannot be refused, which is why
+  # multiple_choice rose from 16 tokens to 64 in RunConfig. That is a change to the measurement
+  # for every arm, made once, before the first official run, and recorded here.
+  # boundary merges generationConfig rather than replacing it.
   #
   # Google's identifiers are versioned, not dated, so `snapshot_alias_pairs` cannot detect
   # this pair and it is named by hand: a pinned version as the snapshot, the floating
@@ -124,8 +136,7 @@ arms:
     family: gemini
     extra:
       generationConfig:
-        thinkingConfig:
-          thinkingBudget: 0
+        thinkingLevel: low
   - key: google-alias
     provider: google
     model: gemini-flash-latest
@@ -133,8 +144,7 @@ arms:
     family: gemini
     extra:
       generationConfig:
-        thinkingConfig:
-          thinkingBudget: 0
+        thinkingLevel: low
   # The control, chosen 2026-09-12. Fixed weights served by Together, so anything that moves
   # in this arm across twelve months is measurement noise rather than the model changing: that
   # is the baseline every drift call is made against. `-Turbo` is Together's FP8 serving of the
