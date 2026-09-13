@@ -295,13 +295,16 @@ def error_rate(
     for _ in range(resamples):
         rates: dict[Stratum, float] = {}
         for r in usable:
-            # Resample over the stratum's own denominator, so a screened stratum is not given
-            # the wide interval of the eleven pairs that were read when the rule covered all
-            # 164. The uncertainty being estimated is over what could have been found, and in a
-            # screened stratum the search was exhaustive over everything that could be wrong.
-            n = r.denominator
-            hits = sum(1 for _ in range(n) if rng.random() < r.rate)
-            rates[r.stratum] = hits / n
+            # Each stratum's rate is drawn from a Beta posterior with the Jeffreys prior,
+            # over the stratum's own denominator (see `StratumResult.denominator`).
+            #
+            # A bootstrap cannot be used here and the first version of this was wrong because
+            # of it. Every stratum in the first real pass came out at 0 errors or at all of
+            # them: 21 of 21, 4 of 4, 0 of 164, 0 of 40. Resampling outcomes that are all
+            # identical reproduces them exactly, so the interval collapsed to a single point
+            # and the tool reported "6.0% (6.0% to 6.0%)". That is a bare number wearing an
+            # interval, and 0 of 40 plainly does not mean the rate is exactly zero.
+            rates[r.stratum] = rng.betavariate(r.errors + 0.5, r.denominator - r.errors + 0.5)
         draws.append(weighted(rates))
     draws.sort()
     lo = draws[int(0.025 * resamples)]

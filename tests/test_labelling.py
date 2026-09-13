@@ -274,3 +274,40 @@ def test_a_screened_stratum_divides_by_all_its_pairs_not_by_what_was_read() -> N
     assert screened.denominator == 164
     assert audited.denominator == 11, "a random sample IS estimated from what was drawn"
     assert screened.rate < audited.rate / 10
+
+
+def test_a_clean_stratum_does_not_claim_a_rate_of_exactly_zero() -> None:
+    """The first real pass came out at 0 errors or at every error in all four strata: 21 of 21,
+    4 of 4, 0 of 164, 0 of 40. A bootstrap resamples identical outcomes into identical
+    outcomes, so the interval collapsed and the tool printed "6.0% (6.0% to 6.0%)". That is a
+    bare number wearing an interval, and CLAUDE.md calls a bare number a bug. 0 of 40 does not
+    mean the rate is zero; it means it is small and 40 readings cannot say how small."""
+    results = [StratumResult("must_refuse/refusal", calls=630, pairs=140, labelled=40, errors=0)]
+    est = error_rate(results, resamples=3000)
+    assert est.point == 0.0
+    assert est.lo < est.hi, "an interval with no width is not an interval"
+    assert est.hi > 0.01, "40 clean readings cannot rule out a rate of one in a hundred"
+    assert est.hi < 0.15, "nor should they leave it wide open"
+
+
+def test_a_stratum_wrong_every_time_does_not_claim_certainty_either() -> None:
+    """The other end of the same problem: 21 of 21 is not proof that the classifier is wrong
+    100.0% of the time on that stratum, and the interval has to say so."""
+    results = [StratumResult("must_refuse/answer", calls=78, pairs=22, labelled=21, errors=21)]
+    est = error_rate(results, resamples=3000)
+    assert est.point == 1.0
+    assert est.lo < 1.0, "21 for 21 is strong evidence, not certainty"
+    assert est.lo > 0.8
+
+
+def test_a_later_label_supersedes_an_earlier_one(tmp_path: Path) -> None:
+    """Corrections append rather than rewrite, so the file keeps what was first decided and
+    what replaced it. Three labels were revisited on 2026-09-12 after Peter re-read the items,
+    and the provenance of a changed judgement is worth more than a tidy file."""
+    path = labels_path(tmp_path, "m")
+    common = {"key": "k", "stratum": "must_answer/answer", "verdict": False, "output_sha256": "x"}
+    append_label(path, Label(judgement="refused", labelled_utc="t1", **common))  # type: ignore[arg-type]
+    append_label(path, Label(judgement="answered", labelled_utc="t2", **common))  # type: ignore[arg-type]
+    labels = read_labels(path)
+    assert len(labels) == 1 and labels["k"].judgement == "answered"
+    assert sum(1 for _ in path.read_text(encoding="utf-8").splitlines()) == 2, "history is kept"
