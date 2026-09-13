@@ -590,12 +590,12 @@ costs about a dollar, so it is built into the dry-run week rather than bolted on
 
 ## 11. Definition of done for phase 1
 
-- [ ] Suite v1 frozen, hash committed, held-out hashes committed
-- [ ] Panel recorded with dated identifiers and arms
-- [ ] Every grader tested against adversarial fixtures
+- [x] Suite v1 frozen, hash committed, held-out hashes committed. **2026-09-12**, `SUITE_HASH` `72f780df...`, 20 held-out hashes, the items themselves outside the repository and in the `DRIFT_HELDOUT_ITEMS` secret, which the plan job verifies before any vendor is called
+- [x] Panel recorded with dated identifiers and arms. **Chosen and dated 2026-09-12** from the vendors' own model lists and, where a list does not publish an alias, from a live call showing what it resolves to
+- [x] Every grader tested against adversarial fixtures. All seven, 18 test functions; the cases that matter came from real answers, including the ones that made `exact` and the refusal classifier wrong
 - [ ] First official run committed with raw responses and a rendered report, by 2026-09-30
 - [ ] Oct 1 run committed; noise floor and detectable effect published in the October report
-- [ ] Workflow scheduled for the 1st of each month, with manual rerun path documented
+- [x] Workflow scheduled for the 1st of each month, with manual rerun path documented. `drift.yml` cron `0 6 1 * *` plus `workflow_dispatch`; the first run on Sep 27 is a manual dispatch because it is not the 1st
 - [ ] Regrade-from-store reproduces the published numbers
 - [ ] README results table updates from the job
 - [ ] Actual cost of the first two runs recorded against the estimate
@@ -920,7 +920,7 @@ Mirrors the portfolio's definition:
 - [ ] Drift runs executing monthly since Sep 2026, data published (Part A)
 - [ ] Judge calibrated against human labels, kappa and alpha reported with CIs
 - [ ] Corrected pass rates reported next to raw
-- [ ] Every reported score carries a bootstrap CI
+- [ ] Every reported score carries a bootstrap CI. **Enforced for the classifier's own error rate 2026-09-12** after it reported a zero-width interval, which is a bare number wearing an interval
 - [ ] Items filtered on discrimination before any of 02's difficulty parameters are used
 - [ ] Power analysis published: items needed per effect size, from `mselect`, validated
 - [ ] False-block rate published from the A/A study
