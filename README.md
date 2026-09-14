@@ -5,18 +5,31 @@ discipline a test suite gives code, applied to AI, with an audit trail a regulat
 read. Plus a public, month-by-month record of how the major vendors' "frozen" models
 silently change, on a fixed suite, with error bars.
 
-**Status: Part A runner built; all 420 suite items now exist: 270 drawn from public sets on
-2026-09-10 ([how](docs/sampling.md)), 60 generated on 2026-09-11 (20 long-context recall
-passages and 40 paraphrases, [how](docs/long-context.md)) and 90 written by hand
-([how](docs/writing-items.md)). All 130 drafted items passed their second pass on
-2026-09-11 with no item rewritten. The suite is checked but not yet frozen; the panel of
-models is still to be chosen. First run targeted 2026-09-27.** Both phases are planned in [PLAN.md](PLAN.md):
-Part A, the monthly drift record, with the first official run targeted for 2026-09-27; Part
-B, the release gate itself, built Dec 2026 to Jan 2027.
+**Status: the record has started.** The suite is frozen at v1, hash `72f780dfb525d84d`: 420
+items, of which 270 were drawn from public sets on 2026-09-10 ([how](docs/sampling.md)), 60
+were generated on 2026-09-11 (20 long-context recall passages and 40 paraphrases,
+[how](docs/long-context.md)) and 90 were written by hand ([how](docs/writing-items.md)).
+Twenty are held out, committed as hashes only. The panel of eight arms was chosen from the
+vendors' own published model lists on 2026-09-12 and dated. **The first official run
+completed on 2026-09-13: 16,800 calls for US$19.53.** Both phases are planned in
+[PLAN.md](PLAN.md): Part A, the monthly drift record, running now; Part B, the release gate
+itself, built Dec 2026 to Jan 2027.
 
 ## Result
 
-Not yet measured. This table is filled by the monthly job from the first run onward.
+The first run, 2026-09-13. Eight arms, 420 frozen items, five repeats each.
+
+**The column to read first is the same-day flip rate.** It is how much a score moves when
+nothing has changed at all: the same question, to the same model, five times in one sitting.
+It runs from 0.2% to 5.0% depending on the arm. Every later claim that a model drifted has to
+clear its own arm's floor before it counts, which is the whole reason this record exists.
+
+One caveat belongs beside the table rather than below it. The refusal figures come from a
+classifier that is eleven regular expressions, and its own error rate is measured by hand
+against these same stored answers: **5.7% (5.3% to 8.0%)**, with every error in the same
+direction, missing refusals rather than inventing them. What it cannot be fixed to catch is
+set out in [the month's report](drift/reports/2026-09.md), and it is the more interesting
+half.
 
 | Run | Arm | Accuracy (95% CI) | Same-day flip rate (noise floor) | Flip rate vs previous run | Refused when it should answer | Cost per 1,000 calls |
 |---|---|---|---|---|---|---|
