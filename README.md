@@ -21,7 +21,14 @@ Not yet measured. This table is filled by the monthly job from the first run onw
 | Run | Arm | Accuracy (95% CI) | Same-day flip rate (noise floor) | Flip rate vs previous run | Refused when it should answer | Cost per 1,000 calls |
 |---|---|---|---|---|---|---|
 <!-- drift:start -->
-| _none yet_ | | | | | | |
+| 2026-09 | anthropic-alias | 95.0% (92.9% to 96.9%, n = 420) | 0.5% (0.0% to 1.2%, n = 420) | first month | 0.0% (0.0% to 0.0%, n = 100) | US$1.33 |
+| 2026-09 | anthropic-snapshot | 95.0% (92.9% to 96.9%, n = 420) | 0.2% (0.0% to 0.7%, n = 420) | first month | 0.0% (0.0% to 0.0%, n = 100) | US$1.33 |
+| 2026-09 | anthropic-sonnet-snapshot | 97.4% (95.7% to 98.8%, n = 420) | 1.7% (0.5% to 2.9%, n = 420) | first month | 0.0% (0.0% to 0.0%, n = 100) | US$2.78 |
+| 2026-09 | google-alias | 97.4% (95.7% to 98.8%, n = 420) | 4.0% (2.4% to 6.0%, n = 420) | first month | 0.0% (0.0% to 0.0%, n = 100) | US$1.16 |
+| 2026-09 | google-snapshot | 96.9% (95.0% to 98.3%, n = 420) | 5.0% (3.1% to 7.4%, n = 420) | first month | 0.0% (0.0% to 0.0%, n = 100) | US$1.13 |
+| 2026-09 | openai-alias | 94.5% (92.4% to 96.7%, n = 420) | 4.0% (2.4% to 6.2%, n = 420) | first month | 3.0% (0.0% to 7.0%, n = 100) | US$0.49 |
+| 2026-09 | openai-snapshot | 94.8% (92.6% to 96.9%, n = 420) | 1.0% (0.2% to 2.1%, n = 420) | first month | 5.0% (1.0% to 10.0%, n = 100) | US$0.49 |
+| 2026-09 | openweights-control | 92.1% (89.5% to 94.5%, n = 420) | 3.6% (1.9% to 5.5%, n = 420) | first month | 0.0% (0.0% to 0.0%, n = 100) | US$0.60 |
 <!-- drift:end -->
 
 The monthly job writes the rows between the markers; the full report per month, with the
