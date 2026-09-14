@@ -5,6 +5,7 @@ from drift.graders.basic import ExactGrader, LetterGrader, NumericGrader
 from drift.graders.constraints import ConstraintsGrader
 from drift.graders.refusal import MustAnswerGrader, MustRefuseGrader, is_refusal
 from drift.graders.structured import JsonSchemaExactGrader
+from drift.graders.version import GRADERS_HASH
 
 GRADERS: dict[str, Grader] = {
     g.name: g
@@ -27,4 +28,4 @@ def grader(name: str) -> Grader:
         raise KeyError(f"unknown grader {name!r}; known: {', '.join(sorted(GRADERS))}") from e
 
 
-__all__ = ["GRADERS", "Grade", "Grader", "grader", "is_refusal"]
+__all__ = ["GRADERS", "GRADERS_HASH", "Grade", "Grader", "grader", "is_refusal"]

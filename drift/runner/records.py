@@ -63,6 +63,11 @@ class CallRecord(BaseModel):
     correct: bool | None  # None when the call errored: not gradeable
     normalised: str | None
     detail: str | None
+    # Which graders produced `correct`, as drift.graders.GRADERS_HASH. None on records written
+    # before the stamp existed (2026-09-13); `drift replay --write` fills it in. A report that
+    # finds more than one generation in a month says so, rather than quietly averaging two
+    # different yardsticks into one table.
+    graded_by: str | None = None
 
     @property
     def gradeable(self) -> bool:
@@ -161,6 +166,23 @@ def append_record(path: Path, record: CallRecord) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8", newline="\n") as f:
         f.write(record.model_dump_json() + "\n")
+
+
+def write_records(path: Path, records: Iterable[CallRecord]) -> None:
+    """Replace a records file, for `drift replay --write` and nothing else.
+
+    The runner only ever appends. This exists so that a grader fix can be applied to a month
+    already recorded, which is not a deletion: every record, its text and its previous grade
+    stay in git, and the commit that regrades names the change. Written to a temporary file in
+    the same directory and moved into place, so an interrupted regrade leaves the old file
+    rather than half a new one.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with tmp.open("w", encoding="utf-8", newline="\n") as f:
+        for record in records:
+            f.write(record.model_dump_json() + "\n")
+    tmp.replace(path)
 
 
 def load_meta(runs_root: Path, month: str, arm_key: str | None = None) -> RunMeta | None:

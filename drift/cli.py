@@ -33,7 +33,7 @@ from drift.analysis.report import (
     write_readme,
 )
 from drift.experiments import judge
-from drift.graders import GRADERS, grader
+from drift.graders import GRADERS, GRADERS_HASH, grader
 from drift.items import Item, read_items, validate_file, write_items
 from drift.panel import MODEL_LIST_PATHS, Arm, load_panel, parse_model_list, snapshot_alias_pairs
 from drift.runner.records import arms_recorded, read_records, records_path, summarise_month
@@ -227,14 +227,29 @@ def collect(
 
 
 @app.command()
-def replay(month: Annotated[str, typer.Option()]) -> None:
+def replay(
+    month: Annotated[str, typer.Option()],
+    write: Annotated[
+        bool,
+        typer.Option(
+            help="replace the stored grade with the new one and stamp the graders that made it"
+        ),
+    ] = False,
+) -> None:
     """Regrade stored outputs with the current graders; no vendor is called. Held-out
-    records store no output and are skipped."""
+    records store no output and are skipped.
+
+    Without --write nothing is changed and disagreements are only counted. With it the records
+    take the new grade. Run it on every month whenever a grader changes, so that no report is
+    ever built from two generations of graders at once.
+    """
     suite = load_suite(SUITE_ROOT)
-    for key, (compared, disagreed) in regrade(RUNS, month, suite).items():
+    for key, (compared, disagreed) in regrade(RUNS, month, suite, write=write).items():
         typer.echo(
             f"{key}: {compared} records regraded, {disagreed} disagree with the run-time grade"
         )
+    if write:
+        typer.echo(f"records restamped with graders {GRADERS_HASH}")
     out = build_report(RUNS, REPORTS, month, load_panel(PANEL) if PANEL.is_file() else None)
     typer.echo(f"report: {out}")
 

@@ -13,7 +13,16 @@ from drift.analysis.metrics import (
     month_over_month,
 )
 from drift.panel import Panel
-from drift.runner.records import RunMeta, arms_recorded, load_meta, read_records, records_path
+from drift.runner.grading import verdict
+from drift.runner.records import (
+    CallRecord,
+    RunMeta,
+    arms_recorded,
+    load_meta,
+    read_records,
+    records_path,
+    write_records,
+)
 from drift.suite import Suite
 
 README_START = "<!-- drift:start -->"
@@ -38,24 +47,82 @@ def metrics_for_month(runs_root: Path, month: str, *, seed: int = 0) -> dict[str
     return out
 
 
-def regrade(runs_root: Path, month: str, suite: Suite) -> dict[str, tuple[int, int]]:
-    """Regrade every stored output with the current graders against the suite's expected
-    values, without any vendor call. Per arm: (records compared, disagreements with the
-    outcome recorded at run time). Disagreements mean a grader changed since the run."""
-    from drift.graders import grader
+def regrade(
+    runs_root: Path, month: str, suite: Suite, *, write: bool = False
+) -> dict[str, tuple[int, int]]:
+    """Regrade every stored output with the current graders, without any vendor call. Per arm:
+    (records compared, disagreements with the grade recorded at run time).
+
+    With `write`, the new grade replaces the old one in the record and the record is stamped
+    with the graders that produced it. Without it, nothing is written and this only counts.
+
+    A record whose output was not kept cannot be regraded, so held-out items keep the grade
+    they were given at run time and keep the stamp of the graders that gave it. That is the one
+    place a month can legitimately hold two generations, and the report names it rather than
+    hiding it.
+
+    Rewriting a grade is not a deletion: the record, its text and its run-time grade are all in
+    git, and the commit that regrades says which grader changed and why. What must never
+    happen is a report built from two generations at once, which is exactly what a read-only
+    regrade left behind on 2026-09-13.
+    """
+    from drift.graders import GRADERS_HASH
 
     out: dict[str, tuple[int, int]] = {}
     for key in arms_recorded(runs_root, month):
+        path = records_path(runs_root, month, key)
         compared = disagreed = 0
-        for r in read_records(records_path(runs_root, month, key)):
-            if r.output is None or r.correct is None:
+        updated: list[CallRecord] = []
+        for r in read_records(path):
+            if r.held_out:
+                # No output was kept, so there is nothing to regrade and nothing to restamp.
+                updated.append(r)
                 continue
-            compared += 1
+            # A record with no text is still regradeable and must not be skipped on that
+            # basis. A vendor-level refusal carries its verdict in the finish reason and
+            # often no text at all: 95 of this month's calls, all of them on the refusal
+            # block, which is precisely where they matter most. Skipping them left them
+            # unstamped, and the report said so.
             item = suite.get(r.item_id)
-            if grader(item.grader).grade(r.output, item.expected).correct != r.correct:
-                disagreed += 1
+            v = verdict(
+                text=r.output,
+                ok=not r.errored,
+                finish_reason=r.finish_reason,
+                block=r.block,
+                grader_name=item.grader,
+                expected=item.expected,
+            )
+            if r.correct is not None:
+                compared += 1
+                if v.correct != r.correct:
+                    disagreed += 1
+            updated.append(
+                r.model_copy(
+                    update={
+                        "correct": v.correct,
+                        "normalised": v.normalised,
+                        "detail": v.detail,
+                        "graded_by": GRADERS_HASH,
+                    }
+                )
+            )
         out[key] = (compared, disagreed)
+        if write:
+            write_records(path, updated)
     return out
+
+
+def grading_generations(runs_root: Path, month: str) -> dict[str | None, int]:
+    """How many records in a month were graded by each generation of the graders. More than one
+    entry (ignoring held-out records, which cannot be regraded) means the report would be
+    averaging two different yardsticks."""
+    seen: dict[str | None, int] = {}
+    for key in arms_recorded(runs_root, month):
+        for r in read_records(records_path(runs_root, month, key)):
+            if r.held_out:
+                continue
+            seen[r.graded_by] = seen.get(r.graded_by, 0) + 1
+    return seen
 
 
 def render(
@@ -64,8 +131,11 @@ def render(
     panel: Panel | None,
     cur: dict[str, ArmMetrics],
     prev: dict[str, ArmMetrics],
+    generations: dict[str | None, int] | None = None,
 ) -> str:
     lines: list[str] = [f"# Drift record, {month}", ""]
+    if generations:
+        lines += _grading_note(generations)
     if meta is not None:
         lines += [
             f"Run `{meta.run_id}`: {meta.status}"
@@ -173,10 +243,40 @@ def write_readme(readme: Path, rows: str) -> None:
     readme.write_text(text[:start] + "\n" + rows + "\n" + text[end:], encoding="utf-8")
 
 
+def _grading_note(generations: dict[str | None, int]) -> list[str]:
+    """One line naming the graders behind every number below, or a warning when there is more
+    than one set of them.
+
+    A drift record compares a model against itself across twelve months, so a number is only
+    worth reading next to another number if the same yardstick produced both. Saying which
+    yardstick is the cheapest possible way to make that checkable, and saying so loudly when
+    two are in play is the only thing that stops a grader fix looking like a model change.
+    """
+    if len(generations) == 1:
+        only = next(iter(generations))
+        return [f"Graded by `{only}` (drift.graders.GRADERS_HASH).", ""]
+    ordered = sorted(generations.items(), key=lambda kv: -kv[1])
+    counts = ", ".join(f"`{g or 'unstamped'}`: {n}" for g, n in ordered)
+    return [
+        f"**Graded by more than one generation of the graders: {counts}.** The numbers below "
+        "mix them, so a difference between arms or between months may be a difference in "
+        "grading rather than in the models. Run `drift replay --write` on every month to "
+        "settle it before reading further.",
+        "",
+    ]
+
+
 def build_report(runs_root: Path, reports_root: Path, month: str, panel: Panel | None) -> Path:
     cur = metrics_for_month(runs_root, month)
     prev = metrics_for_month(runs_root, previous_month(month))
-    text = render(month, load_meta(runs_root, month), panel, cur, prev)
+    text = render(
+        month,
+        load_meta(runs_root, month),
+        panel,
+        cur,
+        prev,
+        grading_generations(runs_root, month),
+    )
     reports_root.mkdir(parents=True, exist_ok=True)
     out = reports_root / f"{month}.md"
     out.write_text(text, encoding="utf-8")
