@@ -50,7 +50,7 @@ def _rec(item_id: str, output: str | None, *, correct: bool | None, **kw: object
         "detail": None,
     }
     base.update(kw)
-    return CallRecord(**base)  # type: ignore[arg-type]
+    return CallRecord(**base)
 
 
 def _suite(*ids: str) -> Suite:
