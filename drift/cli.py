@@ -787,11 +787,13 @@ def refusal_label(
     if not records:
         typer.echo(f"no refusal-block answers recorded for {month}", err=True)
         raise typer.Exit(2)
-    queue = build_queue(records, audit=audit)
-    by_key = {f"{r.arm_key}|{r.item_id}|{r.repeat}": r for r in records}
-    suite = load_suite(SUITE_ROOT)
     path = labels_path(DRIFT, month)
     labels = read_labels(path)
+    # Anything already read stays in the queue wherever it now falls, so a grader fix cannot
+    # quietly discard a reading someone has already paid for with their attention.
+    queue = build_queue(records, audit=audit, keep=labels.keys())
+    by_key = {f"{r.arm_key}|{r.item_id}|{r.repeat}": r for r in records}
+    suite = load_suite(SUITE_ROOT)
 
     todo = [t for t in queue if t.key not in labels]
     typer.echo(f"{len(queue)} answers to read, {len(labels)} already done, {len(todo)} left.")
@@ -860,8 +862,8 @@ def refusal_rate(
     )
 
     records = refusal_records(RUNS, month)
-    queue = build_queue(records, audit=audit)
     labels = read_labels(labels_path(DRIFT, month))
+    queue = build_queue(records, audit=audit, keep=labels.keys())
     results = stratum_results(queue, labels)
     typer.echo(f"{'stratum':<22}{'calls':>7}{'pairs':>7}{'read':>6}{'wrong':>7}   rule")
     for r in results:

@@ -41,7 +41,7 @@ from __future__ import annotations
 import json
 import random
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Collection, Iterable, Sequence
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -117,7 +117,32 @@ class Label:
 
     @property
     def classifier_wrong(self) -> bool:
+        """Whether the classifier that was running when this was labelled got it wrong.
+
+        Historical. For what the classifier gets wrong **now**, use `wrong_against`, because
+        the whole point of measuring the error rate is to fix what it finds, and a label
+        compared against the verdict of a classifier that has since been fixed measures a
+        thing that no longer exists.
+        """
         return self.verdict != self.human_says_refusal
+
+    def wrong_against(self, verdict_now: bool) -> bool:
+        """Whether the current classifier gets this answer wrong.
+
+        The human judgement is the durable fact here: a person read the text and said what the
+        model did, and fixing a regular expression does not change what the model did. The
+        classifier's verdict is derived, so it is recomputed rather than remembered. Getting
+        this backwards on 2026-09-13 threw away 22 of 76 hand labels and reported 7.7% where
+        the classifier had just been improved, because three answers moved strata under the
+        labels and the rest were compared against a classifier that no longer ran.
+        """
+        return verdict_now != self.human_says_refusal
+
+
+def _key(r: CallRecord) -> str:
+    """The identity of one answer, the same string `Task.key` uses, so a queue, a label
+    file and a record all agree on what they are talking about."""
+    return f"{r.arm_key}|{r.item_id}|{r.repeat}"
 
 
 def _sha(text: str) -> str:
@@ -140,11 +165,42 @@ def refusal_records(runs_root: Path, month: str) -> list[CallRecord]:
     return out
 
 
+def _stable_sample(group: Sequence[CallRecord], n: int, seed: int) -> list[CallRecord]:
+    """A random sample that does not reshuffle when the group changes.
+
+    `random.sample` draws by position, so adding one record to the group redraws the whole
+    sample. That is fine for a sample drawn once and fatal for one drawn again after a grader
+    fix: three records moved into this stratum on 2026-09-13 and 19 of the 40 answers a human
+    had already read fell out of the queue, unused.
+
+    Each record instead gets a score from a hash of the seed and its own identity, and the
+    lowest scores win. The choice is still arbitrary with respect to content, which is all the
+    stratum needs, but a record's score depends only on the record, so an insertion can only
+    displace a sample member by out-scoring it rather than by moving everything along.
+    """
+
+    def score(r: CallRecord) -> str:
+        return sha256(f"{seed}|{r.arm_key}|{r.item_id}|{r.repeat}".encode()).hexdigest()
+
+    return sorted(group, key=score)[:n]
+
+
 def build_queue(
-    records: Sequence[CallRecord], *, audit: int = 40, seed: int = 20260927
+    records: Sequence[CallRecord],
+    *,
+    audit: int = 40,
+    seed: int = 20260927,
+    keep: Collection[str] = (),
 ) -> list[Task]:
     """The reading list: whole strata where the answer matters, a screen and an audit where it
-    does not."""
+    does not.
+
+    `keep` is the set of answers a human has already read. They stay in the queue wherever they
+    now fall, on top of the sample, because a reading is expensive and a grader fix should
+    never discard one. Without this, fixing the classifier on 2026-09-13 moved three records
+    between strata, the audit sample redrew around them, and 22 of 76 hand labels stopped
+    counting towards the published error rate.
+    """
     pairs: dict[tuple[str, str], list[CallRecord]] = {}
     for r in records:
         pairs.setdefault((r.arm_key, r.item_id), []).append(r)
@@ -165,15 +221,15 @@ def build_queue(
     for r in chosen:
         by_stratum.setdefault(_stratum(r.grader, is_refusal(str(r.output))), []).append(r)
 
-    rng = random.Random(seed)
     queue: list[Task] = []
     for stratum in STRATUM_RULE:
         group = sorted(by_stratum.get(stratum, []), key=lambda r: (r.arm_key, r.item_id, r.repeat))
         if stratum == "must_answer/answer":
             take = [r for r in group if DECLINING.search(ascii_punctuation(str(r.output))[:400])]
         elif stratum == "must_refuse/refusal":
+            sampled = {_key(r) for r in _stable_sample(group, audit, seed)}
             take = sorted(
-                rng.sample(group, min(audit, len(group))),
+                [r for r in group if _key(r) in sampled or _key(r) in keep],
                 key=lambda r: (r.arm_key, r.item_id, r.repeat),
             )
         else:
@@ -252,14 +308,22 @@ def stratum_results(queue: Sequence[Task], labels: dict[str, Label]) -> list[Str
         tasks = [t for t in queue if t.stratum == stratum]
         if not tasks:
             continue
-        done = [labels[t.key] for t in tasks if t.key in labels]
+        # Paired task by task, so each label is judged against what the classifier says about
+        # that answer today, not against what it said on the day the label was written. A
+        # label whose answer has changed text is dropped rather than trusted: the hash is
+        # there to prove the person read the answer this verdict is about.
+        done = [
+            (t, labels[t.key])
+            for t in tasks
+            if t.key in labels and labels[t.key].output_sha256 == t.output_sha256
+        ]
         out.append(
             StratumResult(
                 stratum=stratum,
                 calls=tasks[0].calls_in_stratum,
                 pairs=tasks[0].pairs_in_stratum,
                 labelled=len(done),
-                errors=sum(1 for label in done if label.classifier_wrong),
+                errors=sum(1 for t, label in done if label.wrong_against(t.verdict)),
             )
         )
     return out

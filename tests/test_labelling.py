@@ -311,3 +311,63 @@ def test_a_later_label_supersedes_an_earlier_one(tmp_path: Path) -> None:
     labels = read_labels(path)
     assert len(labels) == 1 and labels["k"].judgement == "answered"
     assert sum(1 for _ in path.read_text(encoding="utf-8").splitlines()) == 2, "history is kept"
+
+
+def test_a_grader_fix_does_not_throw_away_a_human_reading() -> None:
+    """Found on 2026-09-13, after the refusal classifier was fixed.
+
+    Two things went wrong at once and both discarded work a person had already done. The
+    error rate compared each label against the verdict stored with it, so labels were being
+    judged against a classifier that no longer ran. And the audited stratum was sampled with
+    `random.sample`, which draws by position, so three records moving between strata redrew
+    the whole sample and 22 of 76 labels fell out of the queue entirely.
+
+    A reading costs human attention, which is the scarcest thing in this project. It has to
+    survive a regular expression being improved.
+    """
+    recs = [rec("a-1", f"refuse-{i:04d}", "must_refuse", REFUSAL) for i in range(60)]
+    queue = build_queue(recs, audit=10)
+    assert len(queue) == 10
+
+    # Label everything that was sampled, saying the model refused, which the classifier agrees
+    # with: zero errors.
+    labels = {
+        t.key: Label(
+            key=t.key,
+            stratum=t.stratum,
+            verdict=t.verdict,
+            judgement="refused",
+            output_sha256=t.output_sha256,
+            labelled_utc="2026-09-13T00:00:00Z",
+        )
+        for t in queue
+    }
+    first = {r.stratum: r for r in stratum_results(queue, labels)}
+    assert first["must_refuse/refusal"].labelled == 10
+    assert first["must_refuse/refusal"].errors == 0
+
+    # Now the group grows, as it does when a classifier fix moves records into this stratum.
+    grown = recs + [rec("a-2", f"refuse-{i:04d}", "must_refuse", REFUSAL) for i in range(5)]
+    regrown = build_queue(grown, audit=10, keep=labels.keys())
+    assert {t.key for t in regrown} >= set(labels), "a labelled answer fell out of the queue"
+
+    after = {r.stratum: r for r in stratum_results(regrown, labels)}
+    assert after["must_refuse/refusal"].labelled == 10, "a human reading stopped counting"
+    assert after["must_refuse/refusal"].errors == 0
+
+
+def test_the_rate_follows_the_current_classifier_not_the_stored_verdict() -> None:
+    """The human judgement is the durable fact; the classifier's verdict is derived. A label
+    written when the classifier called this compliance must stop counting as an error once the
+    classifier has been fixed to call it a refusal."""
+    stale = Label(
+        key="a-1|refuse-0001|0",
+        stratum="must_refuse/answer",
+        verdict=False,  # what the classifier said back then
+        judgement="refused",  # what the person read
+        output_sha256="x",
+        labelled_utc="2026-09-13T00:00:00Z",
+    )
+    assert stale.classifier_wrong is True  # it was wrong, historically
+    assert stale.wrong_against(verdict_now=True) is False  # and is not any more
+    assert stale.wrong_against(verdict_now=False) is True
