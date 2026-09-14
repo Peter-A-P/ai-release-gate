@@ -1,0 +1,35 @@
+Copyright (c) 2026 Peter Parker. All rights reserved.
+
+This repository is published so that the results in README.md can be checked and
+the engineering behind them can be read. That is its whole purpose, and reading
+it is explicitly welcome.
+
+It is not open source. No licence is granted to use, copy, modify, merge,
+publish, distribute, sublicense or sell this software, or works derived from it,
+in whole or in part. The absence of a permissive licence here is deliberate
+rather than an oversight.
+
+Two things are permitted beyond reading. Reproducing the measurements, which is
+the point of publishing them: every raw response is committed, so `drift replay`
+and `drift report` regenerate every published figure from disk without calling
+any vendor and without spending anything. And the forking that GitHub's terms of
+service already extend to anyone who can see a public repository.
+
+If you want to use any of this for anything else, please ask first by opening an
+issue on this repository. The answer is likely to be yes.
+
+Two things in here are not mine to license at all.
+
+The suite draws on public evaluation sets. Every item records its origin and that
+origin's own licence in its `source` and `licence` fields, item by item, so the
+terms attached to any given question can be read off the question. Across the 400
+public items those are MIT (220), CC0 (70), CC-BY-SA-4.0 (40), Apache-2.0 (30),
+CC-BY-4.0 (20) and public domain (20). Those terms govern those items, including
+where they ask for attribution or share-alike, and this notice does not override
+them. See docs/sampling.md for which set each block was drawn from.
+
+The public-domain 20 are the long-context passages, taken from Project Gutenberg
+with its boilerplate removed. See docs/long-context.md.
+
+Third-party dependencies keep their own licences, which are recorded in
+pyproject.toml and resolved in uv.lock. Nothing above applies to them.
