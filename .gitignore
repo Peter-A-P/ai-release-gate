@@ -31,6 +31,13 @@ Thumbs.db
 drift/runs/dev-ledger.sqlite*
 drift/runs/*/*/raw/*.tmp
 
+# SQLite's scratch files beside a ledger. `-wal` holds transactions not yet folded in and `-shm`
+# is its shared index; both are deleted when the database closes cleanly, and neither is part of
+# the record. An open ledger leaves them lying next to the committed one, where a `git add -A`
+# picks them up, which is how 128 of them reached the history already.
+drift/runs/*/*/ledger.sqlite-wal
+drift/runs/*/*/ledger.sqlite-shm
+
 # Held-out items (PLAN.md section 2.5): the items stay outside the repository until month 12,
 # and boundary's raw store for their calls is never committed. Belt and braces.
 heldout-*.jsonl
