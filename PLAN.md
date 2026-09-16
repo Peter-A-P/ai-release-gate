@@ -634,12 +634,12 @@ costs about a dollar, so it is built into the dry-run week rather than bolted on
 - [x] Suite v1 frozen, hash committed, held-out hashes committed. **2026-09-12**, `SUITE_HASH` `72f780df...`, 20 held-out hashes, the items themselves outside the repository and in the `DRIFT_HELDOUT_ITEMS` secret, which the plan job verifies before any vendor is called
 - [x] Panel recorded with dated identifiers and arms. **Chosen and dated 2026-09-12** from the vendors' own model lists and, where a list does not publish an alias, from a live call showing what it resolves to
 - [x] Every grader tested against adversarial fixtures. All seven, 18 test functions; the cases that matter came from real answers, including the ones that made `exact` and the refusal classifier wrong
-- [ ] First official run committed with raw responses and a rendered report, by 2026-09-30
+- [x] First official run committed with raw responses and a rendered report, by 2026-09-30. **2026-09-13**, `drift-2026-09`, 16,800 calls for US$19.53 against an expected US$20.35; records, the eight raw stores, the ledgers and `drift/reports/2026-09.md` all committed in 9169df3
 - [ ] Oct 1 run committed; noise floor and detectable effect published in the October report
-- [x] Workflow scheduled for the 1st of each month, with manual rerun path documented. `drift.yml` cron `0 6 1 * *` plus `workflow_dispatch`; the first run on Sep 27 is a manual dispatch because it is not the 1st
-- [ ] Regrade-from-store reproduces the published numbers
-- [ ] README results table updates from the job
-- [ ] Actual cost of the first two runs recorded against the estimate
+- [x] Workflow scheduled for the 1st of each month, with manual rerun path documented. `drift.yml` cron `0 6 1 * *` plus `workflow_dispatch`. The first run was brought forward to **2026-09-13** and dispatched by hand; a dispatch with no inputs is byte-for-byte the `schedule` code path, so it rehearses the unattended October cron as well as producing a month
+- [x] Regrade-from-store reproduces the published numbers. **Checked 2026-09-14**: `drift replay --month 2026-09` regraded 15,993 stored outputs across all eight arms with 0 disagreeing with the run-time grade, and the report it regenerated is byte-for-byte the committed one
+- [ ] README results table updates from the job. The table is written by `drift collect` between the `drift:start` and `drift:end` markers, but on 2026-09-13 the Actions minutes ran out before the `collect` job was given a runner and it was run on the laptop instead, so the job has never written the table end to end. The second run proves this or it is not proven
+- [ ] Actual cost of the first two runs recorded against the estimate. First run: **US$19.53 against US$20.35 expected**, in `drift/runs/2026-09/RUN.json` per arm. Awaiting the second run
 - [ ] One Rule C item documented with evidence
 
 
@@ -972,4 +972,4 @@ Mirrors the portfolio's definition:
 - [ ] Adapter documented; project 04 measured with it in Feb 2027
 - [ ] Write-up published
 - [ ] One rejected approach documented with evidence
-- [ ] v0.1.0 tagged; repository public
+- [ ] v0.1.0 tagged; repository public. **Public since 2026-09-14** after an audit of all 56 commits; no tag cut yet
