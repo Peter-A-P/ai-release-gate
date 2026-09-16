@@ -39,6 +39,13 @@ on:
         description: "a rehearsal: own month, never writes the README table. Implied by `items`; set it for a FULL dry run"
         required: false
         default: "false"
+      readme:
+        description: "write the README results table. Set false for a second full run inside a month that has already published one"
+        required: false
+        default: "true"
+      baseline:
+        description: "month to pair against instead of the calendar month before, for a second full run inside one month"
+        required: false
 
 permissions:
   contents: write
@@ -183,9 +190,20 @@ jobs:
         # --no-readme on a dry run. `collect` writes the README results table by default and
         # the next step commits and pushes it, so without this a seven-item dry run would
         # publish itself as the project's measured result.
+        #
+        # `readme: false` is the same guard for the opposite case, a run that is entirely real
+        # and still must not publish a table. The table holds one run's rows and `write_readme`
+        # replaces everything between the markers, so a second full run inside one month would
+        # substitute its own rows for the published month's rather than add to them.
+        #
+        # `baseline` names the run being compared against. Left empty, and on the schedule, the
+        # answer is the calendar month before, which is what a monthly record wants.
         run: |
           ARGS="--month ${{ needs.plan.outputs.month }}"
-          if [ "${{ needs.plan.outputs.dry }}" = "true" ]; then ARGS="$ARGS --no-readme"; fi
+          if [ "${{ needs.plan.outputs.dry }}" = "true" ] || [ "${{ inputs.readme }}" = "false" ]; then
+            ARGS="$ARGS --no-readme"
+          fi
+          if [ -n "${{ inputs.baseline }}" ]; then ARGS="$ARGS --baseline ${{ inputs.baseline }}"; fi
           uv run drift collect $ARGS || echo "month is not complete; the record is still committed"
       - name: Commit the record
         run: |
