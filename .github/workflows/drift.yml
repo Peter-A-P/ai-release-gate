@@ -64,8 +64,6 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-      - name: Authenticate git for the boundary repository
-        run: git config --global url."https://x-access-token:${{ secrets.BOUNDARY_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - run: uv sync --frozen
       - id: plan
         env:
@@ -112,8 +110,6 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-      - name: Authenticate git for the boundary repository
-        run: git config --global url."https://x-access-token:${{ secrets.BOUNDARY_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - run: uv sync --frozen
       - name: Run the ${{ matrix.provider }} arms
         env:
@@ -178,8 +174,6 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-      - name: Authenticate git for the boundary repository
-        run: git config --global url."https://x-access-token:${{ secrets.BOUNDARY_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - run: uv sync --frozen
       - uses: actions/download-artifact@v4
         with:

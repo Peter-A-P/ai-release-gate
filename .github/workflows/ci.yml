@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-  # So the boundary read token can be verified without a dummy commit.
+  # So a run can be repeated without a dummy commit.
   workflow_dispatch:
 
 jobs:
@@ -15,9 +15,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-      # boundary is installed from its private repository with a fine-grained read token.
-      - name: Authenticate git for the boundary repository
-        run: git config --global url."https://x-access-token:${{ secrets.BOUNDARY_GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      # boundary installs anonymously: its repository is public, so no token is needed.
       - run: uv sync --frozen
       - run: uv run ruff format --check .
       - run: uv run ruff check .
