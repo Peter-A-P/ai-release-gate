@@ -441,6 +441,52 @@ def test_report_replay_and_readme(suite: Suite, panel: Panel, tmp_path: Path) ->
     assert "| old |" not in t and "| 2026-09 | anthropic-snapshot |" in t and "first month" in t
 
 
+def test_a_second_run_inside_one_month_pairs_against_the_run_it_names(
+    suite: Suite, panel: Panel, tmp_path: Path
+) -> None:
+    """Two full runs a few days apart give the between-run noise baseline (PLAN.md section 5).
+    That design assumed the pair straddled a month boundary, Sep 27 and Oct 1, so the calendar
+    month before was the right comparison by construction. A pair inside one month has no such
+    luck: the second run's previous month is empty and the baseline silently does not appear.
+
+    So the run being compared against is named, and the report says which it used.
+    """
+    runs = tmp_path / "runs"
+    reports = tmp_path / "reports"
+    cfg = RunConfig(repeats=2, seed=1, expected_cost_usd=3.0)
+    run(suite, panel, FakeGateway(p_correct=1.0), runs, cfg)
+    run(suite, panel, FakeGateway(p_correct=0.2, seed=3), runs, cfg, month="2026-09-run2")
+    summarise_month(runs, "2026-09-run2", [a.key for a in panel.arms])
+
+    # Unnamed, it looks for 2026-08, finds nothing, and the comparison the run exists to make
+    # is missing from its own report.
+    alone = build_report(runs, reports, "2026-09-run2", panel).read_text(encoding="utf-8")
+    assert "## Month over month" in alone and "No records for 2026-08" in alone
+    assert "anthropic-snapshot |" not in alone.split("## Month over month")[1].split("##")[0]
+
+    # Named, the pairing happens and the report carries the baseline it used.
+    paired = build_report(runs, reports, "2026-09-run2", panel, baseline="2026-09").read_text(
+        encoding="utf-8"
+    )
+    assert "## Against 2026-09" in paired and "Paired against `2026-09`" in paired
+    assert "No records for" not in paired
+    section = paired.split("## Against 2026-09")[1].split("## ")[0]
+    assert "| anthropic-snapshot |" in section
+    # The fake second run is far worse than the first, so the pairing has to see the change.
+    mom = month_over_month(
+        metrics_for_month(runs, "2026-09")["anthropic-snapshot"],
+        metrics_for_month(runs, "2026-09-run2")["anthropic-snapshot"],
+    )
+    assert mom.paired_items == len(suite.items) and mom.correct_to_incorrect > 0
+
+    # A baseline that does not exist is not silently treated as "first month": the report says
+    # it found nothing, naming the month it was told to use rather than the calendar one.
+    missing = build_report(runs, reports, "2026-09-run2", panel, baseline="2026-07").read_text(
+        encoding="utf-8"
+    )
+    assert "No records for 2026-07, so there is nothing to compare against." in missing
+
+
 def test_previous_month_survives_a_dry_run_label() -> None:
     """A dry run labels its month so its records cannot be read as the official run's work
     already done. The label has to parse: `build_report` asks for the previous month on every

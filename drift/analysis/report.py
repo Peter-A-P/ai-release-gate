@@ -133,7 +133,15 @@ def render(
     prev: dict[str, ArmMetrics],
     generations: dict[str | None, int] | None = None,
     labels_root: Path | None = None,
+    *,
+    baseline: str | None = None,
 ) -> str:
+    """`baseline` names the month the paired comparison runs against, for the case the calendar
+    cannot express: two full runs inside one month. The Sep/Oct pair PLAN.md section 5 designed
+    was four days apart *and* in different months, so the previous calendar month was the right
+    answer by construction. Pulling the first run forward to Sep 13 broke that coincidence, and a
+    second September run needs to be told what it is being compared against. Left as None the
+    answer is the calendar month before, and the text below is unchanged."""
     lines: list[str] = [f"# Drift record, {month}", ""]
     if generations:
         lines += _grading_note(generations)
@@ -148,6 +156,7 @@ def render(
             f"against an expected US${meta.expected_cost_usd:.2f}.",
             "",
         ]
+    baseline_month = baseline or previous_month(month)
     control_arm = panel.control() if panel is not None else None
     control_key = control_arm.key if control_arm is not None else None
     moms: dict[str, MonthOverMonth] = {}
@@ -168,10 +177,12 @@ def render(
             f"| {m.error_rate.fmt()} | {m.truncation_rate.fmt()} | {m.refusal_rate_should_answer.fmt()} | {m.refusal_rate_should_refuse.fmt()} "
             f"| {m.latency_p50_ms:.0f} / {m.latency_p95_ms:.0f} | US${m.cost_per_1000_calls_usd:.2f} |"
         )
-    lines += ["", "## Month over month", ""]
+    lines += ["", "## Month over month" if baseline is None else f"## Against {baseline}", ""]
     if not moms:
         lines.append(
-            f"No records for {previous_month(month)}; the first paired comparison comes next month."
+            f"No records for {baseline_month}; the first paired comparison comes next month."
+            if baseline is None
+            else f"No records for {baseline_month}, so there is nothing to compare against."
         )
     else:
         lines += [
@@ -189,6 +200,17 @@ def render(
             "Drift is declared when the month-over-month flip rate exceeds the upper bound of the same-day",
             "flip rate and exceeds the control arm's month-over-month flip rate. Both numbers are shown.",
         ]
+        if baseline is not None:
+            # Said in the report rather than only on the command line. A baseline passed as an
+            # argument is forgotten the moment the report is rebuilt, and a rebuilt report that
+            # quietly fell back to the calendar month would be a different measurement under the
+            # same heading. This line is what makes that visible.
+            lines += [
+                "",
+                f"Paired against `{baseline}` rather than the calendar month before this one, "
+                "so the flip rate above is the between-run baseline: the same suite, the same "
+                "arms, a short interval, and nothing expected to have changed.",
+            ]
     lines += ["", "## Accuracy by block", ""]
     blocks = sorted({b for m in cur.values() for b in m.accuracy_by_block})
     lines.append("| Arm | " + " | ".join(blocks) + " |")
@@ -340,9 +362,16 @@ def _grading_note(generations: dict[str | None, int]) -> list[str]:
     ]
 
 
-def build_report(runs_root: Path, reports_root: Path, month: str, panel: Panel | None) -> Path:
+def build_report(
+    runs_root: Path,
+    reports_root: Path,
+    month: str,
+    panel: Panel | None,
+    *,
+    baseline: str | None = None,
+) -> Path:
     cur = metrics_for_month(runs_root, month)
-    prev = metrics_for_month(runs_root, previous_month(month))
+    prev = metrics_for_month(runs_root, baseline or previous_month(month))
     text = render(
         month,
         load_meta(runs_root, month),
@@ -351,6 +380,7 @@ def build_report(runs_root: Path, reports_root: Path, month: str, panel: Panel |
         prev,
         grading_generations(runs_root, month),
         labels_root=runs_root.parent,
+        baseline=baseline,
     )
     reports_root.mkdir(parents=True, exist_ok=True)
     out = reports_root / f"{month}.md"

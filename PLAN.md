@@ -555,8 +555,8 @@ items.
 | Sep 16 - 19 | Runner with raw HTTP per vendor, retry policy, spend cap, JSONL recording | Dry run on 20 items, 1 repeat, all arms. **Brought forward to 2026-09-12**, four days early, after six smaller dry runs settled the panel and the graders |
 | Sep 19 - 21 | Analysis and report rendering; regrade-from-store path | Report renders from the dry run. **`drift replay` used for real on 2026-09-12** to prove the punctuation fix against stored outputs: exactly three regrades per OpenAI arm, none on any other |
 | Sep 22 - 24 | Full dry run (all items, k = 5) after vendor caps are set | Cost check against section 6; fix graders that misfire. **Done 2026-09-12**, ten days early: 16,800 calls, US$19.48 against a US$20.33 estimate, 1 error and 4 truncations. First measurement of the noise floor: same-day flip rate 0.2% to 3.8% and output stability 69% to 92%, the numbers every drift call for twelve months is tested against |
-| **Sep 27 (Sun)** | **First official run, suite v1 frozen** | `runs/2026-09`, `reports/2026-09.md` |
-| **Oct 1** | Second official run, four days later | Short-interval noise baseline between two full runs |
+| ~~Sep 27 (Sun)~~ **done 2026-09-13**, two weeks early | **First official run, suite v1 frozen** | `runs/2026-09`, `reports/2026-09.md`; 16,800 calls, US$19.53 |
+| **Sep 16 or 17** (was Oct 1) | Second official run, four days after the first | Short-interval noise baseline. Inside the same calendar month as the first, so it runs as `runs/2026-09-run2` and is paired with `--baseline 2026-09` |
 | Nov 1 onward | Monthly on the 1st | Twelve months by Sep 2027 |
 
 **2026-09-12, the day the dry runs paid for themselves.** Six runs, 784 calls, under US$2 in
@@ -577,9 +577,26 @@ Not one of those is a bug in the runner. Every one is the difference between wha
 documents and what it does, and the only way to find them is to call the vendors and read what
 comes back. The schedule gave the dry runs eight days for a reason.
 
-The Sep 27 and Oct 1 pair is deliberate: two full runs four days apart give a between-run
-noise estimate before any vendor has had time to change anything, which anchors every
-drift call that follows.
+The pair is deliberate: two full runs four days apart give a between-run noise estimate before
+any vendor has had time to change anything, which anchors every drift call that follows. The
+four-day interval is what matters, not the two dates.
+
+**What the original dates were quietly relying on.** Sep 27 and Oct 1 straddle a month boundary,
+so the second run got its own directory and the first run was its previous calendar month. The
+pairing needed nothing said. Moving the first run forward to Sep 13 costs both of those, and
+neither loss announces itself:
+
+- A run resumes from whatever is already in `runs/<month>/`, which is what let the Sep 13 run be
+  recovered after the Actions minutes ran out. A second run dispatched into `2026-09` therefore
+  finds all 16,800 calls already recorded, makes none, spends nothing, and reports success. The
+  cost of getting this wrong is the whole point of the run, not an error message.
+- Given its own month, `2026-09-run2`, its previous calendar month is `2026-08`, which holds no
+  records, so the comparison is simply absent from the report.
+
+Both are answered by naming the baseline rather than inferring it:
+`drift collect --month 2026-09-run2 --baseline 2026-09`, with the same option on `report` and
+`replay` so that rebuilding a report cannot quietly drop it. The report prints the baseline it
+used, because an argument is forgotten and a heading is not.
 
 Effort: about 25 hours across three weeks, alongside the start of project 01.
 

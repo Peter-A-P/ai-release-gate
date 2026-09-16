@@ -85,6 +85,13 @@ PANEL = DRIFT / "panel.yaml"
 BOUNDARY_CONFIG = DRIFT / "config" / "boundary.yaml"
 PROJECT = "ai-release-gate"
 
+# Every command that renders a report offers this, because a report is rebuilt often and the
+# baseline is an argument rather than something the record remembers.
+BASELINE_HELP = (
+    "month to pair against instead of the calendar month before, for a second full run "
+    "inside one month"
+)
+
 
 def _verify_or_exit() -> bool:
     try:
@@ -130,7 +137,7 @@ def _open_callers(arm: Arm, arm_dir: Path) -> Iterator[Callers]:
         yield Callers(public=public, heldout=heldout)
 
 
-def _collect(month: str, *, write_readme_table: bool) -> bool:
+def _collect(month: str, *, write_readme_table: bool, baseline: str | None = None) -> bool:
     panel = load_panel(PANEL)
     meta = summarise_month(RUNS, month, [a.key for a in panel.arms])
     if meta is None:
@@ -141,7 +148,7 @@ def _collect(month: str, *, write_readme_table: bool) -> bool:
         + (f" ({meta.reason})" if meta.reason else "")
         + f", {len(meta.arms)} arms, {meta.calls} calls, US${meta.spent_usd:.2f}"
     )
-    out = build_report(RUNS, REPORTS, month, panel)
+    out = build_report(RUNS, REPORTS, month, panel, baseline=baseline)
     typer.echo(f"report: {out}")
     if write_readme_table:
         write_readme(
@@ -149,7 +156,7 @@ def _collect(month: str, *, write_readme_table: bool) -> bool:
             readme_rows(
                 month,
                 metrics_for_month(RUNS, month),
-                metrics_for_month(RUNS, previous_month(month)),
+                metrics_for_month(RUNS, baseline or previous_month(month)),
             ),
         )
     return meta.status == "complete"
@@ -219,10 +226,11 @@ def run(
 def collect(
     month: Annotated[str, typer.Option()],
     readme: bool = True,
+    baseline: Annotated[str | None, typer.Option(help=BASELINE_HELP)] = None,
 ) -> None:
     """Fold the arm directories of a month into RUN.json, the report and the README table.
     Exit 1 when any arm is missing or not complete; the records are kept either way."""
-    if not _collect(month, write_readme_table=readme):
+    if not _collect(month, write_readme_table=readme, baseline=baseline):
         raise typer.Exit(1)
 
 
@@ -235,6 +243,7 @@ def replay(
             help="replace the stored grade with the new one and stamp the graders that made it"
         ),
     ] = False,
+    baseline: Annotated[str | None, typer.Option(help=BASELINE_HELP)] = None,
 ) -> None:
     """Regrade stored outputs with the current graders; no vendor is called. Held-out
     records store no output and are skipped.
@@ -250,14 +259,22 @@ def replay(
         )
     if write:
         typer.echo(f"records restamped with graders {GRADERS_HASH}")
-    out = build_report(RUNS, REPORTS, month, load_panel(PANEL) if PANEL.is_file() else None)
+    out = build_report(
+        RUNS, REPORTS, month, load_panel(PANEL) if PANEL.is_file() else None, baseline=baseline
+    )
     typer.echo(f"report: {out}")
 
 
 @app.command()
-def report(month: Annotated[str, typer.Option()], readme: bool = False) -> None:
+def report(
+    month: Annotated[str, typer.Option()],
+    readme: bool = False,
+    baseline: Annotated[str | None, typer.Option(help=BASELINE_HELP)] = None,
+) -> None:
     """Render the report for a month from the stored records."""
-    out = build_report(RUNS, REPORTS, month, load_panel(PANEL) if PANEL.is_file() else None)
+    out = build_report(
+        RUNS, REPORTS, month, load_panel(PANEL) if PANEL.is_file() else None, baseline=baseline
+    )
     typer.echo(f"report: {out}")
     if readme:
         write_readme(
@@ -265,7 +282,7 @@ def report(month: Annotated[str, typer.Option()], readme: bool = False) -> None:
             readme_rows(
                 month,
                 metrics_for_month(RUNS, month),
-                metrics_for_month(RUNS, previous_month(month)),
+                metrics_for_month(RUNS, baseline or previous_month(month)),
             ),
         )
 
