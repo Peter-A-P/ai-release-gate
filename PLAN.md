@@ -598,6 +598,34 @@ Both are answered by naming the baseline rather than inferring it:
 `replay` so that rebuilding a report cannot quietly drop it. The report prints the baseline it
 used, because an argument is forgotten and a heading is not.
 
+**What the pair measured, 2026-09-16.** Run 2 completed in 3h55m, 16,800 calls, US$19.57
+against an expected US$20.35, graded by the same `ef0cdb4508edb15b` as run 1, so the two are
+on one yardstick. Between-run flip rates run 0.2% on `anthropic-sonnet-snapshot` to 2.9% on
+`openai-alias`, with the pinned control at 1.9%. **No arm declared drift**, every arm sat at or
+below its own same-day floor, every McNemar p was non-significant, and accuracy changes ran
+-1.2% to +0.5%. That is the correct answer for four days apart, and it is the anchor: a monthly
+flip rate now has to clear roughly 3% before it means anything.
+
+**One observation the pair produced that the drift rule does not catch.** The two Haiku arms
+lost output stability between the runs, and nothing else did:
+
+| Arm | Output stability | Same-day flip rate | Accuracy |
+|---|---|---|---|
+| `anthropic-snapshot` | 91.2% to 78.6%, **-12.6 points** | 0.24% to 1.67% | 95.0% to 95.2% |
+| `anthropic-alias` | 89.5% to 78.6%, **-11.0 points** | 0.48% to 2.38% | 95.0% to 94.8% |
+| `anthropic-sonnet-snapshot` | 71.7% to 70.7%, -1.0 point | 1.43% to 2.14% | 97.6% to 97.4% |
+
+Those two are the only arms in the panel whose stability intervals do not overlap between the
+runs; the other six do. Three things make it worth keeping. The accuracy did not move, so no
+accuracy-based test would see it. The floating alias and the **dated snapshot** moved together
+and landed on the same 78.6%, and a dated snapshot is the thing that is meant to be frozen.
+And the between-run flip rate for both arms was only 0.7%, so the graded answers agree across
+the runs: what changed is how much the text varies within a run, not what it concludes.
+
+This is two runs, so it is an observation and not a finding. It could be load, a sampling
+change, or one of the runs being unusual. The Oct 1 run is a third point on the same arms and
+either confirms it or kills it. Not published in the README until then.
+
 Effort: about 25 hours across three weeks, alongside the start of project 01.
 
 ## 8. Risks
@@ -655,8 +683,8 @@ costs about a dollar, so it is built into the dry-run week rather than bolted on
 - [ ] Oct 1 run committed; noise floor and detectable effect published in the October report
 - [x] Workflow scheduled for the 1st of each month, with manual rerun path documented. `drift.yml` cron `0 6 1 * *` plus `workflow_dispatch`. The first run was brought forward to **2026-09-13** and dispatched by hand; a dispatch with no inputs is byte-for-byte the `schedule` code path, so it rehearses the unattended October cron as well as producing a month
 - [x] Regrade-from-store reproduces the published numbers. **Checked 2026-09-14**: `drift replay --month 2026-09` regraded 15,993 stored outputs across all eight arms with 0 disagreeing with the run-time grade, and the report it regenerated is byte-for-byte the committed one
-- [ ] README results table updates from the job. The table is written by `drift collect` between the `drift:start` and `drift:end` markers, but on 2026-09-13 the Actions minutes ran out before the `collect` job was given a runner and it was run on the laptop instead, so the job has never written the table end to end. The second run proves this or it is not proven
-- [ ] Actual cost of the first two runs recorded against the estimate. First run: **US$19.53 against US$20.35 expected**, in `drift/runs/2026-09/RUN.json` per arm. Awaiting the second run
+- [ ] README results table updates from the job. Closer, and still not proven. On 2026-09-13 the Actions minutes ran out before `collect` was given a runner. On 2026-09-16 the job ran on a runner and folded, reported, committed and pushed the record by itself in 1m26s, so everything around the table is now exercised end to end. The table itself was not written, because that run passed `readme: false` on purpose: `write_readme` replaces everything between the markers, so a second run inside one month would have substituted its rows for September's. The one untested line is the write itself, and the October cron exercises it
+- [x] Actual cost of the first two runs recorded against the estimate. **US$19.53 and US$19.57, each against an expected US$20.35**, in the two `RUN.json` files and per arm within them. US$39.10 for the pair, against a CA$35 a month line, so the monthly budget holds with a second run inside it
 - [ ] One Rule C item documented with evidence
 
 

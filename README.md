@@ -17,12 +17,32 @@ itself, built Dec 2026 to Jan 2027.
 
 ## Result
 
-The first run, 2026-09-13. Eight arms, 420 frozen items, five repeats each.
+The first run, 2026-09-13. Eight arms, 420 frozen items, five repeats each. A second full run
+followed on 2026-09-16, four days later, to measure what moves between two runs when nothing
+has had time to change.
 
 **The column to read first is the same-day flip rate.** It is how much a score moves when
 nothing has changed at all: the same question, to the same model, five times in one sitting.
 It runs from 0.2% to 5.0% depending on the arm. Every later claim that a model drifted has to
 clear its own arm's floor before it counts, which is the whole reason this record exists.
+
+**The between-run baseline, measured 2026-09-16.** The same suite and the same arms, run again
+four days later. Four days is too short for a vendor to change a model, so anything above the
+noise floor here would be this method failing rather than a model moving. Nothing was:
+
+| | Between-run flip rate, 2026-09-13 to 2026-09-16 |
+|---|---|
+| Lowest arm | 0.2% (anthropic-sonnet-snapshot) |
+| Highest arm | 2.9% (openai-alias) |
+| Pinned open-weights control | 1.9% |
+| Arms where drift was declared | none, 0 of 8 |
+
+Every arm came in at or below its own same-day floor, every McNemar p was non-significant, and
+the accuracy change ran from -1.2% to +0.5%. So **a score moves by up to about 3% between two
+runs with nothing changed at all**, and a monthly figure has to clear that before it means
+anything. The full table is in [the second run's report](drift/reports/2026-09-run2.md).
+
+The two runs cost US$19.53 and US$19.57 against an expected US$20.35 each.
 
 One caveat belongs beside the table rather than below it. The refusal figures come from a
 classifier that is eleven regular expressions, and its own error rate is measured by hand
