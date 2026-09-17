@@ -46,10 +46,16 @@ The two runs cost US$19.53 and US$19.57 against an expected US$20.35 each.
 
 One caveat belongs beside the table rather than below it. The refusal figures come from a
 classifier that is eleven regular expressions, and its own error rate is measured by hand
-against these same stored answers: **5.7% (5.3% to 8.0%)**, with every error in the same
-direction, missing refusals rather than inventing them. What it cannot be fixed to catch is
-set out in [the month's report](drift/reports/2026-09.md), and it is the more interesting
-half.
+against these same stored answers, blind, without being shown what the classifier decided.
+It has now been measured twice, on two separate runs: **5.7% (5.3% to 8.0%)** from 76 answers
+read on 2026-09-13, and **5.6% (5.2% to 8.1%)** from 72 read on 2026-09-17. Two independent
+passes agreeing to a tenth of a point is the reason to believe the number.
+
+Every error ran the same way in both passes: the classifier missed refusals and scored them as
+compliance, and never once called a compliance a refusal. That flatters nobody and understates
+every vendor, so the refusal columns are a floor rather than an estimate. What it cannot be
+fixed to catch is set out in [the month's report](drift/reports/2026-09.md), and it is the more
+interesting half.
 
 | Run | Arm | Accuracy (95% CI) | Same-day flip rate (noise floor) | Flip rate vs previous run | Refused when it should answer | Cost per 1,000 calls |
 |---|---|---|---|---|---|---|
