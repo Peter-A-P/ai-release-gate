@@ -27,6 +27,16 @@ from drift.suite import Suite
 
 README_START = "<!-- drift:start -->"
 README_END = "<!-- drift:end -->"
+# The generated block carries its own header row. It used to be static text above
+# `drift:start`, which put an HTML comment between a table's separator row and its first
+# body row. GitHub ends a table there, so the header rendered as an empty table and every
+# data row fell out underneath it as a paragraph of literal pipes. Owning the header also
+# means it can never disagree with the columns the rows actually carry.
+README_HEADER = (
+    "| Run | Model configuration | Accuracy | Noise floor (same-day) "
+    "| Change vs previous run | Wrongly refused | Cost / 1,000 calls |\n"
+    "|---|---|---|---|---|---|---|"
+)
 
 
 def previous_month(month: str) -> str:
@@ -321,12 +331,14 @@ def classifier_section(month: str, labels_root: Path | None) -> list[str]:
 
 
 def readme_rows(month: str, cur: dict[str, ArmMetrics], prev: dict[str, ArmMetrics]) -> str:
-    rows: list[str] = []
+    """The published table, header row included, as one block to sit between the markers."""
+    rows: list[str] = [README_HEADER]
     for key, m in sorted(cur.items()):
         mom = month_over_month(prev[key], m) if key in prev else None
         rows.append(
-            f"| {month} | {key} | {m.accuracy.fmt()} | {m.same_day_flip_rate.fmt()} | "
-            f"{mom.flip_rate.fmt() if mom else 'first month'} | {m.refusal_rate_should_answer.fmt()} | "
+            f"| {month} | {key} | {m.accuracy.compact()} | {m.same_day_flip_rate.compact()} | "
+            f"{mom.flip_rate.compact() if mom else 'first run'} | "
+            f"{m.refusal_rate_should_answer.compact()} | "
             f"US${m.cost_per_1000_calls_usd:.2f} |"
         )
     return "\n".join(rows)
@@ -336,7 +348,10 @@ def write_readme(readme: Path, rows: str) -> None:
     text = readme.read_text(encoding="utf-8")
     start = text.index(README_START) + len(README_START)
     end = text.index(README_END)
-    readme.write_text(text[:start] + "\n" + rows + "\n" + text[end:], encoding="utf-8")
+    # Blank lines on both sides. An HTML comment opens an HTML block that runs to the next
+    # blank line, so a table starting on the line straight after `drift:start` would be
+    # swallowed into that block and printed as raw text.
+    readme.write_text(text[:start] + "\n\n" + rows + "\n\n" + text[end:], encoding="utf-8")
 
 
 def _grading_note(generations: dict[str | None, int]) -> list[str]:

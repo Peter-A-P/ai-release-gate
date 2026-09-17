@@ -22,6 +22,18 @@ class Estimate:
             return f"{self.point:.1%} ({self.lo:.1%} to {self.hi:.1%}, n = {self.n})"
         return f"{self.point:.3g} ({self.lo:.3g} to {self.hi:.3g}, n = {self.n})"
 
+    def compact(self) -> str:
+        """The same interval, short enough for a seven-column table to stay readable.
+
+        The README table repeats a column's `n` on every row, where it is the same number
+        every time; it is stated once beneath the table instead. Dropping it is the
+        difference between a cell that reads and a cell that wraps. Never drops the
+        interval itself: a bare percentage is a bug.
+        """
+        if self.n == 0:
+            return "n/a"
+        return f"{self.point:.1%} ({self.lo * 100:.1f} to {self.hi * 100:.1f})"
+
 
 def bootstrap_mean(values: Sequence[float], *, resamples: int = 2000, seed: int = 0) -> Estimate:
     """Percentile bootstrap of the mean over items. Never a bare percentage."""

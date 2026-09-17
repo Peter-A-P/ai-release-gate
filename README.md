@@ -1,106 +1,212 @@
 # AI Release Gate
 
-No prompt or model change reaches users unless it is proven not to have regressed: the
-discipline a test suite gives code, applied to AI, with an audit trail a regulator can
-read. Plus a public, month-by-month record of how the major vendors' "frozen" models
-silently change, on a fixed suite, with error bars.
+> No prompt or model change reaches users unless it is proven not to have regressed: the
+> discipline a test suite gives code, applied to AI, with an audit trail a regulator can read.
+> Plus a public, month-by-month record of how the major vendors' "frozen" models silently
+> change, on a fixed test, with error bars.
 
-**Status: the record has started.** The suite is frozen at v1, hash `72f780dfb525d84d`: 420
-items, of which 270 were drawn from public sets on 2026-09-10 ([how](docs/sampling.md)), 60
-were generated on 2026-09-11 (20 long-context recall passages and 40 paraphrases,
-[how](docs/long-context.md)) and 90 were written by hand ([how](docs/writing-items.md)).
-Twenty are held out, committed as hashes only. The panel of eight arms was chosen from the
-vendors' own published model lists on 2026-09-12 and dated. **The first official run
-completed on 2026-09-13: 16,800 calls for US$19.53.** Both phases are planned in
-[PLAN.md](PLAN.md): Part A, the monthly drift record, running now; Part B, the release gate
-itself, built Dec 2026 to Jan 2027.
+**In plain English.** Software teams protect themselves with automated tests. Change the code,
+run the tests, and you find out straight away whether you broke something. Teams building on AI
+models have no equivalent, for two reasons. The model is not theirs, and it can change underneath
+them without notice. And the test itself is unreliable, because an AI model asked the identical
+question twice does not reliably give the identical answer.
 
-## Result
+This project fixes the second problem so that the first one can be measured, and publishes the
+evidence month by month while it does.
 
-The first run, 2026-09-13. Eight arms, 420 frozen items, five repeats each. A second full run
-followed on 2026-09-16, four days later, to measure what moves between two runs when nothing
-has had time to change.
+**Status:** the record has started. Two full runs are in, on 2026-09-13 and 2026-09-16. The
+headline number, how much a score moves when nothing has changed, is measured and published
+below. The twelve-month record runs to September 2027.
 
-**The column to read first is the same-day flip rate.** It is how much a score moves when
-nothing has changed at all: the same question, to the same model, five times in one sitting.
-It runs from 0.2% to 5.0% depending on the arm. Every later claim that a model drifted has to
-clear its own arm's floor before it counts, which is the whole reason this record exists.
+---
 
-**The between-run baseline, measured 2026-09-16.** The same suite and the same arms, run again
-four days later. Four days is too short for a vendor to change a model, so anything above the
-noise floor here would be this method failing rather than a model moving. Nothing was:
+## The argument this settles
 
-| | Between-run flip rate, 2026-09-13 to 2026-09-16 |
+Every team shipping AI has the same meeting. Somebody changes a prompt, or the vendor ships a
+new model version, and the evaluation score moves from 86 to 83. Is that a regression, or is it
+nothing? The meeting goes in circles, because nobody in the room can answer it.
+
+It cannot be answered, because **three points of movement is roughly what you get from changing
+nothing at all.**
+
+There is a second version of the same problem, one level up. When you call a vendor's model by a
+pinned, dated name, that date is a promise that the thing behind it does not change. Teams keep
+reporting that behaviour shifts anyway: something that worked in March stops working in June.
+Nobody can prove it, because proving it would mean having run the same fixed test every month
+since before the shift. That record does not exist in public, and it cannot be made after the
+fact. Either somebody was measuring all along, or the evidence is gone.
+
+This project is somebody measuring all along.
+
+## Why you cannot just run the test twice
+
+The obvious approach is to run your questions today, run them again next month, and see what
+changed. It does not work, because several different things move that number and only one of
+them is the thing you care about:
+
+| Why a score moved | Is it a real change? | How you would tell |
+|---|---|---|
+| The model's own randomness, call to call | No | Ask the same model the same question several times in one sitting |
+| The serving stack: hardware, routing, load | No | Run a model whose weights physically cannot change, as a control |
+| The vendor quietly changed the model behind a pinned name | **Yes** | Measure both floors above first, on a test that never changes |
+| A prompt or model your team deliberately changed | **Yes, and this is the one you meant to measure** | All of the above, then a paired test with error bars |
+
+The first three rows are why most AI evaluation is not trustworthy. The last row is what a
+release gate is for.
+
+So the first thing this project measures is not drift. It is **the noise floor**: how far the
+score moves when nothing whatsoever has changed. Every later claim that a model drifted has to
+clear that floor before it counts.
+
+## Results
+
+Every run asks the same 420 frozen questions of 8 model configurations, 5 times each. That is
+16,800 calls per run, about US$20. Nothing is graded by another AI: every answer is marked by an
+ordinary program, so the marker cannot drift either.
+
+**How to read the table.** Each row is one model configuration in one run.
+
+- **Model configuration** is a specific way of calling one model. A `snapshot` is a dated,
+  pinned version the vendor promises is frozen. An `alias` is a floating name like "latest",
+  which the vendor is free to repoint at any time. Running both, side by side, is how you catch
+  a vendor moving a model that was supposed to be still. `openweights-control` is an
+  open-weights model with fixed weights running on fixed hardware: it physically cannot change,
+  so whatever it appears to do is the measurement's own noise and nothing else.
+- **Accuracy** is the share of the 420 questions answered correctly.
+- **Noise floor (same-day)** is the headline. The share of questions where the model gave a
+  different result across its own 5 tries **in the same sitting, with nothing changed**. This is
+  the bar every drift claim must clear.
+- **Change vs previous run** compares this run against the one before it, question by question.
+- **Wrongly refused** is how often a model declined a perfectly reasonable request.
+- Every figure carries a **95% confidence interval** in brackets: the range the true value is
+  very likely to sit in. A number without one is meaningless at this sample size, so none are
+  published without one.
+
+<!-- drift:start -->
+
+| Run | Model configuration | Accuracy | Noise floor (same-day) | Change vs previous run | Wrongly refused | Cost / 1,000 calls |
+|---|---|---|---|---|---|---|
+| 2026-09 | anthropic-alias | 95.0% (92.9 to 96.9) | 0.5% (0.0 to 1.2) | first run | 0.0% (0.0 to 0.0) | US$1.33 |
+| 2026-09 | anthropic-snapshot | 95.0% (92.9 to 96.9) | 0.2% (0.0 to 0.7) | first run | 0.0% (0.0 to 0.0) | US$1.33 |
+| 2026-09 | anthropic-sonnet-snapshot | 97.6% (96.0 to 98.8) | 1.4% (0.5 to 2.6) | first run | 0.0% (0.0 to 0.0) | US$2.78 |
+| 2026-09 | google-alias | 97.4% (95.7 to 98.8) | 4.0% (2.4 to 6.0) | first run | 0.0% (0.0 to 0.0) | US$1.16 |
+| 2026-09 | google-snapshot | 96.9% (95.0 to 98.3) | 5.0% (3.1 to 7.4) | first run | 0.0% (0.0 to 0.0) | US$1.13 |
+| 2026-09 | openai-alias | 94.5% (92.4 to 96.7) | 4.0% (2.4 to 6.2) | first run | 3.0% (0.0 to 7.0) | US$0.49 |
+| 2026-09 | openai-snapshot | 94.8% (92.6 to 96.9) | 1.0% (0.2 to 2.1) | first run | 5.0% (1.0 to 10.0) | US$0.49 |
+| 2026-09 | openweights-control | 92.1% (89.5 to 94.5) | 3.6% (1.9 to 5.5) | first run | 0.0% (0.0 to 0.0) | US$0.60 |
+
+<!-- drift:end -->
+
+Intervals are 95% bootstrap intervals. Accuracy and flip rates are over n = 420 questions, the
+refusal column over n = 100.
+
+**The noise floor runs from 0.2% to 5.0% depending on the model configuration.** That spread is
+itself the point: a 2% change means nothing on a Google arm and would be remarkable on an
+Anthropic snapshot. A single global threshold would be wrong for almost every arm.
+
+### The between-run baseline, measured 2026-09-16
+
+The same suite and the same models, run again four days later. Four days is too short for any
+vendor to change a model, so anything above the noise floor here would be **this method failing**
+rather than a model moving. Nothing was:
+
+| | Between-run change, 2026-09-13 to 2026-09-16 |
 |---|---|
-| Lowest arm | 0.2% (anthropic-sonnet-snapshot) |
-| Highest arm | 2.9% (openai-alias) |
-| Pinned open-weights control | 1.9% |
-| Arms where drift was declared | none, 0 of 8 |
+| Lowest configuration | 0.2% (`anthropic-sonnet-snapshot`) |
+| Highest configuration | 2.9% (`openai-alias`) |
+| Open-weights control | 1.9% |
+| Configurations where drift was declared | **none, 0 of 8** |
 
-Every arm came in at or below its own same-day floor, every McNemar p was non-significant, and
-the accuracy change ran from -1.2% to +0.5%. So **a score moves by up to about 3% between two
-runs with nothing changed at all**, and a monthly figure has to clear that before it means
-anything. The full table is in [the second run's report](drift/reports/2026-09-run2.md).
+Every arm came in at or below its own same-day floor, every statistical test was
+non-significant, and accuracy moved between -1.2% and +0.5%. So: **a score moves by up to about
+3% between two runs with nothing changed at all.** That is the anchor for the next twelve
+months, and it is the number the project exists to produce.
 
-The two runs cost US$19.53 and US$19.57 against an expected US$20.35 each.
+The two runs cost US$19.53 and US$19.57 against an expected US$20.35 each. Full per-run detail,
+including the drift call against the noise floor and the control, is in
+[`drift/reports/`](drift/reports/).
 
-One caveat belongs beside the table rather than below it. The refusal figures come from a
-classifier that is eleven regular expressions, and its own error rate is measured by hand
-against these same stored answers, blind, without being shown what the classifier decided.
+## The honest limitation
+
+One caveat belongs beside the table rather than buried below it.
+
+Deciding whether a model *refused* a request is done by a classifier built from eleven regular
+expressions, and a regular expression is a crude instrument for reading English. So its error
+rate is measured by hand: a human reads the stored answers blind, without being shown what the
+classifier decided, and the two are compared.
+
 It has now been measured twice, on two separate runs: **5.7% (5.3% to 8.0%)** from 76 answers
 read on 2026-09-13, and **5.6% (5.2% to 8.1%)** from 72 read on 2026-09-17. Two independent
-passes agreeing to a tenth of a point is the reason to believe the number.
+passes agreeing to a tenth of a point is the reason to believe the number rather than the first
+draw being lucky.
 
 Every error ran the same way in both passes: the classifier missed refusals and scored them as
 compliance, and never once called a compliance a refusal. That flatters nobody and understates
-every vendor, so the refusal columns are a floor rather than an estimate. What it cannot be
-fixed to catch is set out in [the month's report](drift/reports/2026-09.md), and it is the more
-interesting half.
+every vendor, so **the refusal columns are a floor, not an estimate.**
 
-| Run | Arm | Accuracy (95% CI) | Same-day flip rate (noise floor) | Flip rate vs previous run | Refused when it should answer | Cost per 1,000 calls |
-|---|---|---|---|---|---|---|
-<!-- drift:start -->
-| 2026-09 | anthropic-alias | 95.0% (92.9% to 96.9%, n = 420) | 0.5% (0.0% to 1.2%, n = 420) | first month | 0.0% (0.0% to 0.0%, n = 100) | US$1.33 |
-| 2026-09 | anthropic-snapshot | 95.0% (92.9% to 96.9%, n = 420) | 0.2% (0.0% to 0.7%, n = 420) | first month | 0.0% (0.0% to 0.0%, n = 100) | US$1.33 |
-| 2026-09 | anthropic-sonnet-snapshot | 97.6% (96.0% to 98.8%, n = 420) | 1.4% (0.5% to 2.6%, n = 420) | first month | 0.0% (0.0% to 0.0%, n = 100) | US$2.78 |
-| 2026-09 | google-alias | 97.4% (95.7% to 98.8%, n = 420) | 4.0% (2.4% to 6.0%, n = 420) | first month | 0.0% (0.0% to 0.0%, n = 100) | US$1.16 |
-| 2026-09 | google-snapshot | 96.9% (95.0% to 98.3%, n = 420) | 5.0% (3.1% to 7.4%, n = 420) | first month | 0.0% (0.0% to 0.0%, n = 100) | US$1.13 |
-| 2026-09 | openai-alias | 94.5% (92.4% to 96.7%, n = 420) | 4.0% (2.4% to 6.2%, n = 420) | first month | 3.0% (0.0% to 7.0%, n = 100) | US$0.49 |
-| 2026-09 | openai-snapshot | 94.8% (92.6% to 96.9%, n = 420) | 1.0% (0.2% to 2.1%, n = 420) | first month | 5.0% (1.0% to 10.0%, n = 100) | US$0.49 |
-| 2026-09 | openweights-control | 92.1% (89.5% to 94.5%, n = 420) | 3.6% (1.9% to 5.5%, n = 420) | first month | 0.0% (0.0% to 0.0%, n = 100) | US$0.60 |
-<!-- drift:end -->
+The part that cannot be fixed is the more interesting half, and it is set out in
+[the month's report](drift/reports/2026-09.md): a model answering a harmless reading of an
+ambiguous request, using no refusing language at all, is indistinguishable by any regular
+expression from a model that simply complied. Tuning the classifier until that case disappears
+would mean tuning until every vendor looks safe, which measures nothing. It is published as a
+limitation instead, and a test in the suite fails if anyone tries.
 
-The monthly job writes the rows between the markers; the full report per month, with the
-drift call against the noise floor and the control arm, is under `drift/reports/`.
+## What this deliberately does not do
 
-## What this does not do
-
-- It does not judge open-ended quality in phase 1. Every drift item is graded by a
-  program, not by another model, so that the judge cannot drift too.
-- It does not run frontier-tier models monthly. Cost.
-- It does not explain why a vendor changed a model. It shows that and when.
+- **It does not use an AI to grade an AI**, in the drift record. Every answer is marked by a
+  plain program, so that the marker cannot drift while it is measuring drift.
+- **It does not run the largest, most expensive models every month.** Cost.
+- **It does not explain why a vendor changed a model.** It shows that one did, and when.
+- **It does not claim drift it cannot separate from noise.** That is the whole discipline.
 
 ## How it works
 
-See [PLAN.md](PLAN.md). Part A: a frozen suite of about 420 programmatically graded
-items, run monthly against a dated snapshot and a floating alias from each vendor (plus a
-second, snapshot-only Anthropic arm, because that vendor's newer ids have no alias) and an
-open-weights control, five repeats per item so month-to-month change is tested against a
-same-day noise floor, raw responses committed, numbers reproducible offline. Part B: a
-judge calibrated against human labels and corrected for its own error, paired
-non-inferiority tests with bootstrap intervals, a power function from the model-selection
-project, a GitHub Action that blocks a regression on a real repository, four red-team
-suites, an append-only ledger, and a dashboard at gate.peterparker.ca.
+The suite is **frozen**: 420 questions, content-hashed at `72f780dfb525d84d`, never edited after
+the hash is committed. Changing a question would mean comparing next month against last month on
+a different test, which is exactly the confound the project exists to remove. **20 questions are
+held out** and never published, so a vendor cannot train on them; only their hashes are in this
+repository.
+
+Eight arms cover a dated snapshot and a floating alias from each of Anthropic, OpenAI and Google,
+a second Anthropic snapshot, and the pinned open-weights control. Every question is asked 5
+times per run, which is what produces the same-day noise floor.
+
+The record is **append-only**. Raw responses are committed, so every published number can be
+regenerated offline without spending a cent, and a bad run is marked rather than deleted. A
+single grading function serves both live runs and re-grades, because when they were two
+functions they disagreed. Every record is stamped with a hash of the grader that produced it, and
+a report refuses to stay quiet if a month contains more than one.
+
+Part B, building December 2026 to January 2027, turns this into the gate itself: a judge
+calibrated against human labels and corrected for its own error rate, paired non-inferiority
+tests, a power analysis, and a GitHub Action that blocks a regression on a real repository with a
+measured false-block rate.
+
+Full design in [PLAN.md](PLAN.md).
+
+## Reproduce every number yourself
+
+No vendor key and no spending is needed. The raw responses are in the repository.
+
+```bash
+uv sync
+uv run drift replay --month 2026-09     # re-grade every stored answer
+uv run drift report --month 2026-09     # rebuild the published report
+```
+
+`replay` regrades all 15,993 stored answers and, at the last check, disagreed with the recorded
+grade zero times and produced a report byte-for-byte identical to the committed one.
 
 ## Part of a portfolio
 
 One of fifteen projects built over twelve months. This one is the measurement layer for the
 others: the compliant gateway, the filings analyst, the small-model cost frontier and the
-self-healing production AI all use it to make their claims.
+self-healing production AI all use it to make their claims. Its statistical core comes from the
+model-selection project, which supplies the power analysis and item calibration.
 
 ## How this was built
 
-Design, methodology, evaluation choices and judgement are Peter Parker's. AI coding
-assistants (Claude Code) were used for implementation and drafting, the way a senior
-engineer uses them in 2026. Every number in the results table is reproducible from this
-repository with one command, and that reproducibility is the evidence that matters.
+Design, methodology, evaluation choices and judgement are Peter Parker's. AI coding assistants
+(Claude Code) were used for implementation and drafting, the way a senior engineer uses them in
+2026. Every number in the results table is reproducible from this repository with one command,
+and that reproducibility is the evidence that matters.

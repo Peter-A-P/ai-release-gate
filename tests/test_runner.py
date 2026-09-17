@@ -438,7 +438,7 @@ def test_report_replay_and_readme(suite: Suite, panel: Panel, tmp_path: Path) ->
     readme.write_text("x\n<!-- drift:start -->\n| old |\n<!-- drift:end -->\ny\n", encoding="utf-8")
     write_readme(readme, readme_rows("2026-09", metrics_for_month(runs, "2026-09"), {}))
     t = readme.read_text(encoding="utf-8")
-    assert "| old |" not in t and "| 2026-09 | anthropic-snapshot |" in t and "first month" in t
+    assert "| old |" not in t and "| 2026-09 | anthropic-snapshot |" in t and "first run" in t
 
 
 def test_a_second_run_inside_one_month_pairs_against_the_run_it_names(
@@ -485,6 +485,50 @@ def test_a_second_run_inside_one_month_pairs_against_the_run_it_names(
         encoding="utf-8"
     )
     assert "No records for 2026-07, so there is nothing to compare against." in missing
+
+
+def test_the_readme_table_survives_its_own_markers(
+    suite: Suite, panel: Panel, tmp_path: Path
+) -> None:
+    """The published table is the deliverable, and it rendered as garbage on GitHub.
+
+    The markers used to sit between the header's separator row and the first body row, so the
+    table was interrupted by an HTML comment. GitHub ends a table at that point: the header
+    rendered as an empty two-line table and all eight data rows fell out beneath it as one
+    paragraph of literal pipe characters. It looked fine locally and on the website, whose
+    parsers are more forgiving, which is why it survived a month in public.
+
+    Two things keep it fixed, and this asserts both: the generated block carries its own header
+    so nothing can come between the header and the rows, and a blank line follows the opening
+    marker so the HTML comment's block is closed before the table starts.
+    """
+    runs = tmp_path / "runs"
+    run(suite, panel, FakeGateway(), runs, RunConfig(repeats=2, expected_cost_usd=3.0))
+    readme = tmp_path / "README.md"
+    readme.write_text(
+        "intro\n<!-- drift:start -->\nold\n<!-- drift:end -->\noutro\n", encoding="utf-8"
+    )
+    write_readme(readme, readme_rows("2026-09", metrics_for_month(runs, "2026-09"), {}))
+    lines = readme.read_text(encoding="utf-8").splitlines()
+
+    start = lines.index("<!-- drift:start -->")
+    end = lines.index("<!-- drift:end -->")
+    assert lines[start + 1] == "", "no blank line: the comment's HTML block swallows the table"
+    assert lines[end - 1] == "", "no blank line before the closing marker"
+
+    table = [ln for ln in lines[start + 2 : end - 1]]
+    assert table[0].startswith("| Run |"), "the block must carry its own header"
+    assert set(table[1].replace("|", "").replace("-", "").strip()) == set(), (
+        "row 2 must be the separator"
+    )
+    # Every remaining line is a body row, and nothing interrupts them.
+    body = table[2:]
+    assert body and all(ln.startswith("| 2026-09 |") for ln in body)
+    assert all(ln.count("|") == table[0].count("|") for ln in table), "ragged columns"
+
+    # The compact cells keep the interval and drop the repeated n, which is stated once below.
+    assert "(92" in " ".join(body) or "(" in " ".join(body)
+    assert "n = " not in " ".join(body), "n repeated per cell is what made the table unreadable"
 
 
 def test_previous_month_survives_a_dry_run_label() -> None:
