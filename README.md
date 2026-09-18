@@ -16,7 +16,7 @@ evidence month by month while it does.
 
 **Status:** the record has started. Two full runs are in, on 2026-09-13 and 2026-09-16. The
 headline number, how much a score moves when nothing has changed, is measured and published
-below. The twelve-month record runs to September 2027.
+below, and the record continues month by month from here.
 
 ---
 
@@ -119,8 +119,8 @@ rather than a model moving. Nothing was:
 
 Every arm came in at or below its own same-day floor, every statistical test was
 non-significant, and accuracy moved between -1.2% and +0.5%. So: **a score moves by up to about
-3% between two runs with nothing changed at all.** That is the anchor for the next twelve
-months, and it is the number the project exists to produce.
+3% between two runs with nothing changed at all.** That is the anchor for every drift call
+that follows, and it is the number the project exists to produce.
 
 The two runs cost US$19.53 and US$19.57 against an expected US$20.35 each. Full per-run detail,
 including the drift call against the noise floor and the control, is in
@@ -177,7 +177,7 @@ single grading function serves both live runs and re-grades, because when they w
 functions they disagreed. Every record is stamped with a hash of the grader that produced it, and
 a report refuses to stay quiet if a month contains more than one.
 
-Part B, building December 2026 to January 2027, turns this into the gate itself: a judge
+Part B turns this into the gate itself: a judge
 calibrated against human labels and corrected for its own error rate, paired non-inferiority
 tests, a power analysis, and a GitHub Action that blocks a regression on a real repository with a
 measured false-block rate.
@@ -199,7 +199,7 @@ grade zero times and produced a report byte-for-byte identical to the committed 
 
 ## Part of a portfolio
 
-One of fifteen projects built over twelve months. This one is the measurement layer for the
+One of fifteen projects. This one is the measurement layer for the
 others: the compliant gateway, the filings analyst, the small-model cost frontier and the
 self-healing production AI all use it to make their claims. Its statistical core comes from the
 model-selection project, which supplies the power analysis and item calibration.
