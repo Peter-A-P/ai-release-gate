@@ -1,4 +1,5 @@
-"""Command line: drift run | collect | replay | report | sample | longcontext | rulec judge
+"""Command line: drift run | collect | replay | report | sample | longcontext
+| rulec judge | rulec repeats
 | paraphrase parents | paraphrase check | items validate | items summary | items secondpass
 | suite freeze | suite verify | panel show | panel providers | panel candidates.
 
@@ -32,7 +33,7 @@ from drift.analysis.report import (
     regrade,
     write_readme,
 )
-from drift.experiments import judge
+from drift.experiments import judge, repeats
 from drift.graders import GRADERS, GRADERS_HASH, grader
 from drift.items import Item, read_items, validate_file, write_items
 from drift.panel import MODEL_LIST_PATHS, Arm, load_panel, parse_model_list, snapshot_alias_pairs
@@ -500,6 +501,48 @@ def rulec_judge(
         f"programmatic grader on {report.agreement_with_grader.fmt()}"
     )
     typer.echo(f"report: {judge.write_report(out_dir, report)}")
+
+
+@rulec_app.command("repeats")
+def rulec_repeats(
+    month: Annotated[str, typer.Option(help="the later of the two runs")],
+    baseline: Annotated[str, typer.Option(help=BASELINE_HELP)] = "",
+    seed: int = 0,
+    out: Annotated[
+        Path | None, typer.Option(help="write the rendered section here as well as printing it")
+    ] = None,
+) -> None:
+    """Rule C: reduce two runs to one call per item, and reject k = 1 on what it then claims.
+
+    PLAN.md section 10, candidate 3. Reads stored records only; no vendor is called and
+    nothing under drift/runs/ is touched. The baseline defaults to the calendar month before,
+    which is wrong for a second run inside one month, so pass it explicitly there.
+    """
+    before = baseline or previous_month(month)
+    current = {
+        k: list(read_records(records_path(RUNS, month, k))) for k in arms_recorded(RUNS, month)
+    }
+    earlier = {
+        k: list(read_records(records_path(RUNS, before, k))) for k in arms_recorded(RUNS, before)
+    }
+    if not current or not earlier:
+        typer.echo(f"need stored records for both {before} and {month}", err=True)
+        raise typer.Exit(1)
+    control = load_panel(PANEL).control() if PANEL.is_file() else None
+    report = repeats.analyse(
+        earlier,
+        current,
+        month=month,
+        baseline_month=before,
+        control_key=control.key if control is not None else None,
+        seed=seed,
+    )
+    rendered = repeats.render(report)
+    typer.echo(rendered)
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(rendered, encoding="utf-8")
+        typer.echo(f"written: {out}")
 
 
 @items_app.command("summary")

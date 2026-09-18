@@ -151,6 +151,24 @@ expression from a model that simply complied. Tuning the classifier until that c
 would mean tuning until every vendor looks safe, which measures nothing. It is published as a
 limitation instead, and a test in the suite fails if anyone tries.
 
+## What was tried and rejected
+
+The obvious economy is to ask each question once per run instead of five times, which would
+cut the bill by four fifths. It was tried against the two runs above and rejected, and the
+reason is not the one you would guess.
+
+A single call per question reports almost the same accuracy: across the eight configurations,
+the score moves by between 0.2 and 1.4 points depending on which single call you keep. What it
+destroys is the noise floor, which needs a second call on the same question and so cannot be
+computed at all from one. Without a floor there is no way to ask whether a movement is
+meaningful, and the only test left is whether it differs from zero. Applied to two runs four
+days apart with nothing changed, that test **declares drift on 6 to 8 of the 8 configurations,
+including the open-weights control whose weights physically cannot change, in every one of the
+25 ways the runs can be reduced to one call each.** The published rule declares none.
+
+Full evidence, and the command that reproduces it offline, in
+[docs/rejected.md](docs/rejected.md).
+
 ## What this deliberately does not do
 
 - **It does not use an AI to grade an AI**, in the drift record. Every answer is marked by a
@@ -201,8 +219,10 @@ grade zero times and produced a report byte-for-byte identical to the committed 
 
 One of fifteen projects. This one is the measurement layer for the
 others: the compliant gateway, the filings analyst, the small-model cost frontier and the
-self-healing production AI all use it to make their claims. Its statistical core comes from the
-model-selection project, which supplies the power analysis and item calibration.
+self-healing production AI all use it to make their claims. Its statistical core comes from
+[model-selection-tenth-cost](https://github.com/Peter-A-P/model-selection-tenth-cost), which
+supplies the power analysis and the item calibration this suite's intervals lean on. The
+projects that consume this one are not public yet; each will be linked here as it opens.
 
 ## How this was built
 

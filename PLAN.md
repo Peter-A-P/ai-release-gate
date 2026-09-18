@@ -657,7 +657,9 @@ To be tested during the dry runs and documented with evidence, whichever fails:
 
 **Decided 2026-09-11: candidate 3 is the committed one and candidate 1 is attempted as well.**
 Candidate 3 costs nothing extra and the Sep 27 and Oct 1 pair proves it by itself, so the
-definition of done is satisfied whatever else happens. Candidate 1 is the better write-up and
+definition of done is satisfied whatever else happens. **Settled 2026-09-18**: candidate 3 is
+documented and the pair that proved it is 2026-09-13 and 2026-09-16, the two official runs,
+not the Sep 27 and Oct 1 pair the calendar no longer contains. Candidate 1 is the better write-up and
 costs about a dollar, so it is built into the dry-run week rather than bolted on afterwards;
 `drift rulec judge` is the harness and `drift/experiments/judge.py` explains the design.
 
@@ -672,7 +674,19 @@ costs about a dollar, so it is built into the dry-run week rather than bolted on
 2. **Public benchmark items alone.** Expected: contamination makes them drift upward
    without capability change; the held-out half is the control.
 3. **k = 1, no repeats.** Expected: every month looks like drift. The Sep 27 and Oct 1
-   pair will show it.
+   pair will show it. **Done 2026-09-18, on the 2026-09-13 and 2026-09-16 pair instead**,
+   which the calendar change made the earlier and cheaper evidence:
+   [`docs/rejected.md`](docs/rejected.md), `drift rulec repeats`,
+   `drift/experiments/repeats.py`. The expectation was half right and the half it got wrong
+   is the better finding. The score barely moves under a single draw, by 0.2 to 1.4
+   accuracy points, which is why the idea is tempting. What k = 1 removes is the same-day
+   floor, which needs a second call on the same item and therefore cannot exist at all at
+   k = 1. Keep the published rule and `drift_declared` refuses for want of a floor, so the
+   gate can never fire; drop it, and the only test left is whether the change differs from
+   zero, which on two runs four days apart declares drift on 6 to 8 of the 8 arms across all
+   25 single-draw pairings, including the open-weights control in 25 of 25. The published
+   rule declares none. The verdict is computed from the counts rather than asserted, and a
+   test holds the code to printing "Not rejected" on a record where no draw disagrees.
 
 ## 11. Definition of done for phase 1
 
@@ -685,7 +699,7 @@ costs about a dollar, so it is built into the dry-run week rather than bolted on
 - [x] Regrade-from-store reproduces the published numbers. **Checked 2026-09-14**: `drift replay --month 2026-09` regraded 15,993 stored outputs across all eight arms with 0 disagreeing with the run-time grade, and the report it regenerated is byte-for-byte the committed one
 - [ ] README results table updates from the job. Closer, and still not proven. On 2026-09-13 the Actions minutes ran out before `collect` was given a runner. On 2026-09-16 the job ran on a runner and folded, reported, committed and pushed the record by itself in 1m26s, so everything around the table is now exercised end to end. The table itself was not written, because that run passed `readme: false` on purpose: `write_readme` replaces everything between the markers, so a second run inside one month would have substituted its rows for September's. The one untested line is the write itself, and the October cron exercises it
 - [x] Actual cost of the first two runs recorded against the estimate. **US$19.53 and US$19.57, each against an expected US$20.35**, in the two `RUN.json` files and per arm within them. US$39.10 for the pair, against a CA$35 a month line, so the monthly budget holds with a second run inside it
-- [ ] One Rule C item documented with evidence
+- [x] One Rule C item documented with evidence. **2026-09-18**, candidate 3 (k = 1, no repeats) in [`docs/rejected.md`](docs/rejected.md), reproducible offline with `drift rulec repeats --month 2026-09-run2 --baseline 2026-09`. Candidate 1, the judge, stays open: the harness is built and costs about a dollar to run from a network that may call vendors
 
 
 ---
@@ -1016,5 +1030,5 @@ Mirrors the portfolio's definition:
 - [ ] Live dashboard at gate.peterparker.ca, stable, showing the drift record
 - [ ] Adapter documented; project 04 measured with it in Feb 2027
 - [ ] Write-up published
-- [ ] One rejected approach documented with evidence
+- [x] One rejected approach documented with evidence. **2026-09-18**, [`docs/rejected.md`](docs/rejected.md): k = 1, no repeats, rejected on the two September runs. The whole-project line is satisfied by it; the three Part B candidates in B13 are still expected to be written up as Part B produces them
 - [ ] v0.1.0 tagged; repository public. **Public since 2026-09-14** after an audit of all 56 commits; no tag cut yet
