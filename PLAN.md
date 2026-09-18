@@ -6,8 +6,8 @@ Two phases, one repository:
 
 | Phase | What | When | Section |
 |---|---|---|---|
-| **A. Drift record** | A frozen suite run monthly against the major vendors, from September 2026, so a twelve-month record exists by the time anyone asks | Setup Sep 2026; runs monthly through Sep 2027 | Part A |
-| **B. Release gate** | Calibrated judges, confidence intervals, power analysis, a GitHub Action that blocks a regression, red-team suites, an audit trail, and a dashboard carrying the drift record | 8 weeks, Dec 1 2026 to Jan 31 2027 | Part B |
+| **A. Drift record** | A frozen suite run monthly against the major vendors, from September 2026, so a record exists by the time anyone asks | Setup Sep 2026; runs monthly from there | Part A |
+| **B. Release gate** | Calibrated judges, confidence intervals, power analysis, a GitHub Action that blocks a regression, red-team suites, an audit trail, and a dashboard carrying the drift record | Follows Part A | Part B |
 
 Phase A starts now because a longitudinal record cannot be created retroactively. Phase B
 is the flagship build and reuses phase A's runner, storage and graders. Project 02 (Model
@@ -100,7 +100,7 @@ show.
   is what long-context recall already uses and Google answered that block at it.
 - A fixed budget is only fixed if it covers overhead the vendor imposes. A budget that
   produces no text is not a measurement of the model, and on the largest block it would have
-  been recorded as two arms scoring nothing for twelve months.
+  been recorded as two arms scoring nothing, month after month.
 - **`max_tokens` is fixed, and on 2026-09-12 it was fixed at the wrong values and raised.**
   The third dry run: 8 of 56 calls hit the budget, and **every wrong answer in the run was one
   of them**. Not one arm got anything wrong on the merits. Sonnet and both Google arms wrote
@@ -342,7 +342,7 @@ settle:
     number are both reported, and they disagree by design.
 
 - **Grading generations (added 2026-09-13).** A drift record compares a model against itself
-  across twelve months, so every number in a report must come from the same yardstick. Fixing
+  across the whole record, so every number in a report must come from the same yardstick. Fixing
   the classifier above proved that was not guaranteed: the refusal columns are computed live
   from the stored text while the accuracy columns took the grade frozen into the record at run
   time, so for three Sonnet answers one report said "refused" in one table and "failed to
@@ -552,10 +552,10 @@ items.
 |---|---|---|
 | Sep 8 - 12 | Repo scaffold, item schema, grader modules with tests | `drift/graders` green in CI |
 | Sep 12 - 16 | Sample and freeze public items; write 90 hand-written items; grade by hand twice | `drift/suite/v1` and `SUITE_HASH` committed; held-out hashes committed. **Public draw done 2026-09-10: 270 items, `SOURCES.json` committed. Generated items done 2026-09-11: 20 long-context and 40 paraphrase items, `LONGCONTEXT.json` committed. Hand-written items drafted 2026-09-11: all 420 items now exist. Second pass done 2026-09-11: all 130 drafted items checked, none rewritten, so `drift suite freeze` no longer refuses. Left before the dry runs: the panel and the two vendor request settings** |
-| Sep 16 - 19 | Runner with raw HTTP per vendor, retry policy, spend cap, JSONL recording | Dry run on 20 items, 1 repeat, all arms. **Brought forward to 2026-09-12**, four days early, after six smaller dry runs settled the panel and the graders |
+| Sep 16 - 19 | Runner with raw HTTP per vendor, retry policy, spend cap, JSONL recording | Dry run on 20 items, 1 repeat, all arms. **Brought forward to 2026-09-12**, after six smaller dry runs settled the panel and the graders |
 | Sep 19 - 21 | Analysis and report rendering; regrade-from-store path | Report renders from the dry run. **`drift replay` used for real on 2026-09-12** to prove the punctuation fix against stored outputs: exactly three regrades per OpenAI arm, none on any other |
-| Sep 22 - 24 | Full dry run (all items, k = 5) after vendor caps are set | Cost check against section 6; fix graders that misfire. **Done 2026-09-12**, ten days early: 16,800 calls, US$19.48 against a US$20.33 estimate, 1 error and 4 truncations. First measurement of the noise floor: same-day flip rate 0.2% to 3.8% and output stability 69% to 92%, the numbers every drift call for twelve months is tested against |
-| ~~Sep 27 (Sun)~~ **done 2026-09-13**, two weeks early | **First official run, suite v1 frozen** | `runs/2026-09`, `reports/2026-09.md`; 16,800 calls, US$19.53 |
+| Sep 22 - 24 | Full dry run (all items, k = 5) after vendor caps are set | Cost check against section 6; fix graders that misfire. **Done 2026-09-12**: 16,800 calls, US$19.48 against a US$20.33 estimate, 1 error and 4 truncations. First measurement of the noise floor: same-day flip rate 0.2% to 3.8% and output stability 69% to 92%, the numbers every drift call afterwards is tested against |
+| ~~Sep 27 (Sun)~~ **done 2026-09-13** | **First official run, suite v1 frozen** | `runs/2026-09`, `reports/2026-09.md`; 16,800 calls, US$19.53 |
 | **Sep 16 or 17** (was Oct 1) | Second official run, four days after the first | Short-interval noise baseline. Inside the same calendar month as the first, so it runs as `runs/2026-09-run2` and is paired with `--baseline 2026-09` |
 | Nov 1 onward | Monthly on the 1st | Twelve months by Sep 2027 |
 
@@ -692,12 +692,12 @@ costs about a dollar, so it is built into the dry-run week rather than bolted on
 
 # Part B. The release gate
 
-**Build window:** 8 weeks, 2026-12-01 to 2027-01-31, evenings and weekends, across the
-holidays. Depends on `mselect` from project 02 (**landed early: v0.1.0 through v0.3.0 all tagged
-2026-09-11**, see below) and on the shared VPS (portfolio action 2b) by week 6.
+**Build:** evenings and weekends. Depends on `mselect` from project 02 (**already landed:
+v0.1.0 through v0.3.0 all tagged 2026-09-11**, see below) and on the shared VPS (portfolio
+action 2b) by the time the dashboard is stood up.
 
-**`mselect` v0.3.0, available now.** Project 02 tagged it seven weeks ahead of its slot, so the
-week-1 fallback is not needed. Install it the way `boundary` is installed, from the private
+**`mselect` v0.3.0, available now.** Project 02 has already tagged it, so the fallback for
+building without it is not needed. Install it the way `boundary` is installed, from the private
 repository with the same fine-grained token (extended to `model-selection-tenth-cost` on
 2026-09-11):
 
@@ -934,24 +934,24 @@ side so that trade is visible.
 `gate` ships as a package with a documented adapter: a project provides an eval spec and
 an item loader, and gets the statistics, the judge calibration, the ledger and the report
 for free. Each of the four downstream READMEs states "measured with the AI Release Gate"
-and links here. The adapter is written in week 8 and exercised against project 04's
-first suite in February 2027, which is the first real test of the reuse claim.
+and links here. The adapter is written last and exercised against project 04's first
+suite, which is the first real test of the reuse claim.
 
-## B10. Week by week
+## B10. Stage by stage
 
-| Week | Dates | Build | Done when |
-|---|---|---|---|
-| 1 | Dec 1 - 7 | `gate` scaffold; eval spec; ledger; runner and graders lifted from `drift/`; `mselect` wired in; A/A harness | `gate run` and `gate aa` work on a Part A block; first false-block estimate |
-| 2 | Dec 8 - 14 | Gold set: questions, source documents, three models' answers; rubric written; labelling begins; judge runner and rubric prompts | 300 instances generated; 150 labelled |
-| 3 | Dec 15 - 21 | Labelling finished; judge calibration for two judges; bias checks; correction implemented | `docs/judge-calibration.md` with kappa, alpha, sensitivity, specificity |
-| 4 | Dec 22 - 28 | GitHub Action; demo repository; first gated pull requests. Holiday week, kept light | Three PRs with gate comments, one blocked |
-| 5 | Dec 29 - Jan 4 | Red-team suites and Presidio grader; refusal classifier calibrated | Four suites reporting with intervals |
-| 6 | Jan 5 - 11 | VPS stood up; compose stack; service and dashboard; drift record ingested; `gate.peterparker.ca` live; OpenTelemetry | Dashboard shows the Part A record and the demo repo's gate history |
-| 7 | Jan 12 - 18 | Eval reports and model cards generated from the ledger; cost and latency lines; A/A study at full size; intra-rater re-labelling of 100 gold items | False-block rate published; reports render for every run |
-| 8 | Jan 19 - 31 | Adapter for downstream projects; `docs/rejected.md`; write-up "your LLM eval has no error bars"; README to Rule A shape; v0.1.0; repository public | Definition of done all checked |
+| Stage | Build | Done when |
+|---|---|---|
+| 1 | `gate` scaffold; eval spec; ledger; runner and graders lifted from `drift/`; `mselect` wired in; A/A harness | `gate run` and `gate aa` work on a Part A block; first false-block estimate |
+| 2 | Gold set: questions, source documents, three models' answers; rubric written; labelling begins; judge runner and rubric prompts | 300 instances generated; 150 labelled |
+| 3 | Labelling finished; judge calibration for two judges; bias checks; correction implemented | `docs/judge-calibration.md` with kappa, alpha, sensitivity, specificity |
+| 4 | GitHub Action; demo repository; first gated pull requests. Kept light, because holidays land on it | Three PRs with gate comments, one blocked |
+| 5 | Red-team suites and Presidio grader; refusal classifier calibrated | Four suites reporting with intervals |
+| 6 | VPS stood up; compose stack; service and dashboard; drift record ingested; `gate.peterparker.ca` live; OpenTelemetry | Dashboard shows the Part A record and the demo repo's gate history |
+| 7 | Eval reports and model cards generated from the ledger; cost and latency lines; A/A study at full size; intra-rater re-labelling of 100 gold items | False-block rate published; reports render for every run |
+| 8 | Adapter for downstream projects; `docs/rejected.md`; write-up "your LLM eval has no error bars"; README to Rule A shape; v0.1.0; repository public | Definition of done all checked |
 
-Slack: the second judge in week 3 and the verbosity check are the first things to drop.
-The dashboard is kept plain on purpose; if week 6 runs long, the pages ship as static
+Slack: the second judge and the verbosity check are the first things to drop. The
+dashboard is kept plain on purpose; if that stage runs long, the pages ship as static
 Markdown rendered by the service rather than charts.
 
 ## B11. Cost
@@ -970,7 +970,7 @@ vendors assumed comparable and checked before the first run.
 | A/A study, 50 pairs per suite on cached baselines | ~3,000 | ~US$5 |
 | Development margin | | ~US$10 |
 | **Phase B API total** | | **~US$37, about CA$50** |
-| VPS share for phase B (2 of 12 months of the CA$300 line) | | ~CA$50 |
+| VPS share for phase B (a share of the CA$300 line) | | ~CA$50 |
 
 Well inside the line. Actual invoices go next to the estimate in the portfolio's STATUS.
 
@@ -978,15 +978,15 @@ Well inside the line. Actual invoices go next to the estimate in the portfolio's
 
 | Risk | Handling |
 |---|---|
-| Gold-set labelling takes longer than a week | It is the critical path in weeks 2 and 3. Keep the set at 300 and well-chosen; a smaller clean set beats a larger sloppy one. Intra-rater re-labelling in week 7 catches drift in the rater |
+| Gold-set labelling takes longer than expected | It is the critical path. Keep the set at 300 and well-chosen; a smaller clean set beats a larger sloppy one. Intra-rater re-labelling later catches drift in the rater |
 | Single-rater gold set | Reported as a limitation; second rater sought outside work; intra-rater agreement published either way |
 | Judge below kappa 0.6 on a task | That is a finding, published. The gate refuses the judge for that task and uses programmatic grading or flags for human review |
-| Holidays in weeks 4 and 5 | Those weeks carry the two most self-contained pieces (the Action, the red-team suites) and have slack built in |
-| VPS not ready by week 6 | The dashboard can run locally and be shown as static exports for a week; the drift job is unaffected. Action 2b in the portfolio STATUS tracks it |
+| Holidays land mid-build | The stages they land on carry the two most self-contained pieces (the Action, the red-team suites) and have slack built in |
+| VPS not ready in time | The dashboard can run locally and be shown as static exports; the drift job is unaffected. Action 2b in the portfolio STATUS tracks it |
 | Scope sprawl into a general eval framework | The eval spec stays small. Anything not needed by the demo repository or a downstream project is not built |
 | Vendor changes a judge model mid-build | Judges are pinned by dated identifier; a change means recalibration, which is a one-command rerun on the gold set |
 | Red-team suites misread as adversarial research | Public items only, from published benchmarks; documented in the README |
-| ~~`mselect` late from project 02~~ **closed 2026-09-11**: tagged `v0.1.0` seven weeks early and installable from the private repository, so the normal-approximation fallback is not built. What did not arrive with it is the own-run reliability figure, which Part B does not depend on (A2's five-repeat noise floor covers that) |
+| ~~`mselect` late from project 02~~ | **closed 2026-09-11**: tagged `v0.1.0` already, and installable from the private repository, so the normal-approximation fallback is not built. What did not arrive with it is the own-run reliability figure, which Part B does not depend on (A2's five-repeat noise floor covers that) |
 
 ## B13. Rule C candidates: what is expected not to work
 
