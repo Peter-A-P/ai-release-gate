@@ -5,11 +5,11 @@
 > Plus a public, month-by-month record of how the major vendors' "frozen" models silently
 > change, on a fixed test, with error bars.
 
-**In plain English.** Software teams protect themselves with automated tests. Change the code,
-run the tests, and you find out straight away whether you broke something. Teams building on AI
-models have no equivalent, for two reasons. The model is not theirs, and it can change underneath
-them without notice. And the test itself is unreliable, because an AI model asked the identical
-question twice does not reliably give the identical answer.
+Software teams protect themselves with automated tests: change the code, run the tests, and you
+find out straight away whether you broke something. Teams building on AI models have no
+equivalent, for two reasons. The model is not theirs, and it can change underneath them without
+notice. And the test itself is unreliable, because an AI model asked the identical question
+twice does not reliably give the identical answer.
 
 This project fixes the second problem so that the first one can be measured, and publishes the
 evidence month by month while it does.
