@@ -32,6 +32,15 @@ honest release gate for prompt and model changes (phase 2).
   `SUITE_HASH` is committed. A change means a new suite version and a bridging month.
 - **The record is append-only as it is written.** Nothing under `drift/runs/` is deleted,
   the runner only ever appends, and a bad run is marked in `RUN.json` rather than removed.
+  - **SQLite's `-wal` and `-shm` sidecars are not the record, and are not tracked.** 128 of
+    them were committed by accident and untracked on 2026-09-18, and `.gitignore` keeps them
+    out. They hold nothing: every committed `-wal` was 0 bytes and every `-shm` was the same
+    32,768-byte index SQLite rebuilds from the database whenever it opens one. Tracking them
+    was worse than pointless, because merely reading a ledger writes them back, so the
+    repository stood at 128 pending changes that meant nothing and would have buried a real
+    one. Proof the record survives them: all 80 ledgers pass `pragma integrity_check` and
+    `drift replay --month 2026-09` regrades 15,993 records with 0 disagreements and rewrites
+    the report byte for byte.
 - **A grade is the one field a fix may rewrite, and only through `drift replay --write`.**
   Correcting a grader means correcting it across every month, or a later month is being
   compared against an earlier one on a different yardstick, which is the confound this whole
