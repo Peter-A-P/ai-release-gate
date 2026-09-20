@@ -92,6 +92,13 @@ class SourceSpec(BaseModel):
         return LICENCES[self.publisher]
 
 
+# The element that holds the article, in the order they are looked for. Without this the first
+# 2,500 characters of an investor.gov page are its cookie notice and its "Skip to main content"
+# link, which is exactly what the first real fetch on 2026-09-20 stored: a passage nobody can
+# write a question from, and one a judge would faithfully report as being about domain names.
+MAIN_IDS = frozenset({"main-content", "main", "content", "block-system-main"})
+
+
 class _TextExtractor(HTMLParser):
     """HTML to plain text, keeping paragraph boundaries and dropping furniture.
 
@@ -99,32 +106,68 @@ class _TextExtractor(HTMLParser):
     finding the main column and would be another dependency and another thing to be wrong; the
     output of this one is committed and read by a human before any question is written from it,
     so a bad extraction is caught by the person writing the questions rather than by a library.
+
+    Text is collected twice: everything, and separately whatever sits inside the page's main
+    region when it declares one (`<main>`, `role="main"`, or a familiar id). `text` prefers the
+    main region whenever it is substantial, which is what keeps a site banner out of a passage.
     """
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
+        self.main_parts: list[str] = []
         self._skip_depth = 0
+        self._depth = 0
+        self._main_depth = 0  # the depth the main region opened at, 0 when outside one
+
+    @staticmethod
+    def _is_main(tag: str, attrs: list[tuple[str, str | None]]) -> bool:
+        if tag == "main":
+            return True
+        found = {k.lower(): (v or "") for k, v in attrs}
+        return found.get("role", "").lower() == "main" or found.get("id", "").lower() in MAIN_IDS
+
+    def _emit(self, text: str) -> None:
+        self.parts.append(text)
+        if self._main_depth:
+            self.main_parts.append(text)
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self._depth += 1
         if tag in DROP_TAGS:
             self._skip_depth += 1
-        elif tag in BLOCK_TAGS and self._skip_depth == 0:
-            self.parts.append("\n")
+            return
+        # A main region already open wins: nesting one inside another would close the outer
+        # early, on the inner one's end tag.
+        if self._main_depth == 0 and self._skip_depth == 0 and self._is_main(tag, attrs):
+            self._main_depth = self._depth
+        if tag in BLOCK_TAGS and self._skip_depth == 0:
+            self._emit("\n")
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        # `<br/>` and friends: a block boundary that never closes, so it must not move depth.
+        if tag in BLOCK_TAGS and self._skip_depth == 0:
+            self._emit("\n")
 
     def handle_endtag(self, tag: str) -> None:
-        if tag in DROP_TAGS and self._skip_depth:
-            self._skip_depth -= 1
+        if tag in DROP_TAGS:
+            self._skip_depth = max(0, self._skip_depth - 1)
         elif tag in BLOCK_TAGS and self._skip_depth == 0:
-            self.parts.append("\n")
+            self._emit("\n")
+        if self._main_depth and self._depth <= self._main_depth:
+            self._main_depth = 0
+        self._depth = max(0, self._depth - 1)
 
     def handle_data(self, data: str) -> None:
         if self._skip_depth == 0 and data.strip():
-            self.parts.append(data)
+            self._emit(data)
 
     @property
     def text(self) -> str:
-        return "".join(self.parts)
+        main = "".join(self.main_parts)
+        # "Substantial" rather than "present": a page whose main region holds only a heading has
+        # not told us where the article is, and the whole body is a better guess than a title.
+        return main if len(main.strip()) >= MIN_PASSAGE_CHARS else "".join(self.parts)
 
 
 _WS = re.compile(r"[ \t\r\f\v]+")

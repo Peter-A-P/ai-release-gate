@@ -231,3 +231,67 @@ def test_one_slow_page_does_not_eat_the_whole_list() -> None:
         assert results[1].ok, "the second page is still fetched"
     finally:
         release.set()
+
+
+BANNERED = (
+    "<html><body><a href='#main'>Skip to main content</a>"
+    "<div class='usa-banner'><p>The .gov means it is official. "
+    + ("Boilerplate about federal domain names. " * 30)
+    + "</p></div>"
+    "<main><h1>Mutual funds</h1><p>"
+    + ("A mutual fund pools money from many investors. " * 30)
+    + "</p></main></body></html>"
+)
+
+
+def test_the_page_s_main_region_wins_over_its_banner() -> None:
+    """What the first real fetch got wrong. investor.gov puts its cookie notice in a plain
+    div, so dropping nav, header and footer was not enough and the stored passage was 2,500
+    characters of boilerplate about federal domain names: nothing a question can be written
+    from, and something a judge would faithfully report the document as being about."""
+    text = to_text(BANNERED)
+    assert "A mutual fund pools money" in text
+    assert "Boilerplate about federal domain names" not in text
+    assert "Skip to main content" not in text
+    assert text.startswith("Mutual funds")
+
+
+def test_a_main_region_is_also_found_by_role_and_by_id() -> None:
+    body = "<p>" + ("Real content about fees. " * 40) + "</p>"
+    for opener, closer in (
+        ("<div id='main-content'>", "</div>"),
+        ("<div role='main'>", "</div>"),
+        ("<section id='content'>", "</section>"),
+    ):
+        html = (
+            f"<html><body><div><p>{'Banner. ' * 80}</p></div>{opener}{body}{closer}</body></html>"
+        )
+        text = to_text(html)
+        assert "Real content about fees." in text
+        assert "Banner." not in text, f"{opener} did not win"
+
+
+def test_a_main_region_too_thin_to_be_the_article_falls_back_to_the_body() -> None:
+    """A page whose main region holds only a heading has not told us where the article is,
+    and the whole body is a better guess than a title."""
+    html = (
+        "<html><body><div><p>"
+        + ("Something substantial in the body. " * 40)
+        + "</p></div><main><h1>Only a heading</h1></main></body></html>"
+    )
+    assert "Something substantial" in to_text(html)
+
+
+def test_a_void_block_tag_does_not_unbalance_the_depth_count() -> None:
+    """`<br/>` never closes. Counting it as a level deep would close the main region on the
+    next end tag and hand the banner back."""
+    html = (
+        "<html><body><main><p>First line.<br/>Second line.</p><p>"
+        + ("More real content. " * 40)
+        + "</p></main><div><p>"
+        + ("Footer noise. " * 40)
+        + "</p></div></body></html>"
+    )
+    text = to_text(html)
+    assert "First line." in text and "Second line." in text and "More real content." in text
+    assert "Footer noise." not in text
