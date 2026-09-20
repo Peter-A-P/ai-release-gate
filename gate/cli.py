@@ -21,6 +21,7 @@ import typer
 from drift.panel import Arm, Panel, load_panel
 from drift.runner.records import arms_recorded, read_records, records_path
 from gate import __version__, aa, generate, gold, ledger, report
+from gate import sources as gold_sources
 from gate.decision import decide
 from gate.judge import calibration as calib
 from gate.judge import report as judge_report
@@ -44,6 +45,7 @@ DEFAULT_SPEC = SPECS / "drift-blocks.yaml"
 LEDGER = ROOT / "gate" / "runs" / ledger.LEDGER_FILE
 GOLD = ROOT / "gate" / "gold"
 DOCS = ROOT / "docs"
+SOURCE_LIST = SPECS / "gold-sources.yaml"
 ANSWER_PANEL = SPECS / "gold-answers.yaml"
 JUDGE_PANEL = SPECS / "gold-judges.yaml"
 BOUNDARY_CONFIG = ROOT / "drift" / "config" / "boundary.yaml"
@@ -657,3 +659,67 @@ def judge_run(
         f"{len(mine)} verdicts stored for {judge_key}, {ungradeable} not in the two-line form"
     )
     typer.echo(f"verdicts are in {path}")
+
+
+@gold_app.command("fetch")
+def gold_fetch(
+    allowed: Annotated[
+        bool,
+        typer.Option(
+            "--i-am-allowed-to-reach-the-internet",
+            help="confirm this machine can read public pages; CI passes it",
+        ),
+    ] = False,
+    spec_list: Annotated[Path, typer.Option("--list", help="the pages to fetch")] = SOURCE_LIST,
+    only: Annotated[str, typer.Option(help="comma separated ids, for retrying a few")] = "",
+) -> None:
+    """Read the public regulator pages the gold set's questions are answered from.
+
+    Spends nothing, but it does reach the internet, and an ordinary HTTPS read to canada.ca
+    times out from the work network. This runs in the `gold` workflow. Each page is stored as a
+    passage with the hash of the bytes it came from and the date it was read, and is never
+    fetched again; a page that fails is reported with its reason and the rest are still stored.
+    """
+    if not allowed:
+        typer.echo(
+            "gate gold fetch reads public web pages. Pass --i-am-allowed-to-reach-the-internet "
+            "if this machine can; it cannot from the work network, whose proxy makes the read "
+            "time out. This command is meant for CI.",
+            err=True,
+        )
+        raise typer.Exit(2)
+    try:
+        specs = gold_sources.load_specs(spec_list)
+    except (OSError, ValueError) as e:
+        typer.echo(f"source list {spec_list}: {e}", err=True)
+        raise typer.Exit(2) from e
+    if only:
+        wanted = {k.strip() for k in only.split(",") if k.strip()}
+        specs = [s for s in specs if s.id in wanted]
+        if not specs:
+            typer.echo(f"no source in the list matches {only!r}", err=True)
+            raise typer.Exit(2)
+
+    path = GOLD / gold.SOURCES_FILE
+    existing = gold.read_sources(path)
+    have = {s.id for s in existing}
+    results = gold_sources.fetch_all(specs, skip=have if not only else set())
+    fetched = [r.document for r in results if r.document is not None]
+    failed = [r for r in results if not r.ok]
+
+    if fetched:
+        by_id = {s.id: s for s in existing}
+        for doc in fetched:
+            by_id[doc.id] = doc
+        gold.write_all(path, [by_id[k] for k in sorted(by_id)])
+    for doc in fetched:
+        typer.echo(f"  {doc.id}  {len(doc.text):>5} chars  {doc.title}")
+    for r in failed:
+        typer.echo(f"  {r.spec.id}  FAILED  {r.spec.url}", err=True)
+        typer.echo(f"          {r.error}", err=True)
+    typer.echo(
+        f"{len(fetched)} fetched, {len(failed)} failed, {len(have)} already stored; "
+        f"{len(gold.read_sources(path))} documents in all"
+    )
+    if failed and not fetched:
+        raise typer.Exit(1)

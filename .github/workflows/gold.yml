@@ -9,6 +9,8 @@ name: gold
 # Both jobs are RESUMABLE and both are bounded by `--limit`. A run that stops halfway leaves a
 # committed prefix, and running it again continues from there rather than paying twice.
 #
+# `what=sources` spends nothing at all: it reads public pages. The other two spend.
+#
 # The whole of stage 2 is about US$2 (300 answers) and stage 3 about US$6 (two judges, 300
 # instances, two readings and a swap). The `limit` input exists so the first run of each can be
 # a handful of calls that prove the wiring before the rest is paid for.
@@ -17,11 +19,11 @@ on:
   workflow_dispatch:
     inputs:
       what:
-        description: "answers (generate the gold set) or judge (run a judge over it)"
+        description: "sources (fetch the regulator pages), answers (generate the gold set), or judge"
         required: true
         type: choice
-        options: [answers, judge]
-        default: answers
+        options: [sources, answers, judge]
+        default: sources
       judge_key:
         description: "for what=judge: which judge in gate/specs/gold-judges.yaml"
         required: false
@@ -35,6 +37,10 @@ on:
         required: false
         type: boolean
         default: false
+      only:
+        description: "for what=sources: comma separated source ids, for retrying a few"
+        required: false
+        default: ""
       limit:
         description: "stop after this many vendor calls; 0 for no limit. Start small."
         required: false
@@ -56,6 +62,17 @@ jobs:
 
       - name: Show what is there before anything is spent
         run: uv run gate gold status
+
+      - name: Fetch the source documents
+        if: ${{ inputs.what == 'sources' }}
+        # No vendor, no key, no spend: this reads public regulator pages. It is here rather
+        # than on the laptop because the work network's proxy makes the read time out. A page
+        # that fails is reported with its reason and the rest are still stored, so a wrong path
+        # in gate/specs/gold-sources.yaml costs one line and one re-run.
+        run: |
+          ARGS="--i-am-allowed-to-reach-the-internet"
+          if [ -n "${{ inputs.only }}" ]; then ARGS="$ARGS --only ${{ inputs.only }}"; fi
+          uv run gate gold fetch $ARGS || echo "some pages failed; the ones that worked are kept"
 
       - name: Generate the gold set's answers
         if: ${{ inputs.what == 'answers' }}

@@ -1,0 +1,90 @@
+# The public pages the gold set's questions are answered from (PLAN.md B4).
+#
+# THIS LIST IS PROVISIONAL UNTIL A FETCH CONFIRMS IT. It was written without being able to open
+# any of these pages: the work network's proxy makes an ordinary HTTPS read to canada.ca time
+# out, so `gate gold fetch` runs in the `gold` workflow and the first run of it is a probe.
+# Every failure is reported with its reason and the ones that succeeded are still committed, so
+# a wrong path costs one line and one re-run rather than the list.
+#
+# Both publishers put this material under terms that allow storing it, which is why the text is
+# committed rather than the URL:
+#   fcac  Open Government Licence - Canada
+#   sec   a United States government work, public domain
+#
+# What makes a good page here. It has to state checkable specifics (a number of days, a dollar
+# limit, a named condition), because a faithfulness judge tested on a page of generalities is
+# not tested at all. It has to be a content page rather than an index, which the fetcher
+# enforces by refusing anything that yields under 400 characters of text.
+#
+# Aim: about 30 documents carrying 100 questions, so two to four questions each. Start with
+# these, see which resolve, then extend. Nothing here is fetched twice: `gate gold fetch` skips
+# any id already in sources.jsonl.
+
+sources:
+  # ---------------------------------------------------------------- Financial Consumer Agency
+  - id: fcac-001
+    publisher: fcac
+    title: "Credit card holds on funds"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-cards.html
+  - id: fcac-002
+    publisher: fcac
+    title: "Credit report and credit score"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-reports-score.html
+  - id: fcac-003
+    publisher: fcac
+    title: "Mortgages"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/mortgages.html
+  - id: fcac-004
+    publisher: fcac
+    title: "Bank accounts"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/banking.html
+  - id: fcac-005
+    publisher: fcac
+    title: "Debt and borrowing"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/debt.html
+  - id: fcac-006
+    publisher: fcac
+    title: "Savings and investments"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/savings-investments.html
+  - id: fcac-007
+    publisher: fcac
+    title: "Insurance"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/insurance.html
+  - id: fcac-008
+    publisher: fcac
+    title: "Budgeting"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/make-budget.html
+  - id: fcac-009
+    publisher: fcac
+    title: "Financial fraud and scams"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/fraud.html
+  - id: fcac-010
+    publisher: fcac
+    title: "Payday loans"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/loans/payday-loans.html
+
+  # ---------------------------------------------------------------- SEC investor education
+  - id: sec-001
+    publisher: sec
+    title: "Investor bulletins and alerts"
+    url: https://www.sec.gov/oiea/investor-alerts-and-bulletins
+  - id: sec-002
+    publisher: sec
+    title: "Mutual funds and ETFs"
+    url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-1
+  - id: sec-003
+    publisher: sec
+    title: "How fees and expenses affect your portfolio"
+    url: https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/how-fees-and-expenses-affect-your
+  - id: sec-004
+    publisher: sec
+    title: "Compound interest"
+    url: https://www.investor.gov/financial-tools-calculators/calculators/compound-interest-calculator
+  - id: sec-005
+    publisher: sec
+    title: "Asset allocation"
+    url: https://www.investor.gov/introduction-investing/getting-started/asset-allocation
+  - id: sec-006
+    publisher: sec
+    title: "Investment fraud: warning signs"
+    url: https://www.investor.gov/protect-your-investments/fraud/how-avoid-fraud
