@@ -734,3 +734,58 @@ def gold_fetch(
     )
     if failed and not fetched:
         raise typer.Exit(1)
+
+
+@gold_app.command("probe-models")
+def gold_probe_models(
+    allowed: Annotated[bool, typer.Option(VENDOR_FLAG, help=VENDOR_HELP)] = False,
+    models: Annotated[str, typer.Option(help="comma separated provider/model identifiers")] = "",
+    max_tokens: Annotated[int, typer.Option(help="tokens to ask for; keep it tiny")] = 8,
+) -> None:
+    """Ask each named model one trivial question and report whether it answered.
+
+    A vendor's model list is a catalogue, not an inventory of what it will serve you: on
+    2026-09-20 two identifiers from the provider's own list of 274 both returned 400 "Unable to
+    access non-serverless model". Nothing but a call can tell the difference, so this makes the
+    call, once per candidate, for a few tokens, and prints what came back. Cheaper than
+    discovering it three hundred calls into a generation run, and quicker than one guess per
+    workflow run.
+    """
+    from boundary import ChatRequest, Gateway
+
+    _refuse_unless_allowed(allowed, "gate gold probe-models")
+    wanted = [m.strip() for m in models.split(",") if m.strip()]
+    if not wanted:
+        typer.echo("--models is a comma separated list of provider/model identifiers", err=True)
+        raise typer.Exit(2)
+    servable: list[str] = []
+    with Gateway.from_config(
+        BOUNDARY_CONFIG, project=PROJECT, ledger_path=GOLD / "ledger.sqlite"
+    ) as gateway:
+        for model in wanted:
+            try:
+                reply = gateway.chat(
+                    ChatRequest(
+                        model=model,
+                        system="Answer with one word.",
+                        messages=[{"role": "user", "content": "Say OK."}],
+                        max_tokens=max_tokens,
+                        temperature=0.0,
+                    ),
+                    purpose="probe: is this model servable",
+                    run_id="probe",
+                )
+            except Exception as e:
+                # The message is the finding. A 400 naming a dedicated endpoint means the model
+                # is catalogued but not served; anything else is its own problem.
+                typer.echo(f"  {model}")
+                typer.echo(f"      NO  {type(e).__name__}: {e}")
+                continue
+            text = (reply.text or "").strip().replace(chr(10), " ")[:40]
+            costed = "costed" if reply.costed else "UNCOSTED (no price entry)"
+            typer.echo(f"  {model}")
+            typer.echo(f"      yes  {text!r}  {costed}")
+            servable.append(model)
+    typer.echo(f"{len(servable)} of {len(wanted)} answered: {', '.join(servable) or 'none'}")
+    if not servable:
+        raise typer.Exit(1)

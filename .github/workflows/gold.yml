@@ -22,7 +22,7 @@ on:
         description: "sources (fetch the regulator pages), answers (generate the gold set), or judge"
         required: true
         type: choice
-        options: [sources, answers, judge]
+        options: [sources, answers, judge, probe-models]
         default: sources
       judge_key:
         description: "for what=judge: which judge in gate/specs/gold-judges.yaml"
@@ -39,6 +39,10 @@ on:
         default: false
       only:
         description: "for what=sources: comma separated source ids, for retrying a few"
+        required: false
+        default: ""
+      models:
+        description: "for what=probe-models: comma separated provider/model identifiers"
         required: false
         default: ""
       limit:
@@ -73,6 +77,16 @@ jobs:
           ARGS="--i-am-allowed-to-reach-the-internet"
           if [ -n "${{ inputs.only }}" ]; then ARGS="$ARGS --only ${{ inputs.only }}"; fi
           uv run gate gold fetch $ARGS || echo "some pages failed; the ones that worked are kept"
+
+      - name: Probe whether models are actually servable
+        if: ${{ inputs.what == 'probe-models' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
+        run: |
+          uv run gate gold probe-models             --i-am-allowed-to-call-vendors             --models "${{ inputs.models }}"
 
       - name: Generate the gold set's answers
         if: ${{ inputs.what == 'answers' }}
