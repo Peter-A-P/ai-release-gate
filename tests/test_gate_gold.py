@@ -214,3 +214,13 @@ def test_a_thin_passage_is_named_rather_than_left_to_be_noticed(tmp_path: Path) 
     text = gold.summarise(g, [])
     assert "thin passages" in text
     assert "fcac-002" in text and "fcac-001" not in text.split("thin passages")[1]
+
+
+def test_two_urls_that_redirect_to_one_page_are_reported() -> None:
+    """sec-037's URL redirected to the asset allocation page and stored a passage byte for
+    byte identical to sec-005's. Questions written from both would have looked independent
+    while resting on one document."""
+    same = source(1, text="The same words. " * 40)
+    twin = same.model_copy(update={"id": "fcac-002", "url": "https://example.invalid/other"})
+    g = gold.GoldSet(sources=(same, twin), questions=(), instances=())
+    assert any("identical passages under fcac-001, fcac-002" in p for p in g.problems())

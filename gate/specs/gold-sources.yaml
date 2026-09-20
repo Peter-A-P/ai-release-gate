@@ -31,6 +31,11 @@
 # sec-019, sec-021, sec-023, sec-024). The trailer is cut now, and what was left of those pages
 # was under 900 characters: a stub either way. sec-036 was a 404.
 #
+# sec-037 went too: its URL redirects to the asset allocation page, so it stored a passage
+# byte for byte identical to sec-005. Questions written from both would have looked
+# independent while resting on one document. `gate gold status` now reports identical
+# passages rather than leaving that to be noticed.
+#
 # The three original stubs:
 # yielded 866, 800 and 570 characters, and one of those was still mostly site banner because
 # its main region was too thin to prefer and the whole body was the fallback. There is barely
@@ -126,7 +131,3 @@ sources:
     publisher: sec
     title: "Investment adviser or broker"
     url: https://www.investor.gov/introduction-investing/getting-started/working-investment-professional
-  - id: sec-037
-    publisher: sec
-    title: "Investing quiz: are you ready to invest?"
-    url: https://www.investor.gov/introduction-investing/getting-started/assessing-your-risk-tolerance

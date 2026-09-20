@@ -284,6 +284,15 @@ class GoldSet(BaseModel):
             if key in seen:
                 out.append(f"{i.id}: a second answer for {key[0]} from {key[1]}")
             seen.add(key)
+        by_text: dict[str, list[str]] = {}
+        for src in self.sources:
+            by_text.setdefault(src.text_sha256, []).append(src.id)
+        for ids_sharing in by_text.values():
+            if len(ids_sharing) > 1:
+                # Two URLs that redirect to one page. Left in, it would put the same passage
+                # under two ids, and the questions written from them would look independent
+                # while resting on one document.
+                out.append(f"identical passages under {', '.join(sorted(ids_sharing))}")
         for name, ids, records in (
             ("source", sources, self.sources),
             ("question", questions, self.questions),
