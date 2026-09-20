@@ -306,3 +306,30 @@ def test_invisible_characters_are_removed_because_they_defeat_a_literal_check() 
     assert "the first $100 of funds must be available" in text
     for invisible in (0x200B, 0x202F, 0xFEFF, 0x200C, 0x2009):
         assert chr(invisible) not in text
+
+
+def test_a_site_trailer_is_cut_because_it_repeats_on_every_page() -> None:
+    """investor.gov ends every page with the same "Featured Content" block, inside the main
+    region, so preferring that region does not remove it. A judge shown one would faithfully
+    report that a page about bonds is about this month's quiz."""
+    body = "Real guidance about bonds and how they pay interest. " * 12
+    trailer = "Featured Content\nTake This Month's Quiz\nCheck your knowledge\nReturn to Top"
+    assert "Featured Content" not in sources.cut_at_trailer(f"{body}\n{trailer}")
+    assert "Real guidance about bonds" in sources.cut_at_trailer(f"{body}\n{trailer}")
+    # Case and a trailing colon do not save it.
+    assert (
+        "page details" not in sources.cut_at_trailer(f"{body}\nPage details:\nFrom:\nFCAC").lower()
+    )
+
+
+def test_a_page_that_is_only_trailer_keeps_what_it_has() -> None:
+    """Cutting at the first marker would leave nothing, and an empty passage is worse than a
+    poor one: `gate gold status` can name a thin passage, it cannot name an absent one."""
+    only = "Featured Content\nTake This Month's Quiz\n" + ("Filler line.\n" * 60)
+    assert sources.cut_at_trailer(only) == only.strip()
+
+
+def test_the_trailer_is_cut_before_the_length_limit_is_applied() -> None:
+    body = "A sentence with something checkable in it. " * 20
+    text = passage(f"{body}\nRelated links\n" + ("More trailer text. " * 200), limit=2600)
+    assert "Related links" not in text and "More trailer text" not in text

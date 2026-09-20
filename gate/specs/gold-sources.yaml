@@ -25,7 +25,13 @@
 # exist under that name. Entries from sec-026 on are the next batch of candidates, written the
 # same way and just as unconfirmed.
 #
-# Three glossary stubs that DID fetch have been removed again: sec-020, sec-030 and sec-031
+# Nine entries that DID fetch have been removed again. Three were glossary stubs (sec-020,
+# sec-030, sec-031) and six more turned out to be mostly investor.gov's repeating "Featured
+# Content" trailer with a paragraph or two in front of it (sec-004, sec-006, sec-012, sec-016,
+# sec-019, sec-021, sec-023, sec-024). The trailer is cut now, and what was left of those pages
+# was under 900 characters: a stub either way. sec-036 was a 404.
+#
+# The three original stubs:
 # yielded 866, 800 and 570 characters, and one of those was still mostly site banner because
 # its main region was too thin to prefer and the whole body was the fallback. There is barely
 # anything in a stub to be unfaithful to, so it makes a poor faithfulness question. `gate gold
@@ -46,10 +52,6 @@ sources:
     publisher: sec
     title: "Mutual funds and exchange-traded funds"
     url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-1
-  - id: sec-004
-    publisher: sec
-    title: "Compound interest"
-    url: https://www.investor.gov/financial-tools-calculators/calculators/compound-interest-calculator
   - id: sec-005
     publisher: sec
     title: "Asset allocation"
@@ -68,10 +70,6 @@ sources:
     publisher: sec
     title: "Bonds"
     url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/bonds-or-fixed-income-products/bonds
-  - id: sec-012
-    publisher: sec
-    title: "Save and invest"
-    url: https://www.investor.gov/introduction-investing/investing-basics/save-and-invest
   - id: sec-013
     publisher: sec
     title: "The role of the SEC"
@@ -84,10 +82,6 @@ sources:
     publisher: sec
     title: "Researching an investment professional"
     url: https://www.investor.gov/introduction-investing/getting-started/researching-investments
-  - id: sec-016
-    publisher: sec
-    title: "Types of investment fraud"
-    url: https://www.investor.gov/protect-your-investments/fraud/types-fraud
   - id: sec-017
     publisher: sec
     title: "Affinity fraud"
@@ -96,26 +90,10 @@ sources:
     publisher: sec
     title: "Ponzi schemes"
     url: https://www.investor.gov/protect-your-investments/fraud/types-fraud/ponzi-scheme
-  - id: sec-019
-    publisher: sec
-    title: "Microcap fraud"
-    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/microcap-stock
-  - id: sec-021
-    publisher: sec
-    title: "Dollar cost averaging"
-    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/dollar-cost-averaging
   - id: sec-022
     publisher: sec
     title: "Index funds"
     url: https://www.investor.gov/introduction-investing/investing-basics/glossary/index-fund
-  - id: sec-023
-    publisher: sec
-    title: "Expense ratio"
-    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/expense-ratio
-  - id: sec-024
-    publisher: sec
-    title: "Prospectus"
-    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/prospectus
   - id: sec-026
     publisher: sec
     title: "Certificates of deposit"
@@ -148,10 +126,6 @@ sources:
     publisher: sec
     title: "Investment adviser or broker"
     url: https://www.investor.gov/introduction-investing/getting-started/working-investment-professional
-  - id: sec-036
-    publisher: sec
-    title: "Asking questions of a financial professional"
-    url: https://www.investor.gov/introduction-investing/getting-started/ask-questions
   - id: sec-037
     publisher: sec
     title: "Investing quiz: are you ready to invest?"

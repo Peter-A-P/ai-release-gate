@@ -230,6 +230,38 @@ def to_text(html: str) -> str:
     return _BLANKS.sub("\n\n", "\n".join(line for line in lines if line)).strip()
 
 
+# Trailers that repeat on every page of a site. They sit inside the main region, so preferring
+# that region does not remove them, and they are furniture for the same reason a navigation bar
+# is: they say nothing about this page. A judge shown one will faithfully report that the
+# document is about a quiz. Matched case-insensitively at the start of a line, and the passage
+# ends at the first one found.
+STOP_MARKERS = (
+    "featured content",
+    "return to top",
+    "related link",
+    "related links",
+    "page details",
+    "learn more here and here.",
+)
+
+
+NEWLINE = chr(10)
+
+
+def cut_at_trailer(text: str) -> str:
+    """Everything before the first site trailer, or the whole text when there is none."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if line.strip().casefold().rstrip(":") in STOP_MARKERS:
+            trimmed = NEWLINE.join(lines[:i]).strip()
+            # Only if something substantial is left. A page whose trailer starts at the top has
+            # told us nothing, and the whole text is a better guess than an empty string.
+            if len(trimmed) >= MIN_PASSAGE_CHARS:
+                return trimmed
+            return text.strip()
+    return text.strip()
+
+
 def passage(text: str, *, limit: int = MAX_PASSAGE_CHARS) -> str:
     """The first `limit` characters, cut at a paragraph boundary.
 
@@ -237,6 +269,7 @@ def passage(text: str, *, limit: int = MAX_PASSAGE_CHARS) -> str:
     it then measures faithfulness against, and every claim in it would be one step removed from
     something a regulator actually published.
     """
+    text = cut_at_trailer(text)
     if len(text) <= limit:
         return text
     head = text[:limit]
