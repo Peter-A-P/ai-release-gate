@@ -518,6 +518,10 @@ def gold_generate(
     typer.echo(f"{total} answers planned, {len(done)} already stored, {total - len(done)} to make.")
 
     made = 0
+    failed = False
+    # Appended as each answer comes back, not collected and written at the end. The first real
+    # run died on call one of 300 with a vendor 400, and had it died on call 250 instead, every
+    # one of those answers would have been paid for and thrown away.
     fresh: list[gold.AnswerInstance] = []
     with Gateway.from_config(
         BOUNDARY_CONFIG,
@@ -546,16 +550,21 @@ def gold_generate(
             )
 
         try:
-            fresh = generate.generate(
+            generate.generate(
                 questions,
                 sources,
                 panel.arms,
                 caller,  # type: ignore[arg-type]
                 run_id=run_id or "gold-1",
                 skip=done,
+                on_instance=fresh.append,
             )
         except _LimitReachedError:
             typer.echo(f"stopped at the {limit} calls you asked for")
+        # Whatever it was, the answers already paid for are written below before we exit.
+        except Exception as e:
+            typer.echo(f"generation stopped: {type(e).__name__}: {e}", err=True)
+            failed = True
 
     if fresh:
         gold.write_all(GOLD / gold.INSTANCES_FILE, [*existing, *fresh])
@@ -564,6 +573,8 @@ def gold_generate(
     typer.echo(generate.coverage(g))
     for problem in g.problems():
         typer.echo(f"PROBLEM  {problem}", err=True)
+    if failed:
+        raise typer.Exit(1)
 
 
 class _LimitReachedError(RuntimeError):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 
 from drift.panel import Arm, load_panel
@@ -129,7 +130,11 @@ def test_the_shipped_panels_load_and_refuse_to_run_until_confirmed() -> None:
     assert all("CHOOSE" not in a.model for a in [*answers.arms, *judges.arms])
     assert {a.family for a in answers.arms} == {"small", "mid", "large"}
     small = next(a for a in answers.arms if a.family == "small")
-    assert "3B" in small.model, (
+    assert "-Turbo" in small.model, (
+        "this provider's serverless serving is marked -Turbo; Qwen2.5-3B-Instruct was in its "
+        "model list and returned 400 'Unable to access non-serverless model' on the first call"
+    )
+    assert "7B" in small.model or "3B" in small.model, (
         "the small arm's job is to produce real faithfulness failures; a gold set on which "
         "every answer is good cannot tell a working judge from one that says fine to everything"
     )
@@ -155,3 +160,20 @@ def test_the_judges_are_pinned_to_dated_identifiers_where_the_vendor_offers_one(
     vendor invalidate every corrected rate in the repository without anyone noticing."""
     for a in load_panel(SPECS / "gold-judges.yaml").arms:
         assert a.arm == "snapshot", f"{a.key} is not a pinned snapshot"
+
+
+def test_answers_already_paid_for_survive_a_failure_midway() -> None:
+    """The first real run died on call one of 300 with a vendor 400. Had it died on call 250,
+    every one of those answers would have been paid for and thrown away, so each is handed
+    over as it arrives rather than collected and returned at the end."""
+    sources = {"fcac-001": source()}
+    kept: list[gold.AnswerInstance] = []
+
+    def caller(job: generate.Job) -> FakeReply:
+        if job.instance_id == "i-0002":
+            raise RuntimeError("openweights returned 400")
+        return FakeReply("15 business days.")
+
+    with contextlib.suppress(RuntimeError):
+        generate.generate([question()], sources, ARMS, caller, run_id="g1", on_instance=kept.append)
+    assert [i.id for i in kept] == ["i-0001"], "the answer before the failure is kept"

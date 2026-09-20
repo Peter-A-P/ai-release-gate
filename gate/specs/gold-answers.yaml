@@ -9,23 +9,33 @@
 # against in the drift runs of 2026-09-13 and 2026-09-16, so they are known to work, known to
 # be priced correctly in drift/config/prices, and known to answer inside a token budget.
 #
-# The small model was chosen 2026-09-20 from the provider's own list of 274 identifiers:
-# Qwen2.5-3B-Instruct. Three billion parameters answering the same consumer questions as Sonnet
-# 5 is the spread this set exists to create. A gold set on which every answer is good cannot
-# tell a working judge from one that says "fine" to everything, so the small model's job is to
-# get things wrong in the way a real application's cheap tier gets things wrong.
+# The small model's job is not to be good. A gold set on which every answer is good cannot tell
+# a working judge from one that says "fine" to everything, so this arm is here to get things
+# wrong the way a real application's cheap tier gets things wrong.
+#
+# Chosen 2026-09-20, and the first choice was wrong in a way worth recording. Qwen2.5-3B-Instruct
+# appears in the provider's own list of 274 identifiers and cannot be called:
+#
+#   400 invalid_request_error: Unable to access non-serverless model Qwen/Qwen2.5-3B-Instruct.
+#   Please visit ... to create and start a new dedicated endpoint for the model.
+#
+# So a vendor's model list is a catalogue, not an inventory of what it will serve you, and
+# `panel candidates` cannot tell the difference. The only thing that can is a call. That is why
+# `gate gold generate` takes `--limit`, and why the first run of it is six calls and not three
+# hundred. The `-Turbo` suffix is this provider's mark for the serverless FP8 serving that the
+# drift control already uses, so it is the thing to look for.
 #
 # The judges are a separate file (gold-judges.yaml) and MUST NOT appear here. A model that both
 # writes an answer and judges it is grading its own homework, and the kappa that came out of
 # that would be measuring nothing.
 version: 1
 chosen: 2026-09-20
-notes: "All three confirmed against the vendors' own model lists on 2026-09-20, run 35529080046. The two Anthropic identifiers are carried over from the drift panel and have been exercised in two full runs of 16,800 calls. Qwen2.5-3B-Instruct was chosen the same day: three billion parameters against Sonnet 5, which is the spread the gold set needs."
+notes: "All three confirmed against the vendors' own model lists on 2026-09-20, run 35529080046. The two Anthropic identifiers are carried over from the drift panel and have been exercised in two full runs of 16,800 calls. Qwen2.5-7B-Instruct-Turbo was chosen the same day, after Qwen2.5-3B-Instruct turned out to be listed but not serverless. Seven billion parameters against Sonnet 5 is the spread the gold set needs. It has no entry in drift/config/prices, so its calls are recorded UNCOSTED rather than priced by guesswork; the ledger still holds the tokens."
 
 arms:
   - key: openweights-small
     provider: openweights
-    model: Qwen/Qwen2.5-3B-Instruct
+    model: Qwen/Qwen2.5-7B-Instruct-Turbo
     arm: snapshot
     family: small
   - key: anthropic-mid
