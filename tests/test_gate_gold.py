@@ -174,3 +174,31 @@ def test_an_empty_gold_set_says_so_rather_than_dividing_by_zero(tmp_path: Path) 
     g = gold.load(tmp_path)
     assert g.problems() == [] and g.arms == ()
     assert "instances  0" in gold.summarise(g, [])
+
+
+def test_a_question_whose_expected_points_are_not_in_its_source_is_caught() -> None:
+    """Before a single vendor call is paid for. A question written against a different page, or
+    against a passage that was cut before the answer, would make the completeness judgement a
+    measurement of the question rather than of the answer."""
+    good = question(1, must_mention=("15 business days",))
+    bad = question(2, must_mention=("15 business days", "30 calendar days"))
+    src = source()
+    assert gold.check_question(good, src) == []
+    assert gold.check_question(bad, src) == ["expects '30 calendar days', which is not in fcac-001"]
+    g = gold.GoldSet(sources=(src,), questions=(good, bad), instances=())
+    assert any("30 calendar days" in p for p in g.problems())
+
+
+def test_an_unanswerable_question_whose_answer_is_in_the_source_is_caught() -> None:
+    """The one item type that catches an invented fact is spoiled if the fact is really there."""
+    spoiled = question(1, must_mention=("15 business days",), unanswerable=True)
+    genuine = question(2, must_mention=("the annual fee",), unanswerable=True)
+    src = source()
+    assert gold.check_question(genuine, src) == []
+    problems = gold.check_question(spoiled, src)
+    assert problems and "it is answerable" in problems[0]
+
+
+def test_the_match_is_whitespace_insensitive_and_case_insensitive() -> None:
+    src = source(text="A refund\n  takes 15 BUSINESS days.")
+    assert gold.check_question(question(1, must_mention=("15 business days",)), src) == []

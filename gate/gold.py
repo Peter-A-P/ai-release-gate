@@ -263,6 +263,8 @@ class GoldSet(BaseModel):
         for q in self.questions:
             if q.source_id not in sources:
                 out.append(f"{q.id}: source {q.source_id!r} is not in sources.jsonl")
+            else:
+                out.extend(f"{q.id}: {p}" for p in check_question(q, sources[q.source_id]))
         seen: set[tuple[str, str]] = set()
         for i in self.instances:
             if i.question_id not in questions:
@@ -283,6 +285,38 @@ class GoldSet(BaseModel):
             if len(ids) != len(records):
                 out.append(f"duplicate {name} ids: {len(records)} records, {len(ids)} distinct")
         return out
+
+
+def _normalised(text: str) -> str:
+    return " ".join(text.split()).casefold()
+
+
+def check_question(question: GoldQuestion, source: SourceDoc) -> list[str]:
+    """A question is well written when its `must_mention` points can be checked against the
+    document it names. Two failures worth catching before a single call is paid for:
+
+    * **An answerable question whose expected points are not in the passage.** Either the
+      question was written against a different page, or the passage was cut before the part
+      that answers it. Either way the completeness judgement would be measuring the question
+      rather than the answer.
+    * **An unanswerable question whose expected point IS in the passage.** Then it is not
+      unanswerable, and the one item type that catches an invented fact has been spoiled.
+
+    Matching is literal and whitespace-insensitive, which is crude on purpose: a fuzzy match
+    would pass questions this is meant to fail. A point that is genuinely a paraphrase is
+    written as the phrase the document uses.
+    """
+    problems: list[str] = []
+    haystack = _normalised(source.text)
+    for point in question.must_mention:
+        present = _normalised(point) in haystack
+        if question.unanswerable and present:
+            problems.append(
+                f"marked unanswerable, but {point!r} is in {source.id}; it is answerable"
+            )
+        elif not question.unanswerable and not present:
+            problems.append(f"expects {point!r}, which is not in {source.id}")
+    return problems
 
 
 def load(root: Path) -> GoldSet:
