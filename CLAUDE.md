@@ -78,6 +78,25 @@ honest release gate for prompt and model changes (phase 2).
 - **Plain punctuation** in everything written here: no em-dashes or other typographic
   dashes, straight quotes only.
 
+## Part B, the gate (`gate/`)
+
+- **Needs the `gate` extra**: `uv sync --all-extras`. The monthly drift job installs without
+  it on purpose, so nothing under `gate/` may be imported from `drift/`; the dependency runs
+  one way.
+- **`boundary` stays at v0.1.0** even though `mselect` asks for 0.2: the override in
+  `pyproject.toml` says why (0.2.0 rewrites v1 ledgers in place, and 80 of them are committed).
+- **`gate/runs/ledger.jsonl` is append-only.** A wrong decision is superseded by a new record
+  naming it, never edited. Records are content-addressed, so the same comparison under the
+  same spec is the same id.
+- **The A/A study is the evidence for the margin, not a target to hit.** `delta_points`, the
+  repeat count and `min_items` are changed only with the reasoning written into
+  `docs/gate-statistics.md` in the same commit (PLAN.md B5). A spec tuned until the A/A study
+  passes measures nothing.
+- **The dependence correction is shown, not used**, until the A/A study earns it
+  (`correct_for_dependence` is false throughout the shipped spec).
+- The power numbers are a floor and the bank cannot place this panel; every power line says
+  so in its note, and the note is not to be shortened.
+
 ## What goes in the README
 
 The README opens with the one-liner, the results table, and the honest limitation, before

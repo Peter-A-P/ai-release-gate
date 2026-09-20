@@ -16,7 +16,8 @@ jobs:
         with:
           python-version: "3.13"
       # boundary installs anonymously: its repository is public, so no token is needed.
-      - run: uv sync --frozen
+      # --all-extras brings in Part B's `gate` extra (mselect); the monthly job installs without it.
+      - run: uv sync --frozen --all-extras
       - run: uv run ruff format --check .
       - run: uv run ruff check .
       - run: uv run mypy

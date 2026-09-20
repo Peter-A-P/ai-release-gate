@@ -1,0 +1,43 @@
+# The stage-1 spec: Part A's frozen suite, block by block, read from the drift record.
+#
+# This is what `gate compare` and `gate aa` run on before any downstream project has a suite
+# of its own. Every item outcome comes from stored records, so nothing here calls a vendor.
+#
+# `benchmark` names the project 02 bank block these items most resemble, for the dependence
+# correction. It is looked up and SHOWN for every suite that names one, and DECIDES for none
+# (correct_for_dependence is false throughout): the correction was measured on 02's bank and
+# panel, and whether it carries to items sampled here is exactly what the A/A study measures.
+version: 1
+name: drift-blocks
+delta_points: 3.0
+alpha: 0.05
+resamples: 2000
+seed: 0
+power:
+  target: 0.8
+  effect_points: [1.0, 3.0, 5.0]
+  reference_ability: 0.0
+latency:
+  max_increase_pct: 50
+cost:
+  max_increase_pct: 50
+suites:
+  - key: closed_form_reasoning
+    source: { block: closed_form_reasoning }
+    benchmark: gsm8k
+  - key: multiple_choice
+    source: { block: multiple_choice }
+    benchmark: mmlu
+  - key: instruction_following
+    source: { block: instruction_following }
+  - key: structured_extraction
+    source: { block: structured_extraction }
+  - key: structured_extraction_heldout
+    source: { block: structured_extraction, held_out: true }
+  - key: refusal_calibration
+    source: { block: refusal_calibration }
+  - key: long_context_recall
+    source: { block: long_context_recall }
+  - key: paraphrase_robustness
+    source: { block: paraphrase_robustness }
+    benchmark: gsm8k

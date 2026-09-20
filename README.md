@@ -200,6 +200,14 @@ calibrated against human labels and corrected for its own error rate, paired non
 tests, a power analysis, and a GitHub Action that blocks a regression on a real repository with a
 measured false-block rate.
 
+**Part B has started.** The gate's statistics are built and were first run against themselves
+on 2026-09-19: the two September runs cut into 256 pairs where nothing changed, so every block
+is a false block. The gate as specified blocked 7.0% (4.3 to 10.2) of them, all on the
+open-weights control in the one block large enough to decide at a three-point margin. The rule
+it deliberately does not use, blocking whenever the candidate's score is lower, blocked 75.8%
+(70.3 to 81.2). How the test works, what the power screen is doing, and what the numbers do and
+do not claim: [docs/gate-statistics.md](docs/gate-statistics.md).
+
 Full design in [PLAN.md](PLAN.md).
 
 ## Reproduce every number yourself

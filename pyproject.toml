@@ -24,6 +24,19 @@ dependencies = [
   "click>=8,<9",
 ]
 
+[project.optional-dependencies]
+# Part B, the gate. An extra rather than a core dependency so that the monthly drift job, which
+# runs `uv sync --frozen` with no extras, installs exactly what it installed before Part B began:
+# mselect brings numpy, scipy, polars, pyarrow and matplotlib, none of which the record needs, and
+# a dependency the October run does not need is a way for the October run to fail that it did not
+# have in September. CI installs it with --all-extras.
+gate = [
+  # The power analysis and the local-dependence correction (PLAN.md B5): project 02's published
+  # bank, imported rather than reimplemented. Pinned to the 0.3 line, which is the line whose
+  # re-exported interface 02's own CHANGELOG promises not to change.
+  "mselect>=0.3,<0.4",
+]
+
 [dependency-groups]
 dev = [
   "pytest>=9,<10",
@@ -37,16 +50,32 @@ dev = [
 # Public since 2026-09-14, so CI installs it anonymously and no token is involved. Pinned to
 # the v0.1.0 tag: a fix a run needs is a v0.1.1 branched from the tag, never a move of the tag.
 boundary = { git = "https://github.com/Peter-A-P/compliant-ai-gateway", tag = "v0.1.0" }
+# Public. Pinned to the tag for the same reason: a lockfile resolves to one commit.
+mselect = { git = "https://github.com/Peter-A-P/model-selection-tenth-cost", tag = "v0.3.2" }
+
+[tool.uv]
+# mselect declares `boundary>=0.2` for its own vendor runner, which this project does not use:
+# nothing reachable from `import mselect` imports boundary at all, and the four calls Part B
+# makes of it (items_needed, dependence, dependent_blocks, reliability) read files that ship
+# inside the package. Taking that constraint would drag this project's gateway from 0.1.0 to
+# 0.2.x, and boundary 0.2.0 upgrades a v1 ledger IN PLACE the first time it opens one. There
+# are 80 committed ledgers under drift/runs/. Upgrading them would rewrite committed run
+# artefacts and, worse, leave them unreadable by the version that wrote them, in the middle of
+# a twelve-month record whose whole claim is that the apparatus was held fixed. So the pin
+# stands and the constraint is overridden, with the reason in writing.
+override-dependencies = ["boundary==0.1.0"]
 
 [project.scripts]
 drift = "drift.cli:app"
+# Part B. Needs the `gate` extra.
+gate = "gate.cli:app"
 
 [build-system]
 requires = ["hatchling>=1,<2"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["drift"]
+packages = ["drift", "gate"]
 
 [tool.ruff]
 line-length = 100
@@ -68,9 +97,16 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-files = ["drift", "tests"]
+files = ["drift", "gate", "tests"]
 plugins = ["pydantic.mypy"]
 warn_unreachable = true
+
+[[tool.mypy.overrides]]
+# mselect is typed and mypy-strict clean in its own repository but ships no py.typed marker, so
+# its annotations are invisible from here. Everything this project takes from it is wrapped in
+# gate/stats.py behind typed signatures, and that is the surface the checker sees.
+module = "mselect.*"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

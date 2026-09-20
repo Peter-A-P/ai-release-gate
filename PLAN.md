@@ -722,6 +722,17 @@ dependencies = ["mselect>=0.3,<0.4"]
 mselect = { git = "https://github.com/Peter-A-P/model-selection-tenth-cost", tag = "v0.3.0" }
 ```
 
+**How it was actually wired in, 2026-09-19.** The repository is public, so no token. Two
+departures from the block above, both in `pyproject.toml` with the reason beside them. First,
+`mselect` is the `gate` extra rather than a core dependency, so the monthly drift job's
+`uv sync --frozen` installs exactly what it installed before Part B began; CI uses
+`--all-extras`. Second, `mselect` declares `boundary>=0.2` for its own vendor runner, which
+nothing reachable from `import mselect` touches, and boundary 0.2.0 upgrades a v1 ledger in
+place the first time it opens one. There are 80 committed ledgers under `drift/runs/`. So the
+constraint is overridden (`[tool.uv] override-dependencies`) and this project's gateway stays
+at v0.1.0, as CLAUDE.md requires. Pinned to tag v0.3.2, the latest at the time; its
+`__version__` still reads 0.3.0, which 02 should know.
+
 What it gives, and the four things to read before trusting a number from it:
 
 - `mselect.items_needed(delta, 0.8, ability)` returns items per model, defaulting to the bank
@@ -843,7 +854,11 @@ docs/
 ```
 
 Storage: one DuckDB file per project plus Parquet under `runs/`. The drift record from
-Part A is read in place. Tracing: every vendor call and every grader call emits an
+Part A is read in place. **Amended 2026-09-19:** the ledger of decisions is
+`gate/runs/ledger.jsonl`, one content-addressed record per line, for the same reason Part A's
+record is JSON lines: append-only in the plainest sense, diffs in git, opens with nothing.
+DuckDB arrives with the service (stage 6) as a read model built from that file and from
+`drift/runs`, never as the thing written to. Tracing: every vendor call and every grader call emits an
 OpenTelemetry span; the collector runs in the compose stack and traces are retained for
 30 days. Frontend: server-rendered pages with a small charting library, no build step, so
 the dashboard stays cheap to maintain.
@@ -893,7 +908,11 @@ every report so the reader sees the gap.
   candidate 50 times on each suite; the share of blocks is the false-block rate and is
   reported with an interval. Target under 5%. If the observed rate is higher, the cause
   is same-day nondeterminism, which Part A measures, and delta or the repeat count is
-  adjusted with the reasoning recorded.
+  adjusted with the reasoning recorded. **First estimate, 2026-09-19, from the two
+  September runs cut into 256 A/A pairs: 7.0% (4.3 to 10.2) as specified, every block on
+  `openweights-control` in `closed_form_reasoning`, the noisiest arm on the only suite large
+  enough to be decided at three points.** Nothing has been adjusted yet; the reasoning, when
+  it is, goes in `docs/gate-statistics.md`.
 - **Cost and latency regressions:** separate thresholds in the spec; a candidate that is
   equally accurate but twice as slow or expensive fails on that line, clearly labelled.
 
@@ -955,7 +974,7 @@ suite, which is the first real test of the reuse claim.
 
 | Stage | Build | Done when |
 |---|---|---|
-| 1 | `gate` scaffold; eval spec; ledger; runner and graders lifted from `drift/`; `mselect` wired in; A/A harness | `gate run` and `gate aa` work on a Part A block; first false-block estimate |
+| 1 | `gate` scaffold; eval spec; ledger; runner and graders lifted from `drift/`; `mselect` wired in; A/A harness | `gate run` and `gate aa` work on a Part A block; first false-block estimate. **Done 2026-09-19**: `gate run`, `compare`, `aa`, `power` and `spec show` on every Part A block; 7.0% (4.3 to 10.2) false blocks as specified, 75.8% under the point rule; [`docs/gate-statistics.md`](docs/gate-statistics.md) |
 | 2 | Gold set: questions, source documents, three models' answers; rubric written; labelling begins; judge runner and rubric prompts | 300 instances generated; 150 labelled |
 | 3 | Labelling finished; judge calibration for two judges; bias checks; correction implemented | `docs/judge-calibration.md` with kappa, alpha, sensitivity, specificity |
 | 4 | GitHub Action; demo repository; first gated pull requests. Kept light, because holidays land on it | Three PRs with gate comments, one blocked |
@@ -1008,7 +1027,10 @@ Well inside the line. Actual invoices go next to the estimate in the portfolio's
    corrected one on the same runs; the expected gap of several points is the argument.
 2. **Gating on the point estimate.** Run the A/A study with a "block if candidate is
    lower" rule; expected false-block rate near 50%, against under 5% for the interval
-   rule.
+   rule. **Measured 2026-09-19: 75.8% (70.3 to 81.2) over 256 A/A pairs, against 7.0%
+   (4.3 to 10.2) for the interval rule as specified.** Worse than expected, because the drift
+   blocks are small and two sides rarely tie. Written up in `docs/gate-statistics.md`; the
+   Rule C entry in `docs/rejected.md` waits for the full-size study in stage 7.
 3. **Pairwise preference judging instead of an absolute rubric.** Expected: strong
    position bias in the swap check, which the absolute rubric with position-fixed
    rendering avoids.
@@ -1022,11 +1044,11 @@ Mirrors the portfolio's definition:
 - [ ] Corrected pass rates reported next to raw
 - [ ] Every reported score carries a bootstrap CI. **Enforced for the classifier's own error rate 2026-09-12** after it reported a zero-width interval, which is a bare number wearing an interval
 - [ ] Items filtered on discrimination before any of 02's difficulty parameters are used
-- [ ] Power analysis published: items needed per effect size, from `mselect`, validated
-- [ ] False-block rate published from the A/A study
+- [ ] Power analysis published: items needed per effect size, from `mselect`, validated. **Published 2026-09-19** (`gate power`, 3,559 / 118 / 33 items for 1 / 3 / 5 points at the reference ability, because the bank cannot place a panel scoring in the nineties); not yet validated empirically
+- [ ] False-block rate published from the A/A study. **First estimate 2026-09-19**, 7.0% (4.3 to 10.2) on 256 pairs cut from Part A; the full-size study on a gating suite is stage 7
 - [ ] GitHub Action gating a real repository, with a PR history showing passes and blocks
 - [ ] Red-team suites (PII, injection, jailbreak, over-refusal) passing and reported
-- [ ] Append-only ledger; every report references content hashes
+- [ ] Append-only ledger; every report references content hashes. **Ledger up 2026-09-19** (`gate/runs/ledger.jsonl`: spec hash, suite hash, grader hash, both sides, content-addressed id); reports from it are stage 7
 - [ ] Live dashboard at gate.peterparker.ca, stable, showing the drift record
 - [ ] Adapter documented; project 04 measured with it in Feb 2027
 - [ ] Write-up published
