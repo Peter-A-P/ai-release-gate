@@ -9,22 +9,23 @@
 # against in the drift runs of 2026-09-13 and 2026-09-16, so they are known to work, known to
 # be priced correctly in drift/config/prices, and known to answer inside a token budget.
 #
-# The small model is NOT chosen yet. `Panel.ready` is false while any model contains "CHOOSE",
-# and `gate gold generate` refuses to run against a panel that is not ready, so this cannot be
-# forgotten on the day. What is wanted: something small enough to produce faithfulness failures
-# on an easy document, from the `openweights` provider the drift control already uses.
+# The small model was chosen 2026-09-20 from the provider's own list of 274 identifiers:
+# Qwen2.5-3B-Instruct. Three billion parameters answering the same consumer questions as Sonnet
+# 5 is the spread this set exists to create. A gold set on which every answer is good cannot
+# tell a working judge from one that says "fine" to everything, so the small model's job is to
+# get things wrong in the way a real application's cheap tier gets things wrong.
 #
 # The judges are a separate file (gold-judges.yaml) and MUST NOT appear here. A model that both
 # writes an answer and judges it is grading its own homework, and the kappa that came out of
 # that would be measuring nothing.
 version: 1
-chosen: null
-notes: "Two identifiers carried over from the drift panel, confirmed 2026-09-12 and exercised in two full runs. The small model is still to be chosen; the panel refuses to run until it is."
+chosen: 2026-09-20
+notes: "All three confirmed against the vendors' own model lists on 2026-09-20, run 35529080046. The two Anthropic identifiers are carried over from the drift panel and have been exercised in two full runs of 16,800 calls. Qwen2.5-3B-Instruct was chosen the same day: three billion parameters against Sonnet 5, which is the spread the gold set needs."
 
 arms:
   - key: openweights-small
     provider: openweights
-    model: CHOOSE-a-small-open-weights-model
+    model: Qwen/Qwen2.5-3B-Instruct
     arm: snapshot
     family: small
   - key: anthropic-mid

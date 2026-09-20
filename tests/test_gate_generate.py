@@ -122,9 +122,17 @@ def test_the_shipped_panels_load_and_refuse_to_run_until_confirmed() -> None:
     judges = load_panel(SPECS / "gold-judges.yaml")
     assert len(answers.arms) == 3, "three models of different sizes (B4)"
     assert len(judges.arms) == 2, "a small judge and a mid-tier one (B4)"
-    assert not answers.ready, "the small model is not chosen yet and the panel must say so"
-    assert not judges.ready, "identifiers are confirmed against the vendor's list on the day"
+    assert answers.ready and judges.ready, (
+        "a panel is ready only once every identifier is filled in and `chosen` is dated; both "
+        "were confirmed against the vendors' own model lists on 2026-09-20, run 35529080046"
+    )
+    assert all("CHOOSE" not in a.model for a in [*answers.arms, *judges.arms])
     assert {a.family for a in answers.arms} == {"small", "mid", "large"}
+    small = next(a for a in answers.arms if a.family == "small")
+    assert "3B" in small.model, (
+        "the small arm's job is to produce real faithfulness failures; a gold set on which "
+        "every answer is good cannot tell a working judge from one that says fine to everything"
+    )
 
 
 def test_no_model_and_no_vendor_both_answers_and_judges() -> None:

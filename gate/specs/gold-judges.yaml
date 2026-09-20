@@ -18,8 +18,8 @@
 # every corrected rate in the repository. Recalibration is one command on the stored gold set,
 # so the cost of a deliberate change is small; the cost of an undetected one is every number.
 version: 1
-chosen: null
-notes: "Identifiers carried over from the drift panel, confirmed 2026-09-12. Re-read on the day the judge is first run and record any difference rather than correcting it silently."
+chosen: 2026-09-20
+notes: "Both re-confirmed against the vendors' own model lists on 2026-09-20, run 35529080046, and unchanged from the drift panel's reading of 2026-09-12. Re-read again on the day a judge is first run and record any difference rather than correcting it silently."
 
 arms:
   - key: openai-judge-small
