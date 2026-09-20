@@ -1,0 +1,66 @@
+# The Canadian half of the gold set, which GITHUB ACTIONS CANNOT REACH.
+#
+# Measured 2026-09-20, run 35522317109. All ten of these pages failed from an `ubuntu-24.04`
+# runner with the identical error: `TimeoutError: The read operation timed out`. Not a 403, not
+# a 404, not a redirect: the host accepts the connection and then says nothing, which is what a
+# web application firewall does to traffic it has decided not to serve. Ten for ten, so it is
+# the host rather than the paths. The same read also times out from Peter's laptop on the work
+# network, so the two observations cannot be told apart from here: it may be canada.ca refusing
+# data-centre addresses, or a proxy in the middle, or both.
+#
+# This file is kept separate from gold-sources.yaml so that the working list can be probed in
+# under a minute instead of spending twelve on a tarpit. It is not deleted, because the fact
+# that a public government page is unreachable from ordinary infrastructure is worth keeping,
+# and because one of the ways forward is simply to run the fetch from a home connection:
+#
+#   uv run gate gold fetch --list gate/specs/gold-sources-fcac.yaml \
+#       --i-am-allowed-to-reach-the-internet
+#
+# The other ways forward, none of them chosen yet, are in docs/gold-sources.md. Nothing here
+# is worked around by pretending to be a browser: evading a block that a publisher put up on
+# purpose is not something this project does to collect a hundred questions.
+#
+# PLAN.md B4 names both regulators, so dropping this half is a change to the plan and is
+# Peter's call rather than mine.
+
+sources:
+  - id: fcac-001
+    publisher: fcac
+    title: "Credit cards"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-cards.html
+  - id: fcac-002
+    publisher: fcac
+    title: "Credit report and credit score"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-reports-score.html
+  - id: fcac-003
+    publisher: fcac
+    title: "Mortgages"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/mortgages.html
+  - id: fcac-004
+    publisher: fcac
+    title: "Bank accounts"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/banking.html
+  - id: fcac-005
+    publisher: fcac
+    title: "Debt and borrowing"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/debt.html
+  - id: fcac-006
+    publisher: fcac
+    title: "Savings and investments"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/savings-investments.html
+  - id: fcac-007
+    publisher: fcac
+    title: "Insurance"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/insurance.html
+  - id: fcac-008
+    publisher: fcac
+    title: "Budgeting"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/make-budget.html
+  - id: fcac-009
+    publisher: fcac
+    title: "Financial fraud and scams"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/fraud.html
+  - id: fcac-010
+    publisher: fcac
+    title: "Payday loans"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/loans/payday-loans.html

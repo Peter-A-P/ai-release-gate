@@ -1,81 +1,35 @@
 # The public pages the gold set's questions are answered from (PLAN.md B4).
 #
-# THIS LIST IS PROVISIONAL UNTIL A FETCH CONFIRMS IT. It was written without being able to open
-# any of these pages: the work network's proxy makes an ordinary HTTPS read to canada.ca time
-# out, so `gate gold fetch` runs in the `gold` workflow and the first run of it is a probe.
-# Every failure is reported with its reason and the ones that succeeded are still committed, so
-# a wrong path costs one line and one re-run rather than the list.
+# What the first probe found, 2026-09-20, run 35522317109, sixteen URLs from a GitHub runner:
 #
-# Both publishers put this material under terms that allow storing it, which is why the text is
-# committed rather than the URL:
-#   fcac  Open Government Licence - Canada
-#   sec   a United States government work, public domain
+#   investor.gov   4 of 5 fetched, 1,578 to 2,540 characters each. Works.
+#   www.sec.gov    403 Forbidden. The SEC asks automated traffic to declare itself in the
+#                  User-Agent with a contact address. Peter's only address is his employer's
+#                  and this project does not put it in a request header, so www.sec.gov is
+#                  left alone and investor.gov, which is the SEC's own investor education
+#                  site and answers ordinary requests, carries the American half.
+#   www.canada.ca  0 of 10. Every one timed out, identically. Moved to
+#                  gold-sources-fcac.yaml, which explains what that means and what the
+#                  options are; it is not fetched from here, because ten tarpits cost twelve
+#                  minutes and tell you nothing you did not learn the first time.
 #
-# What makes a good page here. It has to state checkable specifics (a number of days, a dollar
-# limit, a named condition), because a faithfulness judge tested on a page of generalities is
-# not tested at all. It has to be a content page rather than an index, which the fetcher
-# enforces by refusing anything that yields under 400 characters of text.
+# So this list is investor.gov, and the entries below the first four are candidates written
+# from the shape of the paths that worked rather than from having opened them. A wrong one is
+# a fast 404 now rather than a timeout, so probing is cheap; `gate gold status` will say which
+# landed, and a page that yields under 400 characters of text is refused as an index.
 #
-# Aim: about 30 documents carrying 100 questions, so two to four questions each. Start with
-# these, see which resolve, then extend. Nothing here is fetched twice: `gate gold fetch` skips
-# any id already in sources.jsonl.
+# All of it is a United States government work and in the public domain, which is why the text
+# is committed rather than the URL: the page can be rewritten, and a faithfulness judgement
+# made against today's wording means nothing a year later unless today's wording is kept.
+#
+# Aim: about 30 documents carrying 100 questions, so two to four questions each.
 
 sources:
-  # ---------------------------------------------------------------- Financial Consumer Agency
-  - id: fcac-001
-    publisher: fcac
-    title: "Credit card holds on funds"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-cards.html
-  - id: fcac-002
-    publisher: fcac
-    title: "Credit report and credit score"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-reports-score.html
-  - id: fcac-003
-    publisher: fcac
-    title: "Mortgages"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/mortgages.html
-  - id: fcac-004
-    publisher: fcac
-    title: "Bank accounts"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/banking.html
-  - id: fcac-005
-    publisher: fcac
-    title: "Debt and borrowing"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/debt.html
-  - id: fcac-006
-    publisher: fcac
-    title: "Savings and investments"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/savings-investments.html
-  - id: fcac-007
-    publisher: fcac
-    title: "Insurance"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/insurance.html
-  - id: fcac-008
-    publisher: fcac
-    title: "Budgeting"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/make-budget.html
-  - id: fcac-009
-    publisher: fcac
-    title: "Financial fraud and scams"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/fraud.html
-  - id: fcac-010
-    publisher: fcac
-    title: "Payday loans"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/loans/payday-loans.html
-
-  # ---------------------------------------------------------------- SEC investor education
-  - id: sec-001
-    publisher: sec
-    title: "Investor bulletins and alerts"
-    url: https://www.sec.gov/oiea/investor-alerts-and-bulletins
+  # ------------------------------------------------- confirmed 2026-09-20, fetched and stored
   - id: sec-002
     publisher: sec
-    title: "Mutual funds and ETFs"
+    title: "Mutual funds and exchange-traded funds"
     url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-1
-  - id: sec-003
-    publisher: sec
-    title: "How fees and expenses affect your portfolio"
-    url: https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/how-fees-and-expenses-affect-your
   - id: sec-004
     publisher: sec
     title: "Compound interest"
@@ -86,5 +40,71 @@ sources:
     url: https://www.investor.gov/introduction-investing/getting-started/asset-allocation
   - id: sec-006
     publisher: sec
-    title: "Investment fraud: warning signs"
+    title: "How to avoid fraud"
     url: https://www.investor.gov/protect-your-investments/fraud/how-avoid-fraud
+
+  # ------------------------------------------------- candidates, not yet confirmed
+  - id: sec-010
+    publisher: sec
+    title: "Stocks"
+    url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/stocks
+  - id: sec-011
+    publisher: sec
+    title: "Bonds"
+    url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/bonds
+  - id: sec-012
+    publisher: sec
+    title: "Save and invest"
+    url: https://www.investor.gov/introduction-investing/investing-basics/save-and-invest
+  - id: sec-013
+    publisher: sec
+    title: "The role of the SEC"
+    url: https://www.investor.gov/introduction-investing/investing-basics/role-sec
+  - id: sec-014
+    publisher: sec
+    title: "Investment risk"
+    url: https://www.investor.gov/introduction-investing/investing-basics/what-risk
+  - id: sec-015
+    publisher: sec
+    title: "Researching an investment professional"
+    url: https://www.investor.gov/introduction-investing/getting-started/researching-investments
+  - id: sec-016
+    publisher: sec
+    title: "Types of investment fraud"
+    url: https://www.investor.gov/protect-your-investments/fraud/types-fraud
+  - id: sec-017
+    publisher: sec
+    title: "Affinity fraud"
+    url: https://www.investor.gov/protect-your-investments/fraud/types-fraud/affinity-fraud
+  - id: sec-018
+    publisher: sec
+    title: "Ponzi schemes"
+    url: https://www.investor.gov/protect-your-investments/fraud/types-fraud/ponzi-scheme
+  - id: sec-019
+    publisher: sec
+    title: "Microcap fraud"
+    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/microcap-stock
+  - id: sec-020
+    publisher: sec
+    title: "Diversification"
+    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/diversification
+  - id: sec-021
+    publisher: sec
+    title: "Dollar cost averaging"
+    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/dollar-cost-averaging
+  - id: sec-022
+    publisher: sec
+    title: "Index funds"
+    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/index-fund
+  - id: sec-023
+    publisher: sec
+    title: "Expense ratio"
+    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/expense-ratio
+  - id: sec-024
+    publisher: sec
+    title: "Prospectus"
+    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/prospectus
+  - id: sec-025
+    publisher: sec
+    title: "Retirement accounts"
+    url: https://www.investor.gov/additional-resources/retirement-toolkit

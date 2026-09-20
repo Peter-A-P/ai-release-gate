@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -47,6 +48,11 @@ MAX_BYTES = 4_000_000
 # The whole fetch, in seconds. Past it the remaining pages are reported as not attempted,
 # which is a fact worth having rather than a job that hangs until the runner kills it.
 DEADLINE_S = 300.0
+# The hard wall-clock bound on ONE page, enforced by abandoning the thread doing the read
+# rather than by asking it to stop. Generous against TIMEOUT_S because a legitimate fetch may
+# be a connect, a redirect and a read, each entitled to its own socket allowance; tight enough
+# that sixteen pages cannot outlast the deadline above by more than one page's worth.
+PAGE_WALL_CLOCK_S = 75.0
 
 # A passage long enough to support two or three real questions and short enough that showing it
 # to a judge 300 times, twice, costs cents rather than dollars. Cut at a paragraph boundary, so
@@ -197,12 +203,50 @@ def _open(url: str) -> bytes:
     return bytes(body)
 
 
-def fetch_one(spec: SourceSpec, opener: Opener | None = None) -> Fetched:
+def _read_with_wall_clock(
+    read: Opener, url: str, *, wall_clock_s: float
+) -> tuple[bytes | None, str | None]:
+    """`read(url)`, abandoned if it has not finished in `wall_clock_s`.
+
+    A socket timeout bounds one socket operation, not a fetch. A host that trickles a byte
+    inside every allowance, or a redirect chain each hop of which gets a fresh one, runs
+    indefinitely, and on 2026-09-20 a probe of sixteen pages did exactly that and had to be
+    cancelled by hand after twenty-five minutes.
+
+    There is no polite way to stop a thread blocked in a socket read, so it is abandoned: the
+    worker is a daemon, the process is a short-lived command, and a leaked thread costs
+    nothing next to a job that hangs until the runner kills it. `None, reason` is returned and
+    the fetch moves to the next page.
+    """
+    out: list[tuple[bytes | None, str | None]] = []
+
+    def work() -> None:
+        try:
+            out.append((read(url), None))
+        except (urllib.error.URLError, OSError, FetchError) as e:
+            out.append((None, f"{type(e).__name__}: {e}"))
+
+    worker = threading.Thread(target=work, daemon=True)
+    worker.start()
+    worker.join(wall_clock_s)
+    if worker.is_alive():
+        return None, (
+            f"gave up after {wall_clock_s:.0f}s of wall clock; the host neither answered nor "
+            "closed the connection"
+        )
+    return out[0] if out else (None, "the reader returned nothing")
+
+
+def fetch_one(
+    spec: SourceSpec,
+    opener: Opener | None = None,
+    *,
+    wall_clock_s: float = PAGE_WALL_CLOCK_S,
+) -> Fetched:
     read = opener or _open
-    try:
-        body = read(spec.url)
-    except (urllib.error.URLError, OSError, FetchError) as e:
-        return Fetched(spec, None, f"{type(e).__name__}: {e}")
+    body, error = _read_with_wall_clock(read, spec.url, wall_clock_s=wall_clock_s)
+    if body is None:
+        return Fetched(spec, None, error)
     if len(body) > MAX_BYTES:
         return Fetched(
             spec, None, f"over {MAX_BYTES} bytes; this is not a page a question is written from"
@@ -237,6 +281,7 @@ def fetch_all(
     opener: Opener | None = None,
     skip: set[str] | None = None,
     deadline_s: float = DEADLINE_S,
+    wall_clock_s: float = PAGE_WALL_CLOCK_S,
     clock: Callable[[], float] = time.monotonic,
 ) -> list[Fetched]:
     """Every page not already stored, until the deadline.
@@ -254,7 +299,7 @@ def fetch_all(
         if clock() - started >= deadline_s:
             out.append(Fetched(spec, None, f"not attempted: {deadline_s:.0f}s deadline reached"))
             continue
-        out.append(fetch_one(spec, opener))
+        out.append(fetch_one(spec, opener, wall_clock_s=wall_clock_s))
     return out
 
 

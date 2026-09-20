@@ -134,15 +134,32 @@ def test_only_https_and_known_publishers_are_accepted() -> None:
         )
 
 
-def test_the_shipped_source_list_loads_and_is_internally_consistent() -> None:
-    specs = sources.load_specs(SPECS / "gold-sources.yaml")
-    assert len(specs) >= 10
-    assert len({s.id for s in specs}) == len(specs)
-    assert {s.publisher for s in specs} == {"fcac", "sec"}
-    for s in specs:
-        assert s.id.startswith(s.publisher + "-"), f"{s.id} does not name its publisher"
-        assert s.url.startswith("https://")
-        assert s.licence
+def test_the_shipped_source_lists_load_and_are_internally_consistent() -> None:
+    working = sources.load_specs(SPECS / "gold-sources.yaml")
+    blocked = sources.load_specs(SPECS / "gold-sources-fcac.yaml")
+    assert len(working) >= 10 and len(blocked) >= 10
+    for specs in (working, blocked):
+        assert len({s.id for s in specs}) == len(specs)
+        for s in specs:
+            assert s.id.startswith(s.publisher + "-"), f"{s.id} does not name its publisher"
+            assert s.url.startswith("https://")
+            assert s.licence
+    # The ids must not collide across the two files, because both write into one sources.jsonl.
+    assert not ({s.id for s in working} & {s.id for s in blocked})
+
+
+def test_the_two_lists_are_split_by_what_can_actually_be_reached() -> None:
+    """Measured 2026-09-20: every canada.ca page timed out from a GitHub runner and every
+    investor.gov page answered. The split is kept so that probing the working list costs a
+    minute instead of twelve spent on a tarpit."""
+    working = sources.load_specs(SPECS / "gold-sources.yaml")
+    blocked = sources.load_specs(SPECS / "gold-sources-fcac.yaml")
+    assert {s.publisher for s in working} == {"sec"}
+    assert {s.publisher for s in blocked} == {"fcac"}
+    assert all("investor.gov" in s.url for s in working), (
+        "www.sec.gov returns 403 to undeclared traffic and this project does not put a "
+        "personal address in a User-Agent to get around it"
+    )
 
 
 def test_the_whole_fetch_has_a_deadline_because_the_per_page_timeout_is_not_one() -> None:
@@ -173,3 +190,44 @@ def test_an_enormous_response_is_refused_rather_than_stored() -> None:
     result = fetch_one(spec(), opener=lambda url: huge)
     assert not result.ok
     assert result.error is not None and "not a page a question is written from" in result.error
+
+
+def test_a_page_that_never_answers_is_abandoned_rather_than_waited_on() -> None:
+    """The failure that actually happened: a probe in CI sat on one page past every timeout it
+    had and had to be cancelled by hand. A socket timeout bounds a socket operation, not a
+    fetch, so the read is given a wall clock and abandoned when it runs out."""
+    import threading as _threading
+
+    release = _threading.Event()
+
+    def never(url: str) -> bytes:
+        release.wait(30)  # the caller must not wait for this
+        return b"too late"
+
+    try:
+        result = fetch_one(spec(), opener=never, wall_clock_s=0.2)
+        assert not result.ok
+        assert result.error is not None and "gave up after" in result.error
+        assert "neither answered nor closed" in result.error
+    finally:
+        release.set()
+
+
+def test_one_slow_page_does_not_eat_the_whole_list() -> None:
+    import threading as _threading
+
+    release = _threading.Event()
+    reached: list[str] = []
+
+    def one_slow(url: str) -> bytes:
+        reached.append(url)
+        if len(reached) == 1:
+            release.wait(30)
+        return PAGE.encode("utf-8") + b"<p>" + (b"Detail about fees. " * 60) + b"</p>"
+
+    try:
+        results = fetch_all([spec(1), spec(2)], opener=one_slow, wall_clock_s=0.2)
+        assert results[0].error is not None and "gave up after" in results[0].error
+        assert results[1].ok, "the second page is still fetched"
+    finally:
+        release.set()
