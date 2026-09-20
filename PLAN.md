@@ -870,6 +870,19 @@ the dashboard stays cheap to maintain.
 nothing to do with the employer, and the kind of content where an unsupported claim
 matters.
 
+**Sourcing, settled 2026-09-20.** `gate gold fetch` reads the pages named in
+`gate/specs/gold-sources.yaml` and stores each as a passage with the hash of the bytes it came
+from and the date it was read. **The text is committed, not the URL**: regulator pages are
+rewritten without notice, and a faithfulness judgement made against today's wording is
+meaningless a year later unless the wording is kept. The passage is cut at a paragraph
+boundary rather than summarised, because a summary would be this project writing the document
+it then measures faithfulness against. Both publishers allow it: FCAC under the Open
+Government Licence - Canada, SEC as a United States government work. The fetch runs in the
+`gold` workflow, not on the laptop, because an ordinary HTTPS read to canada.ca from the work
+network times out. A question is checked against its own passage before any call is paid for:
+an answerable question whose expected points are not in the passage, and an unanswerable one
+whose expected point is, are both reported by `gate gold status`.
+
 **Task:** given a source document and a model's answer to a consumer question, judge (a)
 faithfulness: every claim in the answer is supported by the source, and (b) completeness:
 the answer addresses the question. Each is a binary label with a one-line justification.

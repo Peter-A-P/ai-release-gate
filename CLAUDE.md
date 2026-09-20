@@ -113,6 +113,10 @@ honest release gate for prompt and model changes (phase 2).
 - **Labels are append-only.** A correction is a new line; the last one wins.
 - **No vendor appears on both the answering panel and the judge panel** (`gate/specs/gold-*.yaml`),
   and a test enforces it.
+- **The source documents are committed as text, never as a URL.** A regulator page rewritten
+  next year must not silently change what a stored label was a judgement about.
+- **`gate gold fetch` runs in CI too**, not for a rule but because an HTTPS read to canada.ca
+  times out from the work network. It refuses without `--i-am-allowed-to-reach-the-internet`.
 - **`gate gold generate` and `gate judge run` are the only commands here that spend money.**
   Both refuse without `--i-am-allowed-to-call-vendors`, both are resumable, both take
   `--limit`. They belong in the `gold` workflow, not on this laptop.
