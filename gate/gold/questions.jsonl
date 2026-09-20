@@ -1,0 +1,100 @@
+{"id":"q-001","source_id":"fcac-020","question":"I deposited a cheque at a teller today. How much of it can I use straight away?","must_mention":["first $100","immediately"],"unanswerable":false}
+{"id":"q-002","source_id":"fcac-020","question":"What is the longest a bank can hold money I deposit by cheque?","must_mention":["4 to 8 days"],"unanswerable":false}
+{"id":"q-003","source_id":"fcac-020","question":"My small company deposits cheques. Does the rule about immediate access apply to us?","must_mention":["eligible enterprise","fewer than 500 employees"],"unanswerable":false}
+{"id":"q-004","source_id":"fcac-020","question":"What fee does the bank charge me if a cheque I deposited turns out to be bad?","must_mention":["non-sufficient funds fee"],"unanswerable":true}
+{"id":"q-005","source_id":"fcac-021","question":"What kinds of fee might I pay for using an ATM?","must_mention":["Regular Account Fee","Network Access Fee","Convenience Fee"],"unanswerable":false}
+{"id":"q-006","source_id":"fcac-021","question":"What is the most a withdrawal at a privately owned ATM might cost me in total?","must_mention":["$1.50 to $9.00"],"unanswerable":false}
+{"id":"q-007","source_id":"fcac-021","question":"Is there a network where I can avoid convenience fees at another institution?","must_mention":["THE EXCHANGE network"],"unanswerable":false}
+{"id":"q-008","source_id":"fcac-021","question":"How much extra will I be charged for using an ATM while I am abroad?","must_mention":["foreign exchange fee"],"unanswerable":true}
+{"id":"q-009","source_id":"fcac-022","question":"How much of my savings does deposit insurance cover?","must_mention":["$100,000"],"unanswerable":false}
+{"id":"q-010","source_id":"fcac-022","question":"Are my mutual funds and stocks protected if my bank fails?","must_mention":["mutual funds","stocks","doesn't cover"],"unanswerable":false}
+{"id":"q-011","source_id":"fcac-022","question":"What premium does my bank pay to CDIC for this insurance?","must_mention":["premium"],"unanswerable":true}
+{"id":"q-012","source_id":"fcac-023","question":"Can I cash a Government of Canada cheque at a bank where I have no account?","must_mention":["even if you're not a customer","for free"],"unanswerable":false}
+{"id":"q-013","source_id":"fcac-023","question":"What identification do I need to cash a Government of Canada cheque?","must_mention":["three ways","original ID, not photocopies"],"unanswerable":false}
+{"id":"q-014","source_id":"fcac-025","question":"My branch is closing. How much notice should I have been given?","must_mention":["4 months' notice"],"unanswerable":false}
+{"id":"q-015","source_id":"fcac-025","question":"Is the notice period different for a branch in the countryside?","must_mention":["6 months' notice","10 kilometers"],"unanswerable":false}
+{"id":"q-016","source_id":"fcac-025","question":"When does FCAC not have to hold a meeting about a closure?","must_mention":["less than 500 metres away"],"unanswerable":false}
+{"id":"q-017","source_id":"fcac-026","question":"How do I deposit a cheque using my phone?","must_mention":["taking a picture of the front and back of the cheque"],"unanswerable":false}
+{"id":"q-018","source_id":"fcac-026","question":"Is my banking information kept on my phone when I deposit this way?","must_mention":["not stored on your device"],"unanswerable":false}
+{"id":"q-019","source_id":"fcac-026","question":"What is the largest cheque I am allowed to deposit with my phone in one day?","must_mention":["daily deposit limit"],"unanswerable":true}
+{"id":"q-020","source_id":"fcac-030","question":"Can a shop charge me extra for paying by credit card, and how much?","must_mention":["surcharge","2.4%"],"unanswerable":false}
+{"id":"q-021","source_id":"fcac-030","question":"Is there an interest-free period on a cash advance?","must_mention":["no interest-free grace period"],"unanswerable":false}
+{"id":"q-022","source_id":"fcac-030","question":"What annual fee will I pay on a credit card?","must_mention":["annual fee"],"unanswerable":true}
+{"id":"q-023","source_id":"fcac-031","question":"I am an additional cardholder on my partner's card. Am I liable for the balance?","must_mention":["you're not responsible for paying back any money owing"],"unanswerable":false}
+{"id":"q-024","source_id":"fcac-031","question":"Does being an additional cardholder help me build a credit history?","must_mention":["won't help you build your credit history"],"unanswerable":false}
+{"id":"q-025","source_id":"fcac-032","question":"Does cutting up my card or letting it expire close the account?","must_mention":["cutting up your card","letting it expire","doesn't cancel"],"unanswerable":false}
+{"id":"q-026","source_id":"fcac-032","question":"How long before my cancelled card shows as closed on my credit report?","must_mention":["about 30 days"],"unanswerable":false}
+{"id":"q-027","source_id":"fcac-033","question":"What does credit card balance insurance actually cover?","must_mention":["lose your job","are hospitalized"],"unanswerable":false}
+{"id":"q-028","source_id":"fcac-033","question":"Do I have to take balance insurance to be approved for the card?","must_mention":["don't need to sign up"],"unanswerable":false}
+{"id":"q-029","source_id":"fcac-033","question":"What does balance insurance cost per month?","must_mention":["monthly premium"],"unanswerable":true}
+{"id":"q-030","source_id":"fcac-034","question":"What is the minimum payment on a credit card usually made up of?","must_mention":["$10","3%"],"unanswerable":false}
+{"id":"q-031","source_id":"fcac-034","question":"My payment is due on a Sunday. Will paying on Monday count as late?","must_mention":["Monday to Friday","the following business day"],"unanswerable":false}
+{"id":"q-032","source_id":"fcac-035","question":"Someone used my debit card. What should I do first?","must_mention":["change your passwords and PINs immediately","notify your financial institution or credit card issuer immediately"],"unanswerable":false}
+{"id":"q-033","source_id":"fcac-035","question":"How long do I have to dispute a transaction on my chequing account?","must_mention":["30 days"],"unanswerable":false}
+{"id":"q-034","source_id":"fcac-040","question":"I am buying a home for $400,000. What is the smallest down payment I can make?","must_mention":["$20,000","5%"],"unanswerable":false}
+{"id":"q-035","source_id":"fcac-040","question":"What about a home priced at $600,000?","must_mention":["$35,000"],"unanswerable":false}
+{"id":"q-036","source_id":"fcac-040","question":"When do I have to buy mortgage loan insurance, and who does it protect?","must_mention":["less than 20%","It doesn't protect you"],"unanswerable":false}
+{"id":"q-037","source_id":"fcac-040","question":"How much does mortgage loan insurance cost as a percentage of the loan?","must_mention":["insurance premium rate"],"unanswerable":true}
+{"id":"q-038","source_id":"fcac-041","question":"What would my monthly payment be at an interest rate of 5.00%?","must_mention":["$1,744.81"],"unanswerable":false}
+{"id":"q-039","source_id":"fcac-041","question":"Are fixed rates usually higher or lower than variable ones?","must_mention":["usually higher than variable interest rates"],"unanswerable":false}
+{"id":"q-040","source_id":"fcac-042","question":"Can I make a lump sum payment on an open mortgage without a penalty?","must_mention":["open mortgage","without paying a penalty"],"unanswerable":false}
+{"id":"q-041","source_id":"fcac-042","question":"If I do not use my prepayment allowance this year, can I use it next year?","must_mention":["can't carry a prepayment amount from one year to the next"],"unanswerable":false}
+{"id":"q-042","source_id":"fcac-042","question":"What formula do banks use to work out a prepayment penalty?","must_mention":["interest rate differential"],"unanswerable":true}
+{"id":"q-043","source_id":"fcac-043","question":"I am a first-time buyer with 10% down. What is the longest amortization I can get?","must_mention":["30 years","first-time buyer"],"unanswerable":false}
+{"id":"q-044","source_id":"fcac-043","question":"And if I am not a first-time buyer and not buying a new build?","must_mention":["25 years in all other cases"],"unanswerable":false}
+{"id":"q-045","source_id":"fcac-044","question":"What will it cost me to break my mortgage contract?","must_mention":["prepayment penalty","administration fees","appraisal fees"],"unanswerable":false}
+{"id":"q-046","source_id":"fcac-044","question":"Is there a way to change my mortgage early without a prepayment penalty?","must_mention":["blend-and-extend","you don't have to pay a prepayment penalty"],"unanswerable":false}
+{"id":"q-047","source_id":"fcac-045","question":"How long does a preapproval hold an interest rate for me?","must_mention":["60 to 130 days"],"unanswerable":false}
+{"id":"q-048","source_id":"fcac-045","question":"Does a mortgage broker lend me the money, and do they charge me?","must_mention":["don't lend money directly to you","generally don't charge fees"],"unanswerable":false}
+{"id":"q-049","source_id":"fcac-045","question":"What credit score do I need to be preapproved?","must_mention":["minimum credit score"],"unanswerable":true}
+{"id":"q-050","source_id":"fcac-050","question":"A collection agency has written to me. What should that notice contain?","must_mention":["the name of the collection agency","the amount you owe"],"unanswerable":false}
+{"id":"q-051","source_id":"fcac-050","question":"What happens to my credit score once my debt goes to a collection agency?","must_mention":["your credit score will go down"],"unanswerable":false}
+{"id":"q-052","source_id":"fcac-050","question":"After how many years does a debt become too old to collect?","must_mention":["statute of limitations"],"unanswerable":true}
+{"id":"q-053","source_id":"fcac-051","question":"What is debt consolidation?","must_mention":["combine multiple debts into one","make 1 payment"],"unanswerable":false}
+{"id":"q-054","source_id":"fcac-051","question":"Could consolidating actually cost me more?","must_mention":["extend your repayment period, costing more in interest over time"],"unanswerable":false}
+{"id":"q-055","source_id":"fcac-052","question":"Do my creditors have to deal with a debt settlement company?","must_mention":["Creditors don't have to work with a debt settlement company"],"unanswerable":false}
+{"id":"q-056","source_id":"fcac-052","question":"If my creditors refuse the offer, can the company still charge me?","must_mention":["may still charge you fees even if your creditors refuse"],"unanswerable":false}
+{"id":"q-057","source_id":"fcac-053","question":"What should I write down about each of my debts?","must_mention":["total amount you owe","minimum monthly payment","interest rate"],"unanswerable":false}
+{"id":"q-058","source_id":"fcac-053","question":"Should unpaid utility bills and child support go on my list of debts?","must_mention":["utility bills","spousal and/or child support"],"unanswerable":false}
+{"id":"q-059","source_id":"sec-002","question":"What is a mutual fund?","must_mention":["open-end investment company that pools money from many investors"],"unanswerable":false}
+{"id":"q-060","source_id":"sec-002","question":"In what ways can I make money from a mutual fund?","must_mention":["Dividend Payments","Capital Gains Distributions","Increased Net Asset Value"],"unanswerable":false}
+{"id":"q-061","source_id":"sec-002","question":"What sales load will I pay when I buy into a fund?","must_mention":["sales load"],"unanswerable":true}
+{"id":"q-062","source_id":"sec-010","question":"What are the two main kinds of stock?","must_mention":["common stock and preferred stock"],"unanswerable":false}
+{"id":"q-063","source_id":"sec-010","question":"If a company is liquidated, who gets paid first, common or preferred holders?","must_mention":["have priority over common stockholders"],"unanswerable":false}
+{"id":"q-064","source_id":"sec-010","question":"How do I open a brokerage account to buy stocks?","must_mention":["open a brokerage account"],"unanswerable":true}
+{"id":"q-065","source_id":"sec-011","question":"What am I actually doing when I buy a bond?","must_mention":["you are lending to the issuer"],"unanswerable":false}
+{"id":"q-066","source_id":"sec-011","question":"How often do bonds usually pay interest?","must_mention":["every six months"],"unanswerable":false}
+{"id":"q-067","source_id":"sec-022","question":"What is an index fund?","must_mention":["mutual fund, exchange-traded fund (ETF), or unit investment trust (UIT)"],"unanswerable":false}
+{"id":"q-068","source_id":"sec-022","question":"Why do index funds tend to cost less than actively managed funds?","must_mention":["Passive management","less trading of the fund's portfolio"],"unanswerable":false}
+{"id":"q-069","source_id":"sec-026","question":"How much of a certificate of deposit is insured?","must_mention":["$250,000"],"unanswerable":false}
+{"id":"q-070","source_id":"sec-026","question":"I hold three CDs at the same bank. Is each one insured separately?","must_mention":["not each CD or account you have at the bank"],"unanswerable":false}
+{"id":"q-071","source_id":"sec-026","question":"Are deposit brokers licensed or approved by a regulator?","must_mention":["Deposit brokers are not licensed or certified"],"unanswerable":false}
+{"id":"q-072","source_id":"sec-027","question":"What is an annuity?","must_mention":["contract between you and an insurance company"],"unanswerable":false}
+{"id":"q-073","source_id":"sec-027","question":"What do annuities provide?","must_mention":["Tax-deferred growth","Guaranteed Income","Death benefits"],"unanswerable":false}
+{"id":"q-074","source_id":"sec-028","question":"Where do I find a fund's fees set out?","must_mention":["standardized fee table","prospectus"],"unanswerable":false}
+{"id":"q-075","source_id":"sec-028","question":"Do small differences in fees really matter?","must_mention":["large differences in returns over time"],"unanswerable":false}
+{"id":"q-076","source_id":"sec-029","question":"How is net asset value calculated?","must_mention":["total assets minus its total liabilities"],"unanswerable":false}
+{"id":"q-077","source_id":"sec-029","question":"A fund has an NAV of $100 million and 10,000,000 shares. What is the per share NAV?","must_mention":["$10"],"unanswerable":false}
+{"id":"q-078","source_id":"sec-005","question":"What two things does my asset allocation depend on?","must_mention":["time horizon","risk tolerance"],"unanswerable":false}
+{"id":"q-079","source_id":"sec-005","question":"How often do experts suggest rebalancing?","must_mention":["every six or 12 months"],"unanswerable":false}
+{"id":"q-080","source_id":"sec-013","question":"What is the SEC's mission?","must_mention":["Protect investors","Facilitate capital formation"],"unanswerable":false}
+{"id":"q-081","source_id":"sec-013","question":"Which law created the SEC?","must_mention":["Securities Exchange Act of 1934"],"unanswerable":false}
+{"id":"q-082","source_id":"sec-014","question":"If a company goes bankrupt, where do I stand as an ordinary shareholder?","must_mention":["common stockholders are the last in line"],"unanswerable":false}
+{"id":"q-083","source_id":"sec-014","question":"How often have large company stocks lost money as a group?","must_mention":["one out of every three years"],"unanswerable":false}
+{"id":"q-084","source_id":"sec-014","question":"Why is inflation a risk if I am paid a fixed rate of interest?","must_mention":["Inflation reduces purchasing power"],"unanswerable":false}
+{"id":"q-085","source_id":"sec-015","question":"Why does it matter whether a company is registered with the SEC?","must_mention":["not registered with the SEC, it could be a red flag"],"unanswerable":false}
+{"id":"q-086","source_id":"sec-015","question":"How many funds does the FINRA Fund Analyzer cover?","must_mention":["18,000"],"unanswerable":false}
+{"id":"q-087","source_id":"sec-017","question":"Why are scams that target a community so hard to spot from outside?","must_mention":["outsiders may not know about the investment scam"],"unanswerable":false}
+{"id":"q-088","source_id":"sec-017","question":"Someone at my church recommends an investment. What does the SEC advise?","must_mention":["Never make an investment based solely on the recommendation"],"unanswerable":false}
+{"id":"q-089","source_id":"sec-018","question":"What is a Ponzi scheme?","must_mention":["pays existing investors with funds collected from new investors"],"unanswerable":false}
+{"id":"q-090","source_id":"sec-018","question":"Who was it named after, and when?","must_mention":["Charles Ponzi","1920s"],"unanswerable":false}
+{"id":"q-091","source_id":"sec-018","question":"What are the warning signs of a Ponzi scheme?","must_mention":["High returns with little or no risk","Overly consistent returns"],"unanswerable":false}
+{"id":"q-092","source_id":"sec-032","question":"What are the two halves of a pump and dump?","must_mention":["boost the price of a stock with false or misleading statements","dumping shares into the market"],"unanswerable":false}
+{"id":"q-093","source_id":"sec-032","question":"What happens to the share price once the fraudsters are finished?","must_mention":["the price typically falls"],"unanswerable":false}
+{"id":"q-094","source_id":"sec-033","question":"What marks out a classic pyramid scheme?","must_mention":["high return in a short period of time","No genuine product or service is actually sold"],"unanswerable":false}
+{"id":"q-095","source_id":"sec-033","question":"What document should I ask a company for to check it is not a pyramid scheme?","must_mention":["financial statements audited by a certified public accountant"],"unanswerable":false}
+{"id":"q-096","source_id":"sec-033","question":"Do some pyramid schemes survive?","must_mention":["All pyramid schemes eventually collapse"],"unanswerable":false}
+{"id":"q-097","source_id":"sec-034","question":"What is the premise of an advance fee fraud?","must_mention":["you need to give money to get money"],"unanswerable":false}
+{"id":"q-098","source_id":"sec-034","question":"I was defrauded before and someone says they can recover my money. What is that?","must_mention":["reload scam"],"unanswerable":false}
+{"id":"q-099","source_id":"sec-035","question":"What is the most important thing to check before hiring an investment professional?","must_mention":["whether the person is registered"],"unanswerable":false}
+{"id":"q-100","source_id":"sec-035","question":"What is Form CRS?","must_mention":["customer or client relationship summary"],"unanswerable":false}

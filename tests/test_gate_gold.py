@@ -9,6 +9,8 @@ from pydantic import ValidationError
 
 from gate import gold
 
+GOLD = Path(__file__).resolve().parent.parent / "gate" / "gold"
+
 
 def source(n: int = 1, text: str = "A refund takes 15 business days.") -> gold.SourceDoc:
     return gold.SourceDoc(
@@ -224,3 +226,34 @@ def test_two_urls_that_redirect_to_one_page_are_reported() -> None:
     twin = same.model_copy(update={"id": "fcac-002", "url": "https://example.invalid/other"})
     g = gold.GoldSet(sources=(same, twin), questions=(), instances=())
     assert any("identical passages under fcac-001, fcac-002" in p for p in g.problems())
+
+
+def test_the_committed_questions_are_what_the_source_produces() -> None:
+    """`questions.jsonl` is generated from `gate/gold_questions.py`. If the two drift apart,
+    the file stops being traceable to the phrases that justify each question."""
+    from gate import gold_questions
+
+    committed = gold.read_questions(GOLD / gold.QUESTIONS_FILE)
+    assert committed == gold_questions.questions()
+
+
+def test_every_question_fits_the_passage_it_names() -> None:
+    """The whole hundred, checked against the stored passages. An answerable question whose
+    expected points are not in its passage was written against the wrong page; an unanswerable
+    one whose point IS in the passage is not unanswerable."""
+    from gate import gold_questions
+
+    assert gold_questions.problems(GOLD) == []
+
+
+def test_the_gold_set_is_the_shape_the_plan_asked_for() -> None:
+    g = gold.load(GOLD)
+    questions = g.questions
+    assert len(questions) == 100, "PLAN.md B4: 100 questions"
+    assert len({q.id for q in questions}) == 100
+    unanswerable = [q for q in questions if q.unanswerable]
+    assert 10 <= len(unanswerable) <= 20, (
+        "a set with no unanswerable question cannot catch a model inventing a fact"
+    )
+    assert {q.source_id for q in questions} == set(g.by_source), "every document carries a question"
+    assert g.problems() == []
