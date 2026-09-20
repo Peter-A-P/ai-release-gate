@@ -13,10 +13,15 @@
 #                  options are; it is not fetched from here, because ten tarpits cost twelve
 #                  minutes and tell you nothing you did not learn the first time.
 #
-# So this list is investor.gov, and the entries below the first four are candidates written
-# from the shape of the paths that worked rather than from having opened them. A wrong one is
-# a fast 404 now rather than a timeout, so probing is cheap; `gate gold status` will say which
-# landed, and a page that yields under 400 characters of text is refused as an index.
+# Second probe, 2026-09-20, run 35523102825, after the extractor learned to prefer a page's
+# main region: 18 of 20 fetched, 866 to 2,556 characters each, and the passages now begin with
+# the article instead of with "Skip to main content". Two 404s, both my guess at a path: bonds
+# (the real one is under bonds-or-fixed-income-products) and a retirement page that does not
+# exist under that name. Entries from sec-026 on are the next batch of candidates, written the
+# same way and just as unconfirmed.
+#
+# A wrong entry is a fast 404 rather than a timeout, so probing is cheap; `gate gold status`
+# says which landed, and a page yielding under 400 characters of text is refused as an index.
 #
 # All of it is a United States government work and in the public domain, which is why the text
 # is committed rather than the URL: the page can be rewritten, and a faithfulness judgement
@@ -51,7 +56,7 @@ sources:
   - id: sec-011
     publisher: sec
     title: "Bonds"
-    url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/bonds
+    url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/bonds-or-fixed-income-products/bonds
   - id: sec-012
     publisher: sec
     title: "Save and invest"
@@ -104,7 +109,51 @@ sources:
     publisher: sec
     title: "Prospectus"
     url: https://www.investor.gov/introduction-investing/investing-basics/glossary/prospectus
-  - id: sec-025
+  - id: sec-026
     publisher: sec
-    title: "Retirement accounts"
-    url: https://www.investor.gov/additional-resources/retirement-toolkit
+    title: "Certificates of deposit"
+    url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/certificates-deposit-cds
+  - id: sec-027
+    publisher: sec
+    title: "Annuities"
+    url: https://www.investor.gov/introduction-investing/investing-basics/investment-products/annuities
+  - id: sec-028
+    publisher: sec
+    title: "Mutual fund fees and expenses"
+    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/mutual-fund-fees-and-expenses
+  - id: sec-029
+    publisher: sec
+    title: "Net asset value"
+    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/net-asset-value
+  - id: sec-030
+    publisher: sec
+    title: "Market capitalisation"
+    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/market-capitalization
+  - id: sec-031
+    publisher: sec
+    title: "Rule of 72"
+    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/rule-72
+  - id: sec-032
+    publisher: sec
+    title: "Pump and dump schemes"
+    url: https://www.investor.gov/protect-your-investments/fraud/types-fraud/pump-and-dump-schemes
+  - id: sec-033
+    publisher: sec
+    title: "Pyramid schemes"
+    url: https://www.investor.gov/protect-your-investments/fraud/types-fraud/pyramid-schemes
+  - id: sec-034
+    publisher: sec
+    title: "Advance fee fraud"
+    url: https://www.investor.gov/protect-your-investments/fraud/types-fraud/advance-fee-fraud
+  - id: sec-035
+    publisher: sec
+    title: "Investment adviser or broker"
+    url: https://www.investor.gov/introduction-investing/getting-started/working-investment-professional
+  - id: sec-036
+    publisher: sec
+    title: "Asking questions of a financial professional"
+    url: https://www.investor.gov/introduction-investing/getting-started/ask-questions
+  - id: sec-037
+    publisher: sec
+    title: "Investing quiz: are you ready to invest?"
+    url: https://www.investor.gov/introduction-investing/getting-started/assessing-your-risk-tolerance
