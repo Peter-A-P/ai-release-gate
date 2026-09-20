@@ -295,3 +295,14 @@ def test_a_void_block_tag_does_not_unbalance_the_depth_count() -> None:
     text = to_text(html)
     assert "First line." in text and "Second line." in text and "More real content." in text
     assert "Footer noise." not in text
+
+
+def test_invisible_characters_are_removed_because_they_defeat_a_literal_check() -> None:
+    """A zero width space is not whitespace to `str.split`, so one sitting inside "$100" would
+    silently defeat the check that a question's expected points are really in its passage.
+    Three were in the first 49 documents fetched."""
+    html = "<p>the first \u200b$100\u202fof funds\ufeff must be available</p>" + ("<p>x</p>" * 200)
+    text = to_text(html)
+    assert "the first $100 of funds must be available" in text
+    for invisible in (0x200B, 0x202F, 0xFEFF, 0x200C, 0x2009):
+        assert chr(invisible) not in text

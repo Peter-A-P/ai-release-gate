@@ -208,6 +208,15 @@ TYPOGRAPHIC: dict[str, str] = {
     chr(0x201D): '"',  # right double quote
     chr(0x2026): "...",  # ellipsis
     chr(0x00A0): " ",  # no-break space
+    chr(0x202F): " ",  # narrow no-break space
+    chr(0x2009): " ",  # thin space
+    # Zero width space and zero width non-joiner: invisible, and Python's str.split does not
+    # treat either as whitespace, so one sitting inside "$100" would silently defeat the
+    # literal check that a question's expected points really are in its passage. Three of
+    # them were in the first 49 documents.
+    chr(0x200B): "",
+    chr(0x200C): "",
+    chr(0xFEFF): "",  # byte order mark, which turns up mid-document more often than it should
 }
 
 
