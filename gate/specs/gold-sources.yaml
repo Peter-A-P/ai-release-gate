@@ -20,6 +20,12 @@
 # exist under that name. Entries from sec-026 on are the next batch of candidates, written the
 # same way and just as unconfirmed.
 #
+# Three glossary stubs that DID fetch have been removed again: sec-020, sec-030 and sec-031
+# yielded 866, 800 and 570 characters, and one of those was still mostly site banner because
+# its main region was too thin to prefer and the whole body was the fallback. There is barely
+# anything in a stub to be unfaithful to, so it makes a poor faithfulness question. `gate gold
+# status` now names any passage under 900 characters rather than leaving it to be noticed.
+#
 # A wrong entry is a fast 404 rather than a timeout, so probing is cheap; `gate gold status`
 # says which landed, and a page yielding under 400 characters of text is refused as an index.
 #
@@ -89,10 +95,6 @@ sources:
     publisher: sec
     title: "Microcap fraud"
     url: https://www.investor.gov/introduction-investing/investing-basics/glossary/microcap-stock
-  - id: sec-020
-    publisher: sec
-    title: "Diversification"
-    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/diversification
   - id: sec-021
     publisher: sec
     title: "Dollar cost averaging"
@@ -125,14 +127,6 @@ sources:
     publisher: sec
     title: "Net asset value"
     url: https://www.investor.gov/introduction-investing/investing-basics/glossary/net-asset-value
-  - id: sec-030
-    publisher: sec
-    title: "Market capitalisation"
-    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/market-capitalization
-  - id: sec-031
-    publisher: sec
-    title: "Rule of 72"
-    url: https://www.investor.gov/introduction-investing/investing-basics/glossary/rule-72
   - id: sec-032
     publisher: sec
     title: "Pump and dump schemes"

@@ -202,3 +202,15 @@ def test_an_unanswerable_question_whose_answer_is_in_the_source_is_caught() -> N
 def test_the_match_is_whitespace_insensitive_and_case_insensitive() -> None:
     src = source(text="A refund\n  takes 15 BUSINESS days.")
     assert gold.check_question(question(1, must_mention=("15 business days",)), src) == []
+
+
+def test_a_thin_passage_is_named_rather_than_left_to_be_noticed(tmp_path: Path) -> None:
+    """A glossary stub fetches cleanly and is still poor material: there is barely anything in
+    it to be unfaithful to. Three of the first thirty documents were stubs, and one of those
+    was mostly site banner because its main region was too thin to prefer."""
+    fat = source(1, text="A refund takes 15 business days. " * 40)
+    thin = source(2, text="A refund takes 15 business days.")
+    g = gold.GoldSet(sources=(fat, thin), questions=(), instances=())
+    text = gold.summarise(g, [])
+    assert "thin passages" in text
+    assert "fcac-002" in text and "fcac-001" not in text.split("thin passages")[1]

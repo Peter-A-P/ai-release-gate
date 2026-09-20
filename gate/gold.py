@@ -57,6 +57,13 @@ LABELS_FILE = "labels.jsonl"
 INTRA_RATER_SAMPLE = 100
 INTRA_RATER_SEED = 0
 
+# A passage shorter than this is reported as thin by `gate gold status`. Not refused: the
+# fetcher already refuses anything under 400 characters as an index page, and this is the
+# softer line between "a document" and "a glossary stub with a site banner attached". A thin
+# passage makes a poor faithfulness question, because there is barely anything in it to be
+# unfaithful to, so the person writing the questions is told which ones they are.
+THIN_PASSAGE_CHARS = 900
+
 
 def sha256_of(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -351,6 +358,12 @@ def summarise(gold: GoldSet, labels: Sequence[GoldLabel]) -> str:
     stale = len(first) - len(usable)
     if stale:
         lines.append(f"  {stale} label(s) dropped: the answer text no longer matches the hash")
+    thin = [s.id for s in gold.sources if len(s.text) < THIN_PASSAGE_CHARS]
+    if thin:
+        lines.append(
+            f"  thin passages, under {THIN_PASSAGE_CHARS} characters, poor material for a "
+            f"faithfulness question: {', '.join(sorted(thin))}"
+        )
     problems = gold.problems()
     if problems:
         lines.append("")
