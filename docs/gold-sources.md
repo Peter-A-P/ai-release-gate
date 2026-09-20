@@ -1,95 +1,113 @@
-# Where the gold set's documents come from, and what could not be reached
+# Where the gold set's documents come from
 
 The judge calibration gold set needs 100 consumer questions answerable from public
 financial-regulator guidance. PLAN.md B4 names two regulators: the Financial Consumer Agency of
-Canada, and the SEC. This is what happened when the pages were actually fetched, because the
-result changes the plan and the change should be visible rather than quietly absorbed.
+Canada, and the SEC. Both are in, 49 documents between them.
 
-## The measurement
+Getting there took three attempts and produced one finding worth publishing, because the
+obvious reading of the first attempt was wrong.
 
-`gate gold fetch`, sixteen URLs, from an `ubuntu-24.04` GitHub Actions runner on **2026-09-20**
-(run `35522317109`). Plain `urllib`, one request each, a `User-Agent` that names the project.
+## The finding: two public regulators want opposite things in a User-Agent
 
-| Host | Result |
-|---|---|
-| `www.investor.gov` | **4 of 5 fetched**, 1,578 to 2,540 characters of text each |
-| `www.sec.gov` | **403 Forbidden** |
-| `www.canada.ca` | **0 of 10. Every one timed out**, identically |
+Measured 2026-09-20, every other variable held fixed.
 
-The single investor.gov failure was a 404 on a path guessed wrongly, which is an ordinary
-mistake and was corrected.
+| Host | `ai-release-gate/1 (gold set for judge calibration; one-off)` | `ai-release-gate/1 (+https://github.com/Peter-A-P/ai-release-gate)` | `curl/8.5.0` | no header |
+|---|---|---|---|---|
+| `www.canada.ca` | **timeout** | **200** | 200 | - |
+| `www.investor.gov` | **200** | **403** | 403 | 200 |
 
-## canada.ca does not answer
+`www.canada.ca` serves the conventional crawler form, a product token plus a `(+URL)` saying
+who is asking, and **tarpits** everything else: it accepts the connection and never sends
+anything, which surfaces as a read timeout rather than as a refusal. `www.investor.gov` is the
+exact reverse and returns 403 to any User-Agent carrying a URL.
 
-Ten for ten, the same error: `TimeoutError: The read operation timed out`. Not a 403, not a
-404, not a redirect. The host accepts the connection and then says nothing, which is what a web
-application firewall does to traffic it has decided not to serve. Ten out of ten means it is
-the host and not the paths.
+There is no single string that reaches both, so the User-Agent belongs to the source list
+rather than to the fetcher, and each list carries its own with the reason beside it.
 
-The same read also times out from Peter's laptop on the work network, which has a TLS
-inspecting proxy. So from here the two cannot be told apart: it may be canada.ca refusing
-data-centre addresses, it may be the proxy, it may be both. What is certain is that the CI
-route does not work.
+**None of this is a disguise.** Both forms name the project, and one of them links to its
+public repository so that an administrator looking at a log can see exactly what is fetching
+them and why. Claiming to be a browser is what is never done, and it is not done here: the
+winning string on canada.ca is more identifying than the one that failed, not less.
 
-**This project does not work around it by pretending to be a browser.** A publisher that has
-put up a block has made a decision, and evading it to collect a hundred questions is not a
-trade this project makes. The same reasoning appears in Part A, where a classifier is never
-tuned until every vendor looks safe.
+## What the first attempt looked like, and why it was wrong
 
-Three ways forward, none of them chosen:
+The first probe ran from a GitHub Actions runner. All ten canada.ca pages timed out,
+identically, while investor.gov answered. The natural reading, and the one written down at the
+time, was that canada.ca refuses data-centre addresses.
 
-1. **Fetch the Canadian half from a home connection.** One command, and the result is committed
-   like any other document:
-   `uv run gate gold fetch --list gate/specs/gold-sources-fcac.yaml --i-am-allowed-to-reach-the-internet`.
-   Cheapest option if it works, and it tells us which of the two blocks we are looking at.
-2. **Drop the Canadian half.** The gold set becomes SEC-only. It is still public, still
-   regulated, still the kind of content where an unsupported claim matters, which is what B4
-   asked the domain for. It is a change to the plan and so is Peter's call.
-3. **Ask FCAC for the content another way.** Slow, and out of proportion to a calibration set.
+It was the User-Agent. The same string times out from an ordinary home connection, and the
+conventional form succeeds from that same connection in two seconds. The location never
+mattered.
 
-Until one is chosen, `gate/specs/gold-sources-fcac.yaml` holds the Canadian entries, separate
-from the working list so that probing the working list costs a minute rather than twelve spent
-on a tarpit. The file is kept rather than deleted: a public government page being unreachable
-from ordinary infrastructure is a fact worth keeping.
+Worth keeping as a reminder: ten identical failures from one environment looked like strong
+evidence about that environment, and the variable that actually differed was in the request all
+along. The way it was settled was the only way available, which was to change one thing at a
+time.
 
-## www.sec.gov asks traffic to identify itself
+## The second mistake: a section index is not a document
 
-`www.sec.gov` returns 403 to requests whose `User-Agent` does not carry a contact address. That
-is the SEC's stated expectation of automated traffic and it is a reasonable one.
+The first canada.ca pages to fetch successfully were section indexes, and they extracted
+cleanly. `/services/banking.html` yields "Services and information" and then a list of link
+descriptions. Perfectly good text, and useless here: a faithfulness question needs a passage
+with something checkable in it, and a hub page has no claims to be unfaithful about.
+
+The leaves were then discovered by reading the links out of each index rather than guessed, and
+those carry what was wanted. From `banking/cashing-cheques.html`:
+
+> Financial institutions must make the first $100 of all funds you deposit by cheque available
+> to you right away.
+
+That is a claim a model can get wrong in an interesting way, which is the whole point.
+
+A related softer line: `gate gold status` names any passage under 900 characters. The fetcher
+already refuses anything under 400 as an index page; between the two sits the glossary stub,
+which fetches perfectly and makes a poor question because there is barely anything in it to be
+unfaithful to. Four were dropped on that basis.
+
+## www.sec.gov asks traffic to identify itself by email
+
+`www.sec.gov` returns 403 to both forms. It asks automated traffic for a contact address, which
+is a reasonable thing for it to ask.
 
 The only address available here is Peter's employer's, and **this project does not put a
 personal or work address into a request header to an unrelated service**. So `www.sec.gov` is
 left alone.
 
 `investor.gov` is the SEC's own investor education site, answers ordinary requests, and carries
-exactly the material B4 wanted from "SEC investor bulletins". The American half of the gold set
-comes from there. If a contact address Peter is happy to publish ever exists, `www.sec.gov`
-opens up and can be added; the fetcher needs one line changed.
+exactly the material B4 wanted from "SEC investor bulletins". The American half comes from
+there. If a contact address Peter is happy to publish ever exists, `www.sec.gov` opens up, and
+the source list already has a field for it.
 
-## Why the text is committed and not the URL
+## What is stored
 
-Every document is stored as a passage, with the SHA-256 of the bytes it came from and the date
-it was read. Regulator pages are rewritten without notice. A faithfulness judgement made against
-today's wording is meaningless a year later unless today's wording is kept, and a label that
-cannot be checked against what the labeller actually read is not evidence.
+49 documents: 27 from investor.gov, 22 from FCAC. Median passage about 2,100 characters.
+
+Each is stored as a passage with the SHA-256 of the bytes it came from and the date it was
+read, and **the text is committed, not the URL**. Regulator pages are rewritten without notice.
+A faithfulness judgement made against today's wording is meaningless a year later unless
+today's wording is kept, and a label that cannot be checked against what the labeller actually
+read is not evidence.
 
 The passage is **cut at a paragraph boundary, never summarised**. A summary would be this
 project writing the document it then measures faithfulness against, and every claim in it would
 be one step removed from something a regulator published.
 
-Both sources allow it. investor.gov material is a United States government work and in the
-public domain; the FCAC pages, if they are ever fetched, are under the Open Government Licence
-- Canada. The licence is recorded per document rather than assumed.
+Licences are recorded per document rather than assumed: investor.gov material is a United
+States government work in the public domain, FCAC pages are under the Open Government Licence
+- Canada.
 
-## One bug this found
+## Two bugs this found
 
-The probe ran for twenty-five minutes and had to be cancelled by hand, although its per-page
-timeouts implied twelve. `urllib`'s timeout bounds a socket operation, not a fetch: a host that
-trickles a byte inside every allowance, or a redirect chain each hop of which gets a fresh one,
-runs indefinitely.
+**A socket timeout is not a deadline.** The first probe ran twenty-five minutes and had to be
+cancelled by hand, although its per-page timeouts implied twelve. `urllib`'s timeout bounds one
+socket operation; a host that trickles a byte inside every allowance runs forever. There are
+four limits now: twenty seconds per socket operation, four megabytes on what is read, seventy-
+five seconds of wall clock per page enforced by walking away from the thread doing the read,
+and five minutes across the whole list. A page the deadline stops us reaching is reported as
+**not attempted**, which is a different fact from a URL being wrong.
 
-There are three limits now: twenty seconds per socket operation, four megabytes on what is
-read, and five minutes across the whole list, with each page additionally abandoned after
-seventy-five seconds of wall clock by walking away from the thread doing the read. A page the
-deadline stops us reaching is reported as **not attempted**, which is a different fact from a
-URL being wrong, and the next run needs to be able to tell them apart.
+**The banner is not the document.** The first four investor.gov passages were 2,500 characters
+of "Skip to main content. The .gov means it's official." Dropping `nav`, `header` and `footer`
+was not enough, because the notice sits in an ordinary `div`. The extractor now prefers the
+page's main region when it declares one, by `<main>`, by `role="main"`, or by a familiar id,
+and falls back to the whole body when that region is too thin to be the article.

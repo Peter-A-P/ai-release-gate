@@ -34,7 +34,22 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from gate.gold import Publisher, SourceDoc, utc_now
 
+# What to call ourselves. Two public regulators want OPPOSITE things, measured 2026-09-20 from
+# a home connection with everything else held fixed:
+#
+#   www.canada.ca    serves the conventional crawler form, a product token plus a (+URL) that
+#                    says who is asking. Any other string is tarpitted: the connection is
+#                    accepted and nothing is ever sent, which reads as a timeout.
+#   www.investor.gov the reverse. It serves a plain descriptive string or no User-Agent at
+#                    all, and returns 403 to anything carrying a URL, and to `curl/8.5.0`.
+#
+# So there is no single string that reaches both, and the User-Agent is per source list. This
+# is not a disguise: every form below names the project honestly and one of them additionally
+# links to its public repository, so an administrator can see exactly what is fetching them and
+# why. What is never done is claiming to be a browser.
 USER_AGENT = "ai-release-gate/1 (gold set for judge calibration; one-off)"
+# The conventional crawler form, used where a host asks for it.
+USER_AGENT_WITH_URL = "ai-release-gate/1 (+https://github.com/Peter-A-P/ai-release-gate)"
 
 # `urllib`'s timeout is a SOCKET timeout, not a deadline. A host that dribbles bytes, or a
 # chain of redirects each getting a fresh allowance, can hold a single fetch open far longer
@@ -86,10 +101,16 @@ class SourceSpec(BaseModel):
     publisher: Publisher
     title: str = Field(min_length=1)
     url: str = Field(pattern=r"^https://")
+    # What to call ourselves to THIS host; the list's default otherwise. See USER_AGENT.
+    user_agent: str | None = None
 
     @property
     def licence(self) -> str:
         return LICENCES[self.publisher]
+
+    @property
+    def agent(self) -> str:
+        return self.user_agent or USER_AGENT
 
 
 # The element that holds the article, in the order they are looked for. Without this the first
@@ -233,11 +254,11 @@ class Fetched:
         return self.document is not None
 
 
-Opener = Callable[[str], bytes]
+Opener = Callable[[str, str], bytes]
 
 
-def _open(url: str) -> bytes:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+def _open(url: str, user_agent: str = USER_AGENT) -> bytes:
+    request = urllib.request.Request(url, headers={"User-Agent": user_agent})
     with urllib.request.urlopen(request, timeout=TIMEOUT_S) as response:
         if response.status != 200:
             raise FetchError(f"status {response.status}")
@@ -247,7 +268,7 @@ def _open(url: str) -> bytes:
 
 
 def _read_with_wall_clock(
-    read: Opener, url: str, *, wall_clock_s: float
+    read: Opener, url: str, user_agent: str, *, wall_clock_s: float
 ) -> tuple[bytes | None, str | None]:
     """`read(url)`, abandoned if it has not finished in `wall_clock_s`.
 
@@ -265,7 +286,7 @@ def _read_with_wall_clock(
 
     def work() -> None:
         try:
-            out.append((read(url), None))
+            out.append((read(url, user_agent), None))
         except (urllib.error.URLError, OSError, FetchError) as e:
             out.append((None, f"{type(e).__name__}: {e}"))
 
@@ -287,7 +308,7 @@ def fetch_one(
     wall_clock_s: float = PAGE_WALL_CLOCK_S,
 ) -> Fetched:
     read = opener or _open
-    body, error = _read_with_wall_clock(read, spec.url, wall_clock_s=wall_clock_s)
+    body, error = _read_with_wall_clock(read, spec.url, spec.agent, wall_clock_s=wall_clock_s)
     if body is None:
         return Fetched(spec, None, error)
     if len(body) > MAX_BYTES:
@@ -349,7 +370,11 @@ def fetch_all(
 def load_specs(path: Path) -> list[SourceSpec]:
     with path.open(encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
-    specs = [SourceSpec.model_validate(s) for s in raw.get("sources", [])]
+    default_agent = raw.get("default_user_agent")
+    specs = [
+        SourceSpec.model_validate({"user_agent": default_agent, **s})
+        for s in raw.get("sources", [])
+    ]
     ids = {s.id for s in specs}
     if len(ids) != len(specs):
         raise ValueError("source ids must be unique")

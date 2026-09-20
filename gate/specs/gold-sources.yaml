@@ -3,6 +3,11 @@
 # What the first probe found, 2026-09-20, run 35522317109, sixteen URLs from a GitHub runner:
 #
 #   investor.gov   4 of 5 fetched, 1,578 to 2,540 characters each. Works.
+# investor.gov also decides what to serve by User-Agent, and decides the OPPOSITE way from
+# canada.ca: it refuses any string carrying a URL, and `curl/8.5.0`, and serves the plain
+# descriptive form below or no header at all. So this list keeps the default and the Canadian
+# one carries its own. See docs/gold-sources.md for the table.
+#
 #   www.sec.gov    403 Forbidden. The SEC asks automated traffic to declare itself in the
 #                  User-Agent with a contact address. Peter's only address is his employer's
 #                  and this project does not put it in a request header, so www.sec.gov is

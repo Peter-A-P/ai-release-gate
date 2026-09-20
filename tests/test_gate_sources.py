@@ -84,14 +84,14 @@ def test_a_passage_with_no_paragraph_break_falls_back_to_a_sentence_boundary() -
 def test_a_page_that_yields_no_passage_is_a_failure_with_a_reason() -> None:
     """An index page is mostly links, and links live in nav. The fetcher refuses it rather
     than storing a document a question cannot be written from."""
-    result = fetch_one(spec(), opener=lambda url: b"<html><nav><a>Index</a></nav></html>")
+    result = fetch_one(spec(), opener=lambda url, ua: b"<html><nav><a>Index</a></nav></html>")
     assert not result.ok and result.document is None
     assert result.error is not None and "not a passage" in result.error
     assert "index" in result.error, "the message says what to check"
 
 
 def test_a_network_failure_is_collected_rather_than_raised() -> None:
-    def boom(url: str) -> bytes:
+    def boom(url: str, ua: str) -> bytes:
         raise TimeoutError("the read operation timed out")
 
     results = fetch_all([spec(1), spec(2)], opener=boom)
@@ -102,7 +102,7 @@ def test_a_network_failure_is_collected_rather_than_raised() -> None:
 
 def test_a_good_page_is_stored_with_its_hash_its_date_and_its_licence() -> None:
     body = PAGE.encode("utf-8") + b"<p>" + (b"More checkable detail about fees. " * 40) + b"</p>"
-    result = fetch_one(spec(), opener=lambda url: body)
+    result = fetch_one(spec(), opener=lambda url, ua: body)
     assert result.ok and result.document is not None
     doc = result.document
     assert doc.id == "fcac-001" and doc.publisher == "fcac"
@@ -110,14 +110,14 @@ def test_a_good_page_is_stored_with_its_hash_its_date_and_its_licence() -> None:
     assert len(doc.bytes_sha256) == 64
     assert doc.retrieved_utc.endswith("Z")
     assert "A hold on a credit card" in doc.text
-    sec = fetch_one(spec(1, "sec"), opener=lambda url: body)
+    sec = fetch_one(spec(1, "sec"), opener=lambda url, ua: body)
     assert sec.document is not None and "public domain" in sec.document.licence
 
 
 def test_already_fetched_pages_are_skipped() -> None:
     calls: list[str] = []
 
-    def opener(url: str) -> bytes:
+    def opener(url: str, ua: str) -> bytes:
         calls.append(url)
         return PAGE.encode("utf-8") + b"<p>" + (b"Detail about fees. " * 60) + b"</p>"
 
@@ -169,7 +169,7 @@ def test_the_whole_fetch_has_a_deadline_because_the_per_page_timeout_is_not_one(
     are reported as not attempted, which is different from a URL being wrong."""
     now = [0.0]
 
-    def slow(url: str) -> bytes:
+    def slow(url: str, ua: str) -> bytes:
         now[0] += 60.0
         raise TimeoutError("dribbling")
 
@@ -187,7 +187,7 @@ def test_an_enormous_response_is_refused_rather_than_stored() -> None:
     wanted, and the default opener stops reading one byte past the cap rather than pulling a
     hundred megabytes down to discover that."""
     huge = b"<p>" + b"x" * (sources.MAX_BYTES + 10) + b"</p>"
-    result = fetch_one(spec(), opener=lambda url: huge)
+    result = fetch_one(spec(), opener=lambda url, ua: huge)
     assert not result.ok
     assert result.error is not None and "not a page a question is written from" in result.error
 
@@ -200,7 +200,7 @@ def test_a_page_that_never_answers_is_abandoned_rather_than_waited_on() -> None:
 
     release = _threading.Event()
 
-    def never(url: str) -> bytes:
+    def never(url: str, ua: str) -> bytes:
         release.wait(30)  # the caller must not wait for this
         return b"too late"
 
@@ -219,7 +219,7 @@ def test_one_slow_page_does_not_eat_the_whole_list() -> None:
     release = _threading.Event()
     reached: list[str] = []
 
-    def one_slow(url: str) -> bytes:
+    def one_slow(url: str, ua: str) -> bytes:
         reached.append(url)
         if len(reached) == 1:
             release.wait(30)

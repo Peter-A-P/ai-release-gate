@@ -1,66 +1,122 @@
-# The Canadian half of the gold set, which GITHUB ACTIONS CANNOT REACH.
+# The Canadian half of the gold set: Financial Consumer Agency of Canada guidance.
 #
-# Measured 2026-09-20, run 35522317109. All ten of these pages failed from an `ubuntu-24.04`
-# runner with the identical error: `TimeoutError: The read operation timed out`. Not a 403, not
-# a 404, not a redirect: the host accepts the connection and then says nothing, which is what a
-# web application firewall does to traffic it has decided not to serve. Ten for ten, so it is
-# the host rather than the paths. The same read also times out from Peter's laptop on the work
-# network, so the two observations cannot be told apart from here: it may be canada.ca refusing
-# data-centre addresses, or a proxy in the middle, or both.
+# WHAT TO CALL OURSELVES HERE IS NOT WHAT TO CALL OURSELVES ON investor.gov, which is why this
+# list carries its own. Measured 2026-09-20 from a home connection with every other variable
+# held fixed: canada.ca serves the conventional crawler form, a product token plus a (+URL)
+# that says who is asking, and tarpits everything else, accepting the connection and never
+# sending anything, which reads as a timeout. investor.gov is the reverse and returns 403 to
+# any User-Agent carrying a URL. There is no single string that reaches both.
 #
-# This file is kept separate from gold-sources.yaml so that the working list can be probed in
-# under a minute instead of spending twelve on a tarpit. It is not deleted, because the fact
-# that a public government page is unreachable from ordinary infrastructure is worth keeping,
-# and because one of the ways forward is simply to run the fetch from a home connection:
+# That also settles what the first probe found. Ten for ten timing out from a GitHub runner
+# looked like a firewall refusing data-centre addresses; it was the User-Agent, and the same
+# thing happens from a home connection with the same string. Nothing here is a disguise: both
+# forms name the project, and this one additionally links to its public repository so an
+# administrator can see exactly what is fetching them and why. Claiming to be a browser is
+# what is never done.
 #
-#   uv run gate gold fetch --list gate/specs/gold-sources-fcac.yaml \
-#       --i-am-allowed-to-reach-the-internet
+# These are LEAF pages, not the section indexes the first list held. A section index is
+# navigation: "Services and information", then a list of link descriptions. It extracts
+# cleanly and is useless here, because a faithfulness question needs a passage with something
+# checkable in it and a hub page has no numbers to be unfaithful about. The leaves below were
+# discovered by reading the links out of each index rather than guessed.
 #
-# The other ways forward, none of them chosen yet, are in docs/gold-sources.md. Nothing here
-# is worked around by pretending to be a browser: evading a block that a publisher put up on
-# purpose is not something this project does to collect a hundred questions.
-#
-# PLAN.md B4 names both regulators, so dropping this half is a change to the plan and is
-# Peter's call rather than mine.
+# Open Government Licence - Canada, which is why the text is committed rather than the URL.
+
+default_user_agent: "ai-release-gate/1 (+https://github.com/Peter-A-P/ai-release-gate)"
 
 sources:
-  - id: fcac-001
+  # ---------------------------------------------------------------- banking
+  - id: fcac-020
     publisher: fcac
-    title: "Credit cards"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-cards.html
-  - id: fcac-002
+    title: "Cashing cheques and hold periods"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/banking/cashing-cheques.html
+  - id: fcac-021
     publisher: fcac
-    title: "Credit report and credit score"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-reports-score.html
-  - id: fcac-003
+    title: "ATM fees"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/banking/atm-fees.html
+  - id: fcac-022
     publisher: fcac
-    title: "Mortgages"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/mortgages.html
-  - id: fcac-004
+    title: "Deposit insurance"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/banking/deposit-insurance.html
+  - id: fcac-023
     publisher: fcac
-    title: "Bank accounts"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/banking.html
-  - id: fcac-005
+    title: "Cashing a Government of Canada cheque"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/banking/cashing-government-cheque.html
+  - id: fcac-025
     publisher: fcac
-    title: "Debt and borrowing"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/debt.html
-  - id: fcac-006
+    title: "Branch closures"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/banking/branch-closures.html
+  - id: fcac-026
     publisher: fcac
-    title: "Savings and investments"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/savings-investments.html
-  - id: fcac-007
+    title: "Depositing a cheque with a mobile device"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/banking/depositing-cheque-with-mobile.html
+
+  # ---------------------------------------------------------------- credit cards
+  - id: fcac-030
     publisher: fcac
-    title: "Insurance"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/insurance.html
-  - id: fcac-008
+    title: "How credit cards work"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-cards/credit-card-work.html
+  - id: fcac-031
     publisher: fcac
-    title: "Budgeting"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/make-budget.html
-  - id: fcac-009
+    title: "Joint credit cards"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-cards/joint-credit-card.html
+  - id: fcac-032
     publisher: fcac
-    title: "Financial fraud and scams"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/fraud.html
-  - id: fcac-010
+    title: "Cancelling a credit card"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-cards/cancel-credit-card.html
+  - id: fcac-033
     publisher: fcac
-    title: "Payday loans"
-    url: https://www.canada.ca/en/financial-consumer-agency/services/loans/payday-loans.html
+    title: "Credit card balance insurance"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-cards/balance-insurance.html
+  - id: fcac-034
+    publisher: fcac
+    title: "Paying off a credit card"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/credit-cards/pay-off-credit-card.html
+  - id: fcac-035
+    publisher: fcac
+    title: "Resolving an unauthorized transaction"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/resolving-unauthorized-transaction.html
+
+  # ---------------------------------------------------------------- mortgages
+  - id: fcac-040
+    publisher: fcac
+    title: "Mortgage down payment"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/mortgages/down-payment.html
+  - id: fcac-041
+    publisher: fcac
+    title: "Interest on mortgages"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/mortgages/interest-on-mortgages.html
+  - id: fcac-042
+    publisher: fcac
+    title: "Reducing mortgage prepayment penalties"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/mortgages/reduce-prepayment-penalties.html
+  - id: fcac-043
+    publisher: fcac
+    title: "Mortgage term and amortization"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/mortgages/mortgage-terms-amortization.html
+  - id: fcac-044
+    publisher: fcac
+    title: "Breaking a mortgage contract"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/mortgages/break-mortgage-contract.html
+  - id: fcac-045
+    publisher: fcac
+    title: "Mortgage pre-approval and qualifying"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/mortgages/preapproval-qualify-mortgage.html
+
+  # ---------------------------------------------------------------- debt
+  - id: fcac-050
+    publisher: fcac
+    title: "Dealing with a collection agency"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/debt/collection-agency.html
+  - id: fcac-051
+    publisher: fcac
+    title: "Debt consolidation"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/debt/debt-consolidation.html
+  - id: fcac-052
+    publisher: fcac
+    title: "Debt settlement companies"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/debt/debt-settlement-company.html
+  - id: fcac-053
+    publisher: fcac
+    title: "Paying off debt"
+    url: https://www.canada.ca/en/financial-consumer-agency/services/debt/paying-debt.html

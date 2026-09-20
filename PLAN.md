@@ -877,9 +877,12 @@ rewritten without notice, and a faithfulness judgement made against today's word
 meaningless a year later unless the wording is kept. The passage is cut at a paragraph
 boundary rather than summarised, because a summary would be this project writing the document
 it then measures faithfulness against. Both publishers allow it: FCAC under the Open
-Government Licence - Canada, SEC as a United States government work. The fetch runs in the
-`gold` workflow, not on the laptop, because an ordinary HTTPS read to canada.ca from the work
-network times out. A question is checked against its own passage before any call is paid for:
+Government Licence - Canada, SEC as a United States government work. **The fetch is per-host in one respect that had to be measured**: canada.ca serves the
+conventional crawler User-Agent (a product token plus a `(+URL)`) and tarpits everything else,
+while investor.gov does the reverse and refuses any User-Agent carrying a URL, so the string
+belongs to the source list rather than to the fetcher. Neither form is a disguise and neither
+claims to be a browser; `docs/gold-sources.md` has the table and the two bugs the exercise
+turned up. A question is checked against its own passage before any call is paid for:
 an answerable question whose expected points are not in the passage, and an unanswerable one
 whose expected point is, are both reported by `gate gold status`.
 
