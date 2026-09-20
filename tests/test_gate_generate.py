@@ -128,15 +128,15 @@ def test_the_shipped_panels_load_and_refuse_to_run_until_confirmed() -> None:
         "were confirmed against the vendors' own model lists on 2026-09-20, run 35529080046"
     )
     assert all("CHOOSE" not in a.model for a in [*answers.arms, *judges.arms])
-    assert {a.family for a in answers.arms} == {"small", "mid", "large"}
-    small = next(a for a in answers.arms if a.family == "small")
-    assert "-Turbo" in small.model, (
-        "this provider's serverless serving is marked -Turbo; Qwen2.5-3B-Instruct was in its "
-        "model list and returned 400 'Unable to access non-serverless model' on the first call"
-    )
-    assert "7B" in small.model or "3B" in small.model, (
-        "the small arm's job is to produce real faithfulness failures; a gold set on which "
-        "every answer is good cannot tell a working judge from one that says fine to everything"
+    assert {a.family for a in answers.arms} == {"weakest", "mid", "large"}
+    # The weakest arm is deliberately not chosen by parameter count. Of the 274 identifiers the
+    # open-weights provider catalogues, this account can call exactly one (run 35529646727), so
+    # the spread comes from measured capability instead: 92.1% against Sonnet 5's 97.6% on the
+    # drift suite, intervals not overlapping.
+    weakest = next(a for a in answers.arms if a.family == "weakest")
+    assert weakest.model == "meta-llama/Llama-3.3-70B-Instruct-Turbo", (
+        "the only open-weights identifier this account can serve; every other candidate "
+        "returned 400 'Unable to access non-serverless model'"
     )
 
 

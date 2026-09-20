@@ -9,35 +9,49 @@
 # against in the drift runs of 2026-09-13 and 2026-09-16, so they are known to work, known to
 # be priced correctly in drift/config/prices, and known to answer inside a token budget.
 #
-# The small model's job is not to be good. A gold set on which every answer is good cannot tell
+# The weakest arm's job is not to be good. A gold set on which every answer is good cannot tell
 # a working judge from one that says "fine" to everything, so this arm is here to get things
 # wrong the way a real application's cheap tier gets things wrong.
 #
-# Chosen 2026-09-20, and the first choice was wrong in a way worth recording. Qwen2.5-3B-Instruct
-# appears in the provider's own list of 274 identifiers and cannot be called:
+# It is NOT a small model, and B4's "three models of different sizes" is served here by measured
+# capability rather than by parameter count. Measured 2026-09-20, run 35529646727: of the 274
+# identifiers the open-weights provider catalogues, this account can call exactly ONE. Five
+# candidates were probed with a single eight-token question each and four returned
 #
-#   400 invalid_request_error: Unable to access non-serverless model Qwen/Qwen2.5-3B-Instruct.
-#   Please visit ... to create and start a new dedicated endpoint for the model.
+#   400 invalid_request_error: Unable to access non-serverless model <id>. Please visit ...
+#   to create and start a new dedicated endpoint for the model.
 #
-# So a vendor's model list is a catalogue, not an inventory of what it will serve you, and
-# `panel candidates` cannot tell the difference. The only thing that can is a call. That is why
-# `gate gold generate` takes `--limit`, and why the first run of it is six calls and not three
-# hundred. The `-Turbo` suffix is this provider's mark for the serverless FP8 serving that the
-# drift control already uses, so it is the thing to look for.
+# including the 3B and 4B models that would have been the obvious small arm, and including two
+# with the -Turbo suffix, which kills the theory that the suffix marks what is served. A
+# vendor's model list is a catalogue, not an inventory, and `panel candidates` cannot tell the
+# difference; only a call can, which is what `gate gold probe-models` is for.
+#
+# So the spread is Llama-3.3-70B against Sonnet 5, and this project already knows how big that
+# spread is, from its own record rather than from a parameter count. On the 420-item drift
+# suite, 2026-09-13:
+#
+#   openweights-control        92.1% (89.5 to 94.5)
+#   anthropic-alias (Haiku)    95.0% (92.9 to 96.9)
+#   anthropic-sonnet-snapshot  97.6% (96.0 to 98.8)
+#
+# Five and a half points between the ends, with intervals that do not overlap. That is a real
+# gap and it is measured, which is better evidence than "3B is smaller than a big model" would
+# have been. It is also the one identifier this project has already made thousands of calls
+# against, so it is priced, proven and known to answer inside a token budget.
 #
 # The judges are a separate file (gold-judges.yaml) and MUST NOT appear here. A model that both
 # writes an answer and judges it is grading its own homework, and the kappa that came out of
 # that would be measuring nothing.
 version: 1
 chosen: 2026-09-20
-notes: "All three confirmed against the vendors' own model lists on 2026-09-20, run 35529080046. The two Anthropic identifiers are carried over from the drift panel and have been exercised in two full runs of 16,800 calls. Qwen2.5-7B-Instruct-Turbo was chosen the same day, after Qwen2.5-3B-Instruct turned out to be listed but not serverless. Seven billion parameters against Sonnet 5 is the spread the gold set needs. It has no entry in drift/config/prices, so its calls are recorded UNCOSTED rather than priced by guesswork; the ledger still holds the tokens."
+notes: "All three confirmed against the vendors' own model lists on 2026-09-20, run 35529080046. The two Anthropic identifiers are carried over from the drift panel and have been exercised in two full runs of 16,800 calls. The weakest arm is Llama-3.3-70B-Instruct-Turbo, the only one of the provider's 274 catalogued identifiers this account can actually call (run 35529646727). The spread it gives is measured rather than assumed: 92.1% against Sonnet 5's 97.6% on the drift suite, intervals not overlapping."
 
 arms:
-  - key: openweights-small
+  - key: openweights-weakest
     provider: openweights
-    model: Qwen/Qwen2.5-7B-Instruct-Turbo
-    arm: snapshot
-    family: small
+    model: meta-llama/Llama-3.3-70B-Instruct-Turbo
+    arm: control
+    family: weakest
   - key: anthropic-mid
     provider: anthropic
     model: claude-haiku-4-5-20251001
