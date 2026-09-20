@@ -886,6 +886,14 @@ is not available, the write-up says the gold set is single-rater and treats that
 limitation.
 
 **Judges:** two, a small model and a mid-tier model, each with the same rubric prompt.
+**Chosen 2026-09-20** in `gate/specs/gold-judges.yaml`: `gpt-5.4-mini-2026-03-17` and
+`gemini-3.8-flash`, both carried over from the drift panel where they are already exercised and
+priced. The answering panel (`gate/specs/gold-answers.yaml`) is Anthropic and open-weights, so
+**no vendor appears on both panels**: a model grading its own output is the obvious error and a
+vendor's judge preferring its own house style is the subtler one, and separating by vendor costs
+nothing and rules out both. A test enforces it, and caught exactly that mistake the day it was
+written. Both panels refuse to run until their identifiers are confirmed against the vendor's
+own list and dated, which is the mechanism the drift panel already uses.
 For each: kappa and alpha against gold with bootstrap CIs; sensitivity and specificity;
 test-retest across two runs; a position-swap check on paired items to detect order bias;
 a verbosity check (does answer length predict the judge's label after controlling for the
@@ -975,8 +983,8 @@ suite, which is the first real test of the reuse claim.
 | Stage | Build | Done when |
 |---|---|---|
 | 1 | `gate` scaffold; eval spec; ledger; runner and graders lifted from `drift/`; `mselect` wired in; A/A harness | `gate run` and `gate aa` work on a Part A block; first false-block estimate. **Done 2026-09-19**: `gate run`, `compare`, `aa`, `power` and `spec show` on every Part A block; 7.0% (4.3 to 10.2) false blocks as specified, 75.8% under the point rule; [`docs/gate-statistics.md`](docs/gate-statistics.md) |
-| 2 | Gold set: questions, source documents, three models' answers; rubric written; labelling begins; judge runner and rubric prompts | 300 instances generated; 150 labelled |
-| 3 | Labelling finished; judge calibration for two judges; bias checks; correction implemented | `docs/judge-calibration.md` with kappa, alpha, sensitivity, specificity |
+| 2 | Gold set: questions, source documents, three models' answers; rubric written; labelling begins; judge runner and rubric prompts | 300 instances generated; 150 labelled. **Harness done 2026-09-20**: the store, the rubric ([`docs/judge-rubric.md`](docs/judge-rubric.md)), the judge prompt and runner, the blind labelling CLI, the two model panels and the `gold` workflow. What is left is the 100 questions and their source documents, then one workflow run |
+| 3 | Labelling finished; judge calibration for two judges; bias checks; correction implemented | `docs/judge-calibration.md` with kappa, alpha, sensitivity, specificity. **Statistics done 2026-09-20**, ahead of the labels they will run on: kappa, alpha, sensitivity, specificity, Rogan-Gladen with propagated uncertainty, test-retest, order bias and the verbosity check, each tested against a table worked out by hand |
 | 4 | GitHub Action; demo repository; first gated pull requests. Kept light, because holidays land on it | Three PRs with gate comments, one blocked |
 | 5 | Red-team suites and Presidio grader; refusal classifier calibrated | Four suites reporting with intervals |
 | 6 | VPS stood up; compose stack; service and dashboard; drift record ingested; `gate.peterparker.ca` live; OpenTelemetry | Dashboard shows the Part A record and the demo repo's gate history |
@@ -1040,8 +1048,8 @@ Well inside the line. Actual invoices go next to the estimate in the portfolio's
 Mirrors the portfolio's definition:
 
 - [ ] Drift runs executing monthly since Sep 2026, data published (Part A)
-- [ ] Judge calibrated against human labels, kappa and alpha reported with CIs
-- [ ] Corrected pass rates reported next to raw
+- [ ] Judge calibrated against human labels, kappa and alpha reported with CIs. **The measurement is built 2026-09-20** (`gate judge calibrate`); it awaits the labels
+- [ ] Corrected pass rates reported next to raw. **Built 2026-09-20**: Rogan-Gladen with an interval that resamples the calibration set as well as the run, so the correction's own uncertainty is in the number rather than assumed away
 - [ ] Every reported score carries a bootstrap CI. **Enforced for the classifier's own error rate 2026-09-12** after it reported a zero-width interval, which is a bare number wearing an interval
 - [ ] Items filtered on discrimination before any of 02's difficulty parameters are used
 - [ ] Power analysis published: items needed per effect size, from `mselect`, validated. **Published 2026-09-19** (`gate power`, 3,559 / 118 / 33 items for 1 / 3 / 5 points at the reference ability, because the bank cannot place a panel scoring in the nineties); not yet validated empirically

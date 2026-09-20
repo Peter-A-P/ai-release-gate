@@ -1,0 +1,47 @@
+# The judges (PLAN.md B4): a small model and a mid-tier one, the same rubric prompt for both.
+#
+# The cheaper one is kept if it clears kappa 0.6 on a task; otherwise the mid-tier one. Both
+# are calibrated and both results are published, including the one that is not used, because
+# "we tried the cheap judge and it was not good enough" is a finding and deleting it would be
+# hiding a negative result.
+#
+# Neither of these writes a gold-set answer (see gold-answers.yaml). A model judging its own
+# output would be the single easiest way to get a flattering kappa that means nothing.
+#
+# Neither judge shares a VENDOR with the answering panel, let alone a model. A model grading
+# its own output is the obvious error; a vendor's judge preferring its own family's house style
+# is the subtler one, and separating the panels by vendor costs nothing and rules both out.
+#
+# Both are pinned to dated identifiers where the vendor offers one. A judge is an instrument,
+# and an instrument whose calibration was measured on one version cannot carry that calibration
+# to another: a vendor changing the model behind a floating alias would silently invalidate
+# every corrected rate in the repository. Recalibration is one command on the stored gold set,
+# so the cost of a deliberate change is small; the cost of an undetected one is every number.
+version: 1
+chosen: null
+notes: "Identifiers carried over from the drift panel, confirmed 2026-09-12. Re-read on the day the judge is first run and record any difference rather than correcting it silently."
+
+arms:
+  - key: openai-judge-small
+    provider: openai
+    model: gpt-5.4-mini-2026-03-17
+    arm: snapshot
+    family: judge-small
+    # The gpt-5.4 family rejects reasoning_effort "minimal" and accepts "none". Without it a
+    # reasoning model spends the token budget thinking and returns no text, which on a
+    # sixteen-token judge answer means every verdict comes back ungradeable.
+    extra:
+      reasoning_effort: none
+  - key: google-judge-mid
+    provider: google
+    model: gemini-3.8-flash
+    arm: snapshot
+    family: judge-mid
+    # Thinking is on by default on the Gemini 3 line and CANNOT be turned off; thinkingLevel's
+    # lowest value on 3.8 Flash is "low", not off, and it lives inside thinkingConfig. Found
+    # the hard way on the drift dry runs of 2026-09-12, where both Google arms returned empty
+    # content with finishReason MAX_TOKENS because the budget was spent thinking.
+    extra:
+      generationConfig:
+        thinkingConfig:
+          thinkingLevel: low

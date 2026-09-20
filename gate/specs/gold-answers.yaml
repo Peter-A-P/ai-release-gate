@@ -1,0 +1,42 @@
+# The three models that write the gold set's answers (PLAN.md B4).
+#
+# Chosen for SPREAD, not for quality. The gold set exists to calibrate a judge, and a judge is
+# only tested by a set that contains real failures, so a small model is as important here as a
+# large one. If all 300 answers were good, a judge that answered "faithful" to everything would
+# score 100% and we would have learned nothing about it.
+#
+# The two vendor identifiers below are the ones this project has already made 16,800 calls
+# against in the drift runs of 2026-09-13 and 2026-09-16, so they are known to work, known to
+# be priced correctly in drift/config/prices, and known to answer inside a token budget.
+#
+# The small model is NOT chosen yet. `Panel.ready` is false while any model contains "CHOOSE",
+# and `gate gold generate` refuses to run against a panel that is not ready, so this cannot be
+# forgotten on the day. What is wanted: something small enough to produce faithfulness failures
+# on an easy document, from the `openweights` provider the drift control already uses.
+#
+# The judges are a separate file (gold-judges.yaml) and MUST NOT appear here. A model that both
+# writes an answer and judges it is grading its own homework, and the kappa that came out of
+# that would be measuring nothing.
+version: 1
+chosen: null
+notes: "Two identifiers carried over from the drift panel, confirmed 2026-09-12 and exercised in two full runs. The small model is still to be chosen; the panel refuses to run until it is."
+
+arms:
+  - key: openweights-small
+    provider: openweights
+    model: CHOOSE-a-small-open-weights-model
+    arm: snapshot
+    family: small
+  - key: anthropic-mid
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+    arm: snapshot
+    family: mid
+  - key: anthropic-large
+    provider: anthropic
+    model: claude-sonnet-5
+    arm: snapshot
+    family: large
+    # Sonnet 5 returns 400 "`temperature` is deprecated for this model" when the field is
+    # present. Found on the first drift dry run, 2026-09-12; the same fix applies here.
+    omit: [temperature]

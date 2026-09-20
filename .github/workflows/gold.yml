@@ -1,0 +1,102 @@
+name: gold
+
+# Part B stage 2: generating the judge calibration gold set, and running a judge over it.
+#
+# This is a manual workflow, never scheduled. It is the only place in the project besides the
+# monthly drift run where vendor calls are made, for the reason CLAUDE.md gives: this project's
+# laptop sits behind a TLS inspection proxy on the work network, so vendor calls belong here.
+#
+# Both jobs are RESUMABLE and both are bounded by `--limit`. A run that stops halfway leaves a
+# committed prefix, and running it again continues from there rather than paying twice.
+#
+# The whole of stage 2 is about US$2 (300 answers) and stage 3 about US$6 (two judges, 300
+# instances, two readings and a swap). The `limit` input exists so the first run of each can be
+# a handful of calls that prove the wiring before the rest is paid for.
+
+on:
+  workflow_dispatch:
+    inputs:
+      what:
+        description: "answers (generate the gold set) or judge (run a judge over it)"
+        required: true
+        type: choice
+        options: [answers, judge]
+        default: answers
+      judge_key:
+        description: "for what=judge: which judge in gate/specs/gold-judges.yaml"
+        required: false
+        default: openai-judge-small
+      repeats:
+        description: "for what=judge: readings per instance (2 gives the test-retest figure)"
+        required: false
+        default: "1"
+      swap:
+        description: "for what=judge: also read each case with the parts reordered (order bias)"
+        required: false
+        type: boolean
+        default: false
+      limit:
+        description: "stop after this many vendor calls; 0 for no limit. Start small."
+        required: false
+        default: "6"
+
+jobs:
+  gold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      # --all-extras: the gate needs mselect, which the monthly drift job does not install.
+      - run: uv sync --frozen --all-extras
+
+      - name: Show what is there before anything is spent
+        run: uv run gate gold status
+
+      - name: Generate the gold set's answers
+        if: ${{ inputs.what == 'answers' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
+        run: |
+          uv run gate gold generate \
+            --i-am-allowed-to-call-vendors \
+            --limit "${{ inputs.limit }}"
+
+      - name: Run a judge over the gold set
+        if: ${{ inputs.what == 'judge' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
+        run: |
+          ARGS="--i-am-allowed-to-call-vendors --judge-key ${{ inputs.judge_key }}"
+          ARGS="$ARGS --repeats ${{ inputs.repeats }} --limit ${{ inputs.limit }}"
+          if [ "${{ inputs.swap }}" = "true" ]; then ARGS="$ARGS --swap"; fi
+          uv run gate judge run $ARGS
+
+      - name: Say what is there now
+        # Runs even when the step above failed, because a partial run has still been paid for
+        # and its records are still worth committing.
+        if: always()
+        run: uv run gate gold status
+
+      - name: Commit the record
+        if: always()
+        run: |
+          git config user.name "Peter Parker"
+          git config user.email "peter.alexander.parker@outlook.com"
+          # The ledger's SQLite sidecars are gitignored for the reason drift/runs' are: they
+          # are scratch, they are rewritten merely by opening the database, and 128 of them
+          # once buried the real changes in this repository.
+          git add gate/gold
+          git commit -m "Gold set: ${{ inputs.what }}${{ inputs.what == 'judge' && format(' ({0})', inputs.judge_key) || '' }}" || echo "nothing to commit"
+          git pull --rebase origin main
+          git push

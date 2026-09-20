@@ -97,6 +97,28 @@ honest release gate for prompt and model changes (phase 2).
 - The power numbers are a floor and the bank cannot place this panel; every power line says
   so in its note, and the note is not to be shortened.
 
+## Part B stage 2, the gold set (`gate/gold/`, `gate/judge/`)
+
+- **The rubric in `docs/judge-rubric.md` is the standard; the judge's prompt is a shortened
+  form of it.** Edit one and you must edit the other, or the human and the judge are applying
+  different standards and the kappa between them measures the edit. A test holds them together.
+- **Never revise the rubric to make the judge agree with it.** Same rule as never tuning the
+  refusal classifier to make a vendor look safe. A rubric change means a version bump, a
+  re-read of the affected labels, and a calibration recomputed from scratch.
+- **Labelling is blind**: the labeller sees neither which model wrote the answer nor what the
+  judge said, and no running agreement figure is printed. A labeller told how well they are
+  matching something starts matching it.
+- **A label carries the hash of the text that was read.** If the text changes the label is
+  dropped, not carried over. `gate gold status` says how many were dropped.
+- **Labels are append-only.** A correction is a new line; the last one wins.
+- **No vendor appears on both the answering panel and the judge panel** (`gate/specs/gold-*.yaml`),
+  and a test enforces it.
+- **`gate gold generate` and `gate judge run` are the only commands here that spend money.**
+  Both refuse without `--i-am-allowed-to-call-vendors`, both are resumable, both take
+  `--limit`. They belong in the `gold` workflow, not on this laptop.
+- An unparseable judge verdict is **ungradeable, not a disagreement**, exactly as an errored
+  call is absent from the drift record's accuracy rather than counted wrong.
+
 ## What goes in the README
 
 The README opens with the one-liner, the results table, and the honest limitation, before

@@ -45,3 +45,10 @@ drift/runs/*/*/raw-heldout/
 
 # The Rule C judge experiment keeps its raw store like the record does; only temp files go.
 drift/experiments/*/*/raw/*.tmp
+
+# Part B's gold set keeps its ledger like the drift record does: the database is committed,
+# SQLite's scratch sidecars are not, and boundary's raw store keeps only finished files.
+gate/gold/ledger.sqlite-wal
+gate/gold/ledger.sqlite-shm
+gate/gold/raw/*.tmp
+gate/gold/raw-judge/*.tmp
