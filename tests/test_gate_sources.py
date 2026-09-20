@@ -143,3 +143,33 @@ def test_the_shipped_source_list_loads_and_is_internally_consistent() -> None:
         assert s.id.startswith(s.publisher + "-"), f"{s.id} does not name its publisher"
         assert s.url.startswith("https://")
         assert s.licence
+
+
+def test_the_whole_fetch_has_a_deadline_because_the_per_page_timeout_is_not_one() -> None:
+    """urllib's timeout is a socket timeout. A host that dribbles bytes, or a chain of
+    redirects each getting a fresh allowance, runs past it; a sixteen-page probe in CI on
+    2026-09-20 ran past the twelve minutes its per-page timeouts implied. Pages not reached
+    are reported as not attempted, which is different from a URL being wrong."""
+    now = [0.0]
+
+    def slow(url: str) -> bytes:
+        now[0] += 60.0
+        raise TimeoutError("dribbling")
+
+    specs = [spec(n) for n in range(1, 7)]
+    results = fetch_all(specs, opener=slow, deadline_s=180.0, clock=lambda: now[0])
+    assert len(results) == 6
+    attempted = [r for r in results if r.error is not None and "not attempted" not in r.error]
+    not_attempted = [r for r in results if r.error is not None and "not attempted" in r.error]
+    assert len(attempted) == 3 and len(not_attempted) == 3
+    assert "180s deadline" in not_attempted[0].error  # type: ignore[operator]
+
+
+def test_an_enormous_response_is_refused_rather_than_stored() -> None:
+    """A regulator page is tens of kilobytes. Something far larger is not the page that was
+    wanted, and the default opener stops reading one byte past the cap rather than pulling a
+    hundred megabytes down to discover that."""
+    huge = b"<p>" + b"x" * (sources.MAX_BYTES + 10) + b"</p>"
+    result = fetch_one(spec(), opener=lambda url: huge)
+    assert not result.ok
+    assert result.error is not None and "not a page a question is written from" in result.error

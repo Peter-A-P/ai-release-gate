@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -33,7 +34,19 @@ from pydantic import BaseModel, ConfigDict, Field
 from gate.gold import Publisher, SourceDoc, utc_now
 
 USER_AGENT = "ai-release-gate/1 (gold set for judge calibration; one-off)"
-TIMEOUT_S = 45
+
+# `urllib`'s timeout is a SOCKET timeout, not a deadline. A host that dribbles bytes, or a
+# chain of redirects each getting a fresh allowance, can hold a single fetch open far longer
+# than this number suggests, and on 2026-09-20 a sixteen-page probe in CI ran past the twelve
+# minutes its per-page timeouts implied. So there are three limits, not one: this per socket
+# operation, `MAX_BYTES` on what is read, and `DEADLINE_S` across the whole list.
+TIMEOUT_S = 20
+# A regulator page is tens of kilobytes. Anything past this is not the page that was wanted,
+# and reading it to the end to find that out is the slow way.
+MAX_BYTES = 4_000_000
+# The whole fetch, in seconds. Past it the remaining pages are reported as not attempted,
+# which is a fact worth having rather than a job that hangs until the runner kills it.
+DEADLINE_S = 300.0
 
 # A passage long enough to support two or three real questions and short enough that showing it
 # to a judge 300 times, twice, costs cents rather than dollars. Cut at a paragraph boundary, so
@@ -179,7 +192,8 @@ def _open(url: str) -> bytes:
     with urllib.request.urlopen(request, timeout=TIMEOUT_S) as response:
         if response.status != 200:
             raise FetchError(f"status {response.status}")
-        body = response.read()
+        # One byte past the cap, so an oversized page is detected without reading it whole.
+        body = response.read(MAX_BYTES + 1)
     return bytes(body)
 
 
@@ -189,6 +203,10 @@ def fetch_one(spec: SourceSpec, opener: Opener | None = None) -> Fetched:
         body = read(spec.url)
     except (urllib.error.URLError, OSError, FetchError) as e:
         return Fetched(spec, None, f"{type(e).__name__}: {e}")
+    if len(body) > MAX_BYTES:
+        return Fetched(
+            spec, None, f"over {MAX_BYTES} bytes; this is not a page a question is written from"
+        )
     text = passage(to_text(body.decode("utf-8", errors="replace")))
     if len(text) < MIN_PASSAGE_CHARS:
         return Fetched(
@@ -218,9 +236,26 @@ def fetch_all(
     *,
     opener: Opener | None = None,
     skip: set[str] | None = None,
+    deadline_s: float = DEADLINE_S,
+    clock: Callable[[], float] = time.monotonic,
 ) -> list[Fetched]:
+    """Every page not already stored, until the deadline.
+
+    The deadline exists because the per-page timeout is not one: see TIMEOUT_S. A page not
+    reached is reported as not attempted rather than silently missing, so the next run knows
+    the difference between "this URL is wrong" and "we ran out of time before asking".
+    """
     done = skip or set()
-    return [fetch_one(s, opener) for s in specs if s.id not in done]
+    started = clock()
+    out: list[Fetched] = []
+    for spec in specs:
+        if spec.id in done:
+            continue
+        if clock() - started >= deadline_s:
+            out.append(Fetched(spec, None, f"not attempted: {deadline_s:.0f}s deadline reached"))
+            continue
+        out.append(fetch_one(spec, opener))
+    return out
 
 
 def load_specs(path: Path) -> list[SourceSpec]:
