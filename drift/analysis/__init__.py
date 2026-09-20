@@ -7,7 +7,13 @@ from drift.analysis.metrics import (
     drift_declared,
     month_over_month,
 )
-from drift.analysis.stats import Estimate, bootstrap_mean, mcnemar_exact, percentile
+from drift.analysis.stats import (
+    Estimate,
+    bootstrap_mean,
+    bootstrap_mean_by_cluster,
+    mcnemar_exact,
+    percentile,
+)
 
 __all__ = [
     "ArmMetrics",
@@ -15,6 +21,7 @@ __all__ = [
     "MonthOverMonth",
     "arm_metrics",
     "bootstrap_mean",
+    "bootstrap_mean_by_cluster",
     "drift_declared",
     "mcnemar_exact",
     "month_over_month",
