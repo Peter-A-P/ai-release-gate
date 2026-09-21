@@ -88,8 +88,11 @@ without thinking about whether it was true.
 
 ## How to work
 
-- `uv run gate gold label` shows one answer at a time. Two keypresses each.
-- **Stop whenever you like.** Progress is saved after every label and the queue resumes.
+- `uv run gate gold label` shows one answer at a time. Two keypresses each: `y` or `n` for
+  faithful, then `y` or `n` for complete. `f` shows the whole answer and source, `s` skips this
+  one, `q` stops. Anything else is treated as a slip and the same instance is asked again.
+- **Stop whenever you like.** Progress is saved after every label and the queue resumes. A
+  skipped instance is unfinished rather than done, so it comes back next time.
 - Expect roughly 45 to 75 seconds per instance once you are warmed up. 300 instances is about
   four to five hours, which is why it is spread over a week of evenings rather than a weekend.
 - If a case is genuinely unclear, press `n` to attach a note and move on. Notes are read when
@@ -98,6 +101,14 @@ without thinking about whether it was true.
 - **Do not go back and revise earlier labels to match later ones.** If your reading changes
   partway through, finish the pass, then say so. A drifting standard is exactly what the second
   pass is there to detect, and silently smoothing it over destroys that evidence.
+- **A slip is not a revision, and it is fixed with `--redo`.** `uv run gate gold label --redo
+  1,3,4` reopens those instances, shows you what you said last time, and appends your new
+  judgement; the old line stays in the file and the last one wins. This is for the wrong key
+  pressed, or an answer you realise you misread, on one instance you can name. It is not for
+  sweeping back through a batch to bring it into line with how you are reading things now,
+  which is the previous point and still forbidden. The difference is whether you are correcting
+  a mistake about one answer or correcting the standard: the first is a repair, the second
+  destroys the evidence the second pass exists to produce.
 
 ## The second pass
 

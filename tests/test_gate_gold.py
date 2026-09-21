@@ -257,3 +257,110 @@ def test_the_gold_set_is_the_shape_the_plan_asked_for() -> None:
     )
     assert {q.source_id for q in questions} == set(g.by_source), "every document carries a question"
     assert g.problems() == []
+
+
+# --------------------------------------------------------------- the interactive labelling pass
+
+
+def _stock_gold(root: Path) -> None:
+    """Three instances over one question, enough to tell a skip from a label."""
+    gold.write_all(
+        root / gold.SOURCES_FILE, [source(text="A refund takes 15 business days. " * 40)]
+    )
+    gold.write_all(root / gold.QUESTIONS_FILE, [question()])
+    gold.write_all(
+        root / gold.INSTANCES_FILE,
+        [instance(1), instance(2, arm="big"), instance(3, arm="mid")],
+    )
+
+
+def _drive(root: Path, keys: list[str], monkeypatch: pytest.MonkeyPatch, *args: str) -> str:
+    import click
+    from typer.testing import CliRunner
+
+    import gate.cli as cli
+
+    monkeypatch.setenv("COLUMNS", "200")
+    monkeypatch.setattr(cli, "GOLD", root)
+    presses = iter(keys)
+    monkeypatch.setattr(click, "getchar", lambda: next(presses))
+    result = CliRunner().invoke(cli.app, ["gold", "label", *args])
+    assert result.exit_code == 0, result.output
+    return result.output
+
+
+def test_a_stray_key_asks_again_instead_of_silently_skipping(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The bug this exists for cost a real labelling session. Pressing `/` was neither y nor n,
+    and the command treated everything it did not recognise as a skip, so the instance vanished
+    with nothing on screen saying so. Only an explicit `s` skips now."""
+    _stock_gold(tmp_path)
+    out = _drive(tmp_path, ["/", "y", "y", "x", "q"], monkeypatch)
+
+    assert "that is not y, n, f, s or q" in out
+    labels = gold.read_labels(tmp_path / gold.LABELS_FILE)
+    assert [lab.instance_id for lab in labels] == ["i-0001"], (
+        "the stray key must re-ask the same instance, not drop it and move on"
+    )
+    assert labels[0].faithful and labels[0].complete
+
+
+def test_an_explicit_skip_still_skips_and_comes_back_next_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stock_gold(tmp_path)
+    _drive(tmp_path, ["s", "y", "n", "x", "q"], monkeypatch)
+    labels = gold.read_labels(tmp_path / gold.LABELS_FILE)
+    assert [lab.instance_id for lab in labels] == ["i-0002"], "the skipped one wrote nothing"
+
+    out = _drive(tmp_path, ["q"], monkeypatch)
+    assert "2 left" in out, "a skipped instance is unfinished, so it returns to the queue"
+
+
+def test_redo_reopens_a_label_and_the_last_line_wins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Labels are append-only, so a correction is a new line and the old one stays in the file.
+    Without --redo an already-labelled instance never comes back and the judgement is stuck."""
+    _stock_gold(tmp_path)
+    _drive(tmp_path, ["y", "y", "x", "q"], monkeypatch)
+
+    out = _drive(tmp_path, ["n", "n", "x", "q"], monkeypatch, "--redo", "1")
+    assert "re-reading 1" in out
+    assert "you said: faithful=True complete=True" in out, (
+        "a correction made from memory is not a correction; show the labeller their own line"
+    )
+
+    raw = (tmp_path / gold.LABELS_FILE).read_text(encoding="utf-8").strip().splitlines()
+    assert len(raw) == 2, "the first judgement is superseded, never erased"
+    current = gold.latest_labels(gold.read_labels(tmp_path / gold.LABELS_FILE))
+    assert current["i-0001"].faithful is False and current["i-0001"].complete is False
+
+
+def test_redo_takes_bare_numbers_and_refuses_an_id_that_does_not_exist(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import click
+    from typer.testing import CliRunner
+
+    import gate.cli as cli
+
+    assert cli._redo_ids("1,3, i-0004 5") == ["i-0001", "i-0003", "i-0004", "i-0005"]
+
+    _stock_gold(tmp_path)
+    monkeypatch.setattr(cli, "GOLD", tmp_path)
+    monkeypatch.setattr(click, "getchar", lambda: "q")
+    result = CliRunner().invoke(cli.app, ["gold", "label", "--redo", "i-9999"])
+    assert result.exit_code == 2
+    assert "no such instance: i-9999" in result.output
+
+
+def test_labelling_never_shows_the_model_or_the_judge(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The blind rule from CLAUDE.md, driven through the real command rather than asserted."""
+    _stock_gold(tmp_path)
+    out = _drive(tmp_path, ["y", "y", "x", "q"], monkeypatch)
+    for leak in ("vendor/model", "big", "mid", "verdict", "kappa"):
+        assert leak not in out, f"the pass must not reveal {leak!r} while labelling"

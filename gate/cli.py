@@ -254,6 +254,18 @@ def _gold_or_exit() -> gold.GoldSet:
     return g
 
 
+def _redo_ids(raw: str) -> list[str]:
+    """The instance ids named on --redo. A bare number means the id it obviously means, so
+    `--redo 4` and `--redo i-0004` are the same thing, and spaces count as commas."""
+    out: list[str] = []
+    for token in raw.replace(" ", ",").split(","):
+        token = token.strip()
+        if not token:
+            continue
+        out.append(f"i-{int(token):04d}" if token.isdigit() else token)
+    return out
+
+
 @gold_app.command("status")
 def gold_status() -> None:
     """What the gold set holds and how much of it has been read."""
@@ -266,12 +278,19 @@ def gold_label(
         int, typer.Option("--pass", help="1 for the full read, 2 for the intra-rater re-read")
     ] = 1,
     limit: Annotated[int, typer.Option(help="stop after this many, 0 for no limit")] = 0,
+    redo: Annotated[
+        str,
+        typer.Option(help="re-read ones already labelled, comma separated: --redo 1,3,4,5"),
+    ] = "",
 ) -> None:
     """Read model answers and judge them against docs/judge-rubric.md. Two keypresses each.
 
     You never see which model wrote the answer, and you never see what the judge said. Both are
     hidden because a label that reacts to either is not a measurement of either. Resumable:
     stop whenever you like and run the same command again.
+
+    To change your mind about one you have already done, name it on --redo. Labels are
+    append-only, so the correction is a new line and the last one wins; nothing is erased.
     """
     import click
 
@@ -298,8 +317,24 @@ def gold_label(
 
         _random.Random(gold.INTRA_RATER_SEED + 1).shuffle(queue)
 
-    todo = [i for i in queue if i not in done]
-    typer.echo(f"pass {pass_no}: {len(queue)} to read, {len(done)} done, {len(todo)} left.")
+    wanted = _redo_ids(redo)
+    unknown = [i for i in wanted if i not in instances]
+    if unknown:
+        typer.echo(f"no such instance: {', '.join(unknown)}", err=True)
+        raise typer.Exit(2)
+    if wanted:
+        in_queue = set(queue)
+        todo = [i for i in queue if i in wanted]
+        outside = [i for i in wanted if i not in in_queue]
+        if outside:
+            typer.echo(f"  not in pass {pass_no}'s queue, ignored: {', '.join(outside)}")
+        typer.echo(
+            f"pass {pass_no}: re-reading {len(todo)}. Your new judgement is appended and the "
+            "last one wins; the old line stays in the file."
+        )
+    else:
+        todo = [i for i in queue if i not in done]
+        typer.echo(f"pass {pass_no}: {len(queue)} to read, {len(done)} done, {len(todo)} left.")
     typer.echo("  the rubric is docs/judge-rubric.md; read it before the first one\n")
     typer.echo("  FAITHFUL: every claim supported by the source?   y / n")
     typer.echo("  COMPLETE: does it address the question?          y / n")
@@ -319,6 +354,15 @@ def gold_label(
         stop = skip = False
         while True:
             typer.echo(f"[{position}/{len(todo)}] {instance.id}")
+            previous = done.get(instance.id)
+            if previous is not None:
+                # Your own earlier judgement, which is neither the model's name nor the judge's
+                # verdict, so showing it breaks no blind. Without it a correction is made from
+                # memory.
+                typer.echo(
+                    f"  you said: faithful={previous.faithful} complete={previous.complete}"
+                    + (f", note {previous.note!r}" if previous.note else "")
+                )
             typer.echo(f"  source  : {source.title}")
             typer.echo(f"  passage : {' '.join(source.text.split())[:shown]}")
             typer.echo(f"  question: {' '.join(question.question.split())}")
@@ -340,16 +384,22 @@ def gold_label(
                 if ch == "q":
                     stop = True
                     break
-                if ch == "s" or ch not in ("y", "n"):
+                if ch == "s":
                     skip = True
+                    break
+                if ch not in ("y", "n"):
+                    # Only an explicit s skips. Any other key is a slip, and treating a slip as
+                    # a skip drops the instance with nothing on screen saying so, which is how
+                    # a labelling session quietly loses items.
+                    typer.echo("    that is not y, n, f, s or q; this one again")
                     break
                 judgements.append(ch == "y")
             if stop or skip or len(judgements) == 2:
                 break
             if expand:
                 shown = max(len(answer), len(" ".join(source.text.split())))
-                judgements.clear()
-                typer.echo("")
+            judgements.clear()
+            typer.echo("")
         if stop:
             typer.echo("stopped; run the same command again to carry on")
             break
