@@ -12,6 +12,8 @@ else's middlebox (CLAUDE.md). `gold label` and `judge calibrate` are offline.
 
 from __future__ import annotations
 
+import shutil
+import textwrap
 from collections.abc import Collection
 from pathlib import Path
 from typing import Annotated
@@ -254,6 +256,22 @@ def _gold_or_exit() -> gold.GoldSet:
     return g
 
 
+def _field(label: str, text: str) -> None:
+    """One labelled field, whole, wrapped to the terminal.
+
+    Nothing shown to a labeller is ever cut short. The judge is given the entire passage, so a
+    labeller shown less is applying the same rubric to less evidence, and the agreement between
+    the two would be measuring the truncation rather than the standard. The first version
+    stopped at 900 characters with no mark to say it had: every one of the 40 passages is longer
+    than that, so every question was answered from a fragment.
+    """
+    width = max(60, min(shutil.get_terminal_size((100, 24)).columns - 1, 110))
+    head = f"  {label:<8}: "
+    typer.echo(
+        textwrap.fill(text, width=width, initial_indent=head, subsequent_indent=" " * len(head))
+    )
+
+
 def _redo_ids(raw: str) -> list[str]:
     """The instance ids named on --redo. A bare number means the id it obviously means, so
     `--redo 4` and `--redo i-0004` are the same thing, and spaces count as commas."""
@@ -338,7 +356,8 @@ def gold_label(
     typer.echo("  the rubric is docs/judge-rubric.md; read it before the first one\n")
     typer.echo("  FAITHFUL: every claim supported by the source?   y / n")
     typer.echo("  COMPLETE: does it address the question?          y / n")
-    typer.echo("  f = show the whole answer and source   s = skip   q = stop (progress saved)\n")
+    typer.echo("  s = skip this one   q = stop (progress saved)")
+    typer.echo("  the passage and the answer are always shown whole, never cut\n")
 
     asked = 0
     for position, instance_id in enumerate(todo, 1):
@@ -349,7 +368,6 @@ def gold_label(
         question = g.by_question[instance.question_id]
         source = g.by_source[question.source_id]
         answer = " ".join(instance.output.split()) or "(the model returned nothing)"
-        shown = 900
         judgements: list[bool] = []
         stop = skip = False
         while True:
@@ -363,24 +381,20 @@ def gold_label(
                     f"  you said: faithful={previous.faithful} complete={previous.complete}"
                     + (f", note {previous.note!r}" if previous.note else "")
                 )
-            typer.echo(f"  source  : {source.title}")
-            typer.echo(f"  passage : {' '.join(source.text.split())[:shown]}")
-            typer.echo(f"  question: {' '.join(question.question.split())}")
+            _field("source", source.title)
+            _field("passage", " ".join(source.text.split()))
+            typer.echo("")
+            _field("question", " ".join(question.question.split()))
             if question.unanswerable:
                 typer.echo("            (this one is NOT answerable from the passage)")
-            typer.echo(f"  expects : {'; '.join(question.must_mention)}")
-            typer.echo(f"  ANSWER  : {answer[:shown]}{'...' if len(answer) > shown else ''}")
+            _field("expects", "; ".join(question.must_mention))
+            typer.echo("")
+            _field("ANSWER", answer)
             if instance.truncated:
                 typer.echo("            (cut off at the token budget)")
-            expand = False
             for label in ("FAITHFUL", "COMPLETE"):
                 typer.echo(f"  {label}? y / n  ")
                 ch = click.getchar().lower()
-                if ch == "f":
-                    # Show everything and start this instance's two judgements again, so a
-                    # judgement is never made on a truncated view of the answer.
-                    expand = True
-                    break
                 if ch == "q":
                     stop = True
                     break
@@ -391,13 +405,11 @@ def gold_label(
                     # Only an explicit s skips. Any other key is a slip, and treating a slip as
                     # a skip drops the instance with nothing on screen saying so, which is how
                     # a labelling session quietly loses items.
-                    typer.echo("    that is not y, n, f, s or q; this one again")
+                    typer.echo("    that is not y, n, s or q; this one again")
                     break
                 judgements.append(ch == "y")
             if stop or skip or len(judgements) == 2:
                 break
-            if expand:
-                shown = max(len(answer), len(" ".join(source.text.split())))
             judgements.clear()
             typer.echo("")
         if stop:

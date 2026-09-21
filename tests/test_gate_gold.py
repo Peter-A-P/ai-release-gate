@@ -298,7 +298,7 @@ def test_a_stray_key_asks_again_instead_of_silently_skipping(
     _stock_gold(tmp_path)
     out = _drive(tmp_path, ["/", "y", "y", "x", "q"], monkeypatch)
 
-    assert "that is not y, n, f, s or q" in out
+    assert "that is not y, n, s or q" in out
     labels = gold.read_labels(tmp_path / gold.LABELS_FILE)
     assert [lab.instance_id for lab in labels] == ["i-0001"], (
         "the stray key must re-ask the same instance, not drop it and move on"
@@ -364,3 +364,68 @@ def test_labelling_never_shows_the_model_or_the_judge(
     out = _drive(tmp_path, ["y", "y", "x", "q"], monkeypatch)
     for leak in ("vendor/model", "big", "mid", "verdict", "kappa"):
         assert leak not in out, f"the pass must not reveal {leak!r} while labelling"
+
+
+def test_the_labeller_is_shown_the_whole_passage_the_judge_is_shown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The one that matters. The judge's prompt carries the entire source; the pass used to cut
+    the labeller's view at 900 characters with nothing on screen to say so, and every one of the
+    40 real passages is longer than that. Kappa between a human reading a fragment and a model
+    reading the whole thing measures the fragment, not the standard.
+    """
+    from gate.judge import rubric
+
+    tail = "The waiting period ends on the thirtieth day."
+    body = ("A refund takes 15 business days. " * 40) + tail
+    gold.write_all(tmp_path / gold.SOURCES_FILE, [source(text=body)])
+    gold.write_all(tmp_path / gold.QUESTIONS_FILE, [question()])
+    gold.write_all(tmp_path / gold.INSTANCES_FILE, [instance(1)])
+    assert len(body) > 900, "the fixture has to be long enough to have been cut"
+
+    out = _drive(tmp_path, ["y", "y", "x", "q"], monkeypatch)
+
+    shown = " ".join(out.split())
+    assert tail in shown, "the end of the passage never reached the labeller"
+    g = gold.load(tmp_path)
+    prompt = rubric.judge_prompt(
+        source=g.by_source["fcac-001"], question=g.by_question["q-001"], answer="15 days."
+    )
+    for sentence in (tail, body[:60]):
+        assert " ".join(sentence.split()) in " ".join(prompt.split()), "fixture assumption"
+        assert " ".join(sentence.split()) in shown, (
+            "the labeller and the judge must be given the same evidence"
+        )
+
+
+def test_a_long_answer_is_not_cut_either(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ending = "and that is the final word on it."
+    long_answer = ("It depends on the account and the branch and the day. " * 25) + ending
+    gold.write_all(tmp_path / gold.SOURCES_FILE, [source()])
+    gold.write_all(tmp_path / gold.QUESTIONS_FILE, [question()])
+    gold.write_all(tmp_path / gold.INSTANCES_FILE, [instance(1, output=long_answer)])
+
+    out = _drive(tmp_path, ["n", "n", "x", "q"], monkeypatch)
+    assert ending in " ".join(out.split()), "a judgement on half an answer is not a judgement"
+
+
+def test_long_text_is_wrapped_rather_than_run_off_the_terminal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Whole is not the same as readable. 2,500 characters on one line is unusable in a
+    terminal, and this pass is four hours of someone's evenings."""
+    gold.write_all(
+        tmp_path / gold.SOURCES_FILE, [source(text="A refund takes 15 business days. " * 80)]
+    )
+    gold.write_all(tmp_path / gold.QUESTIONS_FILE, [question()])
+    gold.write_all(tmp_path / gold.INSTANCES_FILE, [instance(1)])
+
+    out = _drive(tmp_path, ["y", "y", "x", "q"], monkeypatch)
+    # The closing "labels are in <path>" is a file path, which is not prose and is
+    # not ours to fold.
+    body = [ln for ln in out.splitlines() if not ln.startswith("labels are in")]
+    longest = max(body, key=len)
+    assert len(longest) <= 120, repr(longest)
+    assert sum(1 for ln in body if ln.lstrip().startswith("A refund")) > 10, (
+        "the passage should be folded over many lines, not one"
+    )

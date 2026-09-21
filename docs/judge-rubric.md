@@ -89,8 +89,12 @@ without thinking about whether it was true.
 ## How to work
 
 - `uv run gate gold label` shows one answer at a time. Two keypresses each: `y` or `n` for
-  faithful, then `y` or `n` for complete. `f` shows the whole answer and source, `s` skips this
-  one, `q` stops. Anything else is treated as a slip and the same instance is asked again.
+  faithful, then `y` or `n` for complete. `s` skips this one, `q` stops. Anything else is
+  treated as a slip and the same instance is asked again.
+- **The passage and the answer are always shown whole**, wrapped to your terminal. This is not
+  a convenience. The judge's prompt carries the entire source, so a labeller shown a fragment is
+  applying this rubric to less evidence than the judge had, and the agreement between the two
+  would be measuring the difference in what they were given.
 - **Stop whenever you like.** Progress is saved after every label and the queue resumes. A
   skipped instance is unfinished rather than done, so it comes back next time.
 - Expect roughly 45 to 75 seconds per instance once you are warmed up. 300 instances is about
