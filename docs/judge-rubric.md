@@ -136,3 +136,29 @@ treats that as a limitation.
 - **A label whose answer text has changed is dropped, not carried over.** Every label stores the
   hash of the text that was read, because a judgement is about the words that were in front of
   the reader.
+
+## The distractor stratum (`d-` instances)
+
+Added 2026-09-22, after the first 300 were read.
+
+Some instances serve a question against a document that **does not answer it**. The question
+is a real one, answerable from its own page; the page in front of the model is a different one
+from the same corpus, checked to contain none of the answer.
+
+Label them exactly as everything else. Nothing changes about the rubric:
+
+- An answer that says the document does not cover this is **faithful**. That is the correct
+  behaviour and it is not a failure.
+- An answer that states a figure or a rule is **not faithful**, however true the statement
+  happens to be in the world, because the document in front of you does not support it. This
+  is the one place where the distinction between "true" and "supported" does the whole job,
+  and the rubric has always been about supported.
+- Completeness is unchanged: did the answer address the question that was asked.
+
+You will not be told which instances these are, and you should not try to work it out. If the
+passage does not contain the answer, judge on that, the same as you would for one of the twelve
+questions that were written unanswerable from the start.
+
+Why they exist: read by hand, the first 300 answers were faithful 300 of 300. A set with no
+unfaithful answer in it cannot measure whether a judge can spot one, so a judge calibrated on
+it would have a number that means nothing. `gate/distractors.py` says the rest.

@@ -54,7 +54,7 @@ def test_a_failed_call_is_stored_as_an_empty_answer_rather_than_dropped() -> Non
             return FakeReply(None, finish_reason=None, cost_usd=None)
         return FakeReply("15 business days.")
 
-    out = generate.generate([question()], sources, ARMS, caller, run_id="g1")
+    out = generate.generate(generate.plan([question()], sources, ARMS), caller, run_id="g1")
     assert [i.id for i in out] == ["i-0001", "i-0002"]
     assert out[1].output == "" and out[1].output_sha256 == gold.sha256_of("")
     assert out[1].cost_usd is None
@@ -69,7 +69,9 @@ def test_generation_resumes_and_does_not_pay_twice() -> None:
         calls.append(job.instance_id)
         return FakeReply("ok")
 
-    first = generate.generate([question()], sources, ARMS, caller, run_id="g1", skip={"i-0001"})
+    first = generate.generate(
+        generate.plan([question()], sources, ARMS), caller, run_id="g1", skip={"i-0001"}
+    )
     assert calls == ["i-0002"] and [i.id for i in first] == ["i-0002"]
 
 
@@ -175,5 +177,7 @@ def test_answers_already_paid_for_survive_a_failure_midway() -> None:
         return FakeReply("15 business days.")
 
     with contextlib.suppress(RuntimeError):
-        generate.generate([question()], sources, ARMS, caller, run_id="g1", on_instance=kept.append)
+        generate.generate(
+            generate.plan([question()], sources, ARMS), caller, run_id="g1", on_instance=kept.append
+        )
     assert [i.id for i in kept] == ["i-0001"], "the answer before the failure is kept"

@@ -19,10 +19,10 @@ on:
   workflow_dispatch:
     inputs:
       what:
-        description: "sources (fetch the regulator pages), answers (generate the gold set), or judge"
+        description: "sources (fetch the pages), answers, distractors (the d- stratum), judge"
         required: true
         type: choice
-        options: [sources, answers, judge, probe-models]
+        options: [sources, answers, distractors, judge, probe-models]
         default: sources
       judge_key:
         description: "for what=judge: which judge in gate/specs/gold-judges.yaml"
@@ -98,6 +98,20 @@ jobs:
         run: |
           uv run gate gold generate \
             --i-am-allowed-to-call-vendors \
+            --limit "${{ inputs.limit }}"
+
+      - name: Generate the distractor stratum
+        if: ${{ inputs.what == 'distractors' }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
+        run: |
+          uv run gate gold generate \
+            --i-am-allowed-to-call-vendors \
+            --distractors \
+            --run-id "distractors-1" \
             --limit "${{ inputs.limit }}"
 
       - name: Run a judge over the gold set

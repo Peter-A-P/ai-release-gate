@@ -125,7 +125,10 @@ def run(
             continue
         instance = instances[instance_id]
         question = questions[instance.question_id]
-        source = sources[question.source_id]
+        # The document that was SERVED, which is the question's own for the first 300
+        # and a distractor for the d- stratum. Reading it off the question would show
+        # the judge a document the model never saw.
+        source = sources[instance.source_id]
         prompt = judge_prompt(source, question, instance.output)
         if position == "answer_first":
             prompt = swap_positions(prompt)

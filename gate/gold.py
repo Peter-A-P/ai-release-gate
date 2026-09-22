@@ -122,7 +122,11 @@ class AnswerInstance(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    id: str = Field(pattern=r"^i-\d{4}$")
+    # `i-` is an answer to the question's own document; `d-` is the distractor
+    # stratum, where the question was served against a document that does not
+    # support it. The served document is `source_id`, which is why that field
+    # exists rather than being read off the question.
+    id: str = Field(pattern=r"^[id]-\d{4}$")
     question_id: str
     source_id: str
     arm_key: str  # which model wrote it, by the panel's naming
@@ -303,7 +307,7 @@ class GoldSet(BaseModel):
         return out
 
 
-def _normalised(text: str) -> str:
+def normalised(text: str) -> str:
     return " ".join(text.split()).casefold()
 
 
@@ -323,9 +327,9 @@ def check_question(question: GoldQuestion, source: SourceDoc) -> list[str]:
     written as the phrase the document uses.
     """
     problems: list[str] = []
-    haystack = _normalised(source.text)
+    haystack = normalised(source.text)
     for point in question.must_mention:
-        present = _normalised(point) in haystack
+        present = normalised(point) in haystack
         if question.unanswerable and present:
             problems.append(
                 f"marked unanswerable, but {point!r} is in {source.id}; it is answerable"

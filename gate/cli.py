@@ -22,7 +22,7 @@ import typer
 
 from drift.panel import Arm, Panel, load_panel
 from drift.runner.records import arms_recorded, read_records, records_path
-from gate import __version__, aa, generate, gold, ledger, report
+from gate import __version__, aa, distractors, generate, gold, ledger, report
 from gate import sources as gold_sources
 from gate.decision import decide
 from gate.judge import calibration as calib
@@ -366,7 +366,9 @@ def gold_label(
             break
         instance = instances[instance_id]
         question = g.by_question[instance.question_id]
-        source = g.by_source[question.source_id]
+        # The document served to the model, which for a d- instance is not the
+        # question's own. The labeller must judge against what the model was given.
+        source = g.by_source[instance.source_id]
         answer = " ".join(instance.output.split()) or "(the model returned nothing)"
         judgements: list[bool] = []
         stop = skip = False
@@ -553,8 +555,15 @@ def gold_generate(
     ] = ANSWER_PANEL,
     run_id: Annotated[str, typer.Option(help="names this generation in every instance")] = "",
     limit: Annotated[int, typer.Option(help="stop after this many calls, 0 for no limit")] = 0,
+    distractor: Annotated[
+        bool,
+        typer.Option(
+            "--distractors",
+            help="the d- stratum: serve each question with a document that cannot answer it",
+        ),
+    ] = False,
 ) -> None:
-    """Ask three models the gold set's questions. Resumable, and it spends about US$2.
+    """Ask three models the gold set's questions. Resumable, and it spends about US$0.40.
 
     Questions and sources must already be in `gate/gold/`; this writes `instances.jsonl`.
     Nothing is retried: a failed call is stored as an empty answer, which is a real thing a
@@ -576,7 +585,21 @@ def gold_generate(
     panel = _panel_or_exit(panel_path)
     existing = gold.read_instances(GOLD / gold.INSTANCES_FILE)
     done = {i.id for i in existing}
-    total = generate.expected_calls(questions, panel.arms)
+    if distractor:
+        g0 = gold.load(GOLD)
+        try:
+            jobs = list(distractors.plan(g0, panel.arms))
+        except distractors.NoDistractorError as e:
+            typer.echo(str(e), err=True)
+            raise typer.Exit(2) from e
+        total = len(jobs)
+        typer.echo(
+            f"{total} distractor answers planned over "
+            f"{len(distractors.questions_for(g0))} questions."
+        )
+    else:
+        jobs = list(generate.plan(questions, sources, panel.arms))
+        total = len(jobs)
     typer.echo(f"{total} answers planned, {len(done)} already stored, {total - len(done)} to make.")
 
     made = 0
@@ -613,9 +636,7 @@ def gold_generate(
 
         try:
             generate.generate(
-                questions,
-                sources,
-                panel.arms,
+                jobs,
                 caller,  # type: ignore[arg-type]
                 run_id=run_id or "gold-1",
                 skip=done,

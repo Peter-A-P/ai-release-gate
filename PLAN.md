@@ -904,6 +904,32 @@ overlapping. Labelled by hand against a written rubric.
 Labelling budget is one week of evenings; the project file already warns this is the
 hidden cost.
 
+**Amended 2026-09-22, after the 300 were labelled: the premise above was wrong.** "Three
+models of different sizes, so the set contains real failures" did not survive contact with
+the measurement. Read by hand, the 300 came back **faithful 300 of 300 and complete 298 of
+300**, including all 36 answers to the twelve deliberately unanswerable questions, where every
+model correctly said the document does not cover it. That is a real result about current
+models on extractive QA over a clean 2,200-character regulator passage, and it is published as
+one. It is also fatal to the calibration: with no negative instance there is no specificity to
+measure, Cohen's kappa is undefined, and Rogan-Gladen has nothing to correct with. Driving
+this project's own `cohens_kappa` over the labels against a judge that says "faithful" to
+everything, and against a judge that agrees with the human everywhere, returns the same pair of
+numbers both times, agreement 1.000 and kappa NaN. The set as built cannot tell those two
+judges apart, which is the exact failure `gate/specs/gold-answers.yaml` wrote down in advance.
+
+**The fix is a distractor stratum (`gate/distractors.py`), not a harder panel.** Sixty of the
+88 answerable questions are served with a *different* document from the corpus, chosen with a
+fixed seed and verified to contain none of that question's expected answer points. Three models
+each, so 180 instances with `d-` ids. A faithful answer now has exactly one form, "the document
+does not cover this", and any figure or rule in the answer came from the model's memory rather
+than the text in front of it, which is unfaithful by the rubric's first line. Four things this
+deliberately does not do: it does not corrupt an answer (a defect this project invented would
+make specificity a measurement of the corruption), it does not change the prompt by one byte,
+it does not tell the model it is being tested, and it does not assume the label, which is read
+by hand like every other. If the models decline all 180, that is a finding too and the judge
+goes uncalibrated with the reason published. The stratum is the realistic production failure:
+retrieval returns the wrong passage and the model answers anyway.
+
 **Reliability of the gold set itself:** 100 of the 300 are re-labelled by the same rater
 two weeks later for intra-rater agreement. A second rater labels the same 100 if one is
 available (not a colleague from work). Both agreements are reported; if the second rater

@@ -17,7 +17,7 @@ labelling rubric already has a rule for.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 
 from drift.panel import Arm
@@ -85,18 +85,22 @@ AnswerCaller = Callable[[Job], Reply]
 
 
 def generate(
-    questions: Sequence[GoldQuestion],
-    sources: dict[str, SourceDoc],
-    arms: Sequence[Arm],
+    jobs: Iterable[Job],
     caller: AnswerCaller,
     *,
     run_id: str,
     skip: set[str] | None = None,
     on_instance: Callable[[AnswerInstance], None] | None = None,
 ) -> list[AnswerInstance]:
+    """Make the calls for jobs that are not already stored.
+
+    Takes the jobs rather than building them, because there are now two ways to build them:
+    `plan` here, and `gate.distractors.plan`, which serves a question with a document that
+    cannot answer it.
+    """
     done = skip or set()
     out: list[AnswerInstance] = []
-    for job in plan(questions, sources, arms):
+    for job in jobs:
         if job.instance_id in done:
             continue
         reply = caller(job)
