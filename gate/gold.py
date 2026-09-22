@@ -276,17 +276,39 @@ class GoldSet(BaseModel):
                 out.append(f"{q.id}: source {q.source_id!r} is not in sources.jsonl")
             else:
                 out.extend(f"{q.id}: {p}" for p in check_question(q, sources[q.source_id]))
-        seen: set[tuple[str, str]] = set()
+        # Keyed by stratum as well as question and arm. A question is answered once per model
+        # in the `i-` stratum and once per model in the `d-` stratum; those are two different
+        # cases, not a duplicate.
+        seen: set[tuple[str, str, str]] = set()
         for i in self.instances:
+            stratum = i.id[0]
             if i.question_id not in questions:
                 out.append(f"{i.id}: question {i.question_id!r} is not in questions.jsonl")
+            elif i.source_id not in sources:
+                out.append(f"{i.id}: source {i.source_id!r} is not in sources.jsonl")
+            elif stratum == "d":
+                # A distractor instance is SUPPOSED to carry a different document. What has to
+                # hold is that the document it carries cannot answer the question, because a
+                # served document that happens to contain the answer makes a faithful answer
+                # look like an invention and corrupts the specificity computed from it.
+                q = questions[i.question_id]
+                if i.source_id == q.source_id:
+                    out.append(f"{i.id}: a distractor must not serve the question's own source")
+                else:
+                    haystack = normalised(sources[i.source_id].text)
+                    for point in q.must_mention:
+                        if normalised(point) in haystack:
+                            out.append(
+                                f"{i.id}: served {i.source_id} contains {point!r}, "
+                                "so it can answer the question and is not a distractor"
+                            )
             elif questions[i.question_id].source_id != i.source_id:
                 out.append(f"{i.id}: source {i.source_id!r} is not its question's source")
             if sha256_of(i.output) != i.output_sha256:
                 out.append(f"{i.id}: stored hash does not match the stored text")
-            key = (i.question_id, i.arm_key)
+            key = (stratum, i.question_id, i.arm_key)
             if key in seen:
-                out.append(f"{i.id}: a second answer for {key[0]} from {key[1]}")
+                out.append(f"{i.id}: a second answer for {key[1]} from {key[2]}")
             seen.add(key)
         by_text: dict[str, list[str]] = {}
         for src in self.sources:

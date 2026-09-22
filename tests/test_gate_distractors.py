@@ -82,7 +82,8 @@ def test_ids_are_the_d_stratum_and_do_not_collide_with_the_first_300(real: gold.
     ids = [j.instance_id for j in jobs]
     assert ids == [f"d-{n:04d}" for n in range(1, len(ids) + 1)]
     assert len(jobs) == distractors.expected_calls(real, ARMS)
-    assert not {i.id for i in real.instances} & set(ids), "a d- id must never reuse an i- id"
+    first_300 = {i.id for i in real.instances if i.id.startswith("i-")}
+    assert not first_300 & set(ids), "a d- id must never reuse an i- id"
     # Question-major, so the labeller reads each document once rather than once per model.
     assert [j.question.id for j in jobs[:2]] == [jobs[0].question.id] * 2
 
@@ -137,3 +138,33 @@ def test_the_judge_is_shown_the_document_the_model_was_given(real: gold.GoldSet)
     assert "sources[instance.source_id]" in inspect.getsource(runner), (
         "the judge runner must take the document from the instance, not from the question"
     )
+
+
+def test_the_served_document_is_the_nearest_one_that_cannot_answer(real: gold.GoldSet) -> None:
+    """Measured, not asserted. The first six distractors were picked at random from the same
+    publisher and gave a cheque question against a page on breaking a mortgage contract; all
+    three models declined at once and said the question was unrelated to the document. A
+    distractor that announces itself by its vocabulary tests nothing, so the served document is
+    now the closest one that still cannot answer the question."""
+    for q in distractors.questions_for(real):
+        served = distractors.distractor_for(q, real.by_source)
+        best = distractors.overlap(q, served)
+        for other in distractors.candidates(q, real.by_source):
+            if other.publisher == real.by_source[q.source_id].publisher:
+                assert distractors.overlap(q, other) <= best, (
+                    f"{q.id}: {other.id} is closer than the {served.id} that was served"
+                )
+
+
+def test_the_stratum_is_hard_enough_to_be_worth_labelling(real: gold.GoldSet) -> None:
+    """A floor on the whole exercise. If the served documents share almost none of the
+    questions' vocabulary then every model will decline on sight, the stratum will produce no
+    negatives, and 180 instances of somebody's evening will have bought nothing."""
+    scores = [
+        distractors.overlap(q, distractors.distractor_for(q, real.by_source))
+        for q in distractors.questions_for(real)
+    ]
+    scores.sort()
+    median = scores[len(scores) // 2]
+    assert median >= 0.4, f"median overlap {median:.2f}: these distractors are too obvious"
+    assert sum(1 for s in scores if s >= 0.5) >= 20, "too few genuinely close documents"

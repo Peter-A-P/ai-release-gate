@@ -32,6 +32,7 @@ negatives, and if it produces none that is a finding too, not a failure of the m
 from __future__ import annotations
 
 import random
+import re
 from collections.abc import Iterator, Sequence
 
 from drift.panel import Arm
@@ -50,8 +51,72 @@ DISTRACTOR_QUESTIONS = 60
 DISTRACTOR_SEED = 20260922
 
 
+# Function words carry no topic, so matching on them would rank every document alike. Short
+# and deliberately unclever: a stemmer or a stop list tuned per corpus would be one more thing
+# that has to be reproduced to re-derive which document was served.
+STOPWORDS = frozenset(
+    [
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "can",
+        "do",
+        "does",
+        "for",
+        "from",
+        "have",
+        "how",
+        "i",
+        "if",
+        "in",
+        "is",
+        "it",
+        "long",
+        "me",
+        "much",
+        "my",
+        "of",
+        "on",
+        "or",
+        "so",
+        "that",
+        "the",
+        "their",
+        "there",
+        "they",
+        "this",
+        "to",
+        "use",
+        "was",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "will",
+        "with",
+        "you",
+        "your",
+    ]
+)
+
+
 class NoDistractorError(ValueError):
     """Raised when every other document in the corpus happens to support the question."""
+
+
+def _terms(text: str) -> list[str]:
+    return [t for t in re.findall(r"[a-z]{4,}", text.casefold())]
+
+
+def _rank(source_id: str) -> str:
+    """Tie-break key. Reversed so `max` prefers the lowest id, which reads as "the first one"."""
+    return "".join(chr(0x10FFFF - ord(c)) for c in source_id)
 
 
 def candidates(question: GoldQuestion, sources: dict[str, SourceDoc]) -> list[SourceDoc]:
@@ -74,20 +139,46 @@ def candidates(question: GoldQuestion, sources: dict[str, SourceDoc]) -> list[So
     return out
 
 
+def overlap(question: GoldQuestion, source: SourceDoc) -> float:
+    """How much of the question's vocabulary the document already uses, 0 to 1.
+
+    The crudest possible similarity, and deliberately so: it has to be re-derivable by anyone
+    reading the repository, and a sentence embedding would make which document was served
+    depend on a model version. Content words only, because matching on "what" and "the" would
+    rank every document the same.
+    """
+    terms = {t for t in _terms(question.question) if t not in STOPWORDS}
+    if not terms:
+        return 0.0
+    present = set(_terms(source.text))
+    return sum(1 for t in terms if t in present) / len(terms)
+
+
 def distractor_for(question: GoldQuestion, sources: dict[str, SourceDoc]) -> SourceDoc:
-    """The document this question is served with. Deterministic, seeded on the question id."""
+    """The document this question is served with: the NEAREST one that still cannot answer it.
+
+    Changed 2026-09-22 after the first six were measured. Picking at random from the same
+    publisher gave a cheque question against a page on breaking a mortgage contract, and all
+    three models declined immediately and said so in as many words ("This question isn't
+    related to the document"). A distractor that announces itself by its vocabulary tests
+    nothing; the model never has to decide anything.
+
+    So the served document is the one with the most of the question's own words in it, among
+    those verified to contain none of its answer points. That is the hard case and the
+    realistic one: retrieval returns a page about the right topic that does not happen to carry
+    the fact, which is exactly when a model is tempted to fill the gap from memory. Ties break
+    on document id so the choice stays reproducible.
+    """
     pool = candidates(question, sources)
     if not pool:
         raise NoDistractorError(f"{question.id}: every other document supports it")
     own = sources.get(question.source_id)
     if own is not None:
-        # Prefer the same publisher. A retrieval miss inside one corpus is the realistic
-        # failure, and a document in the same register and house style is a harder distractor
-        # than one that announces itself as off-topic by its vocabulary alone.
+        # Same publisher first: a retrieval miss inside one corpus is the realistic failure,
+        # and one house style removes a cue that has nothing to do with the content.
         same = [s for s in pool if s.publisher == own.publisher]
         pool = same or pool
-    rng = random.Random(f"{DISTRACTOR_SEED}:{question.id}")
-    return pool[rng.randrange(len(pool))]
+    return max(pool, key=lambda s: (overlap(question, s), _rank(s.id)))
 
 
 def questions_for(gold: GoldSet, *, n: int = DISTRACTOR_QUESTIONS) -> list[GoldQuestion]:
