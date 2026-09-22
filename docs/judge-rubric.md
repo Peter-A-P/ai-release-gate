@@ -58,26 +58,19 @@ Say **yes** when:
 
 - The answer covers the substance of the question. Brief is fine. Two accurate sentences that
   answer the question are complete.
-- **The passage in front of you does not support an answer, and the answer says so.**
-  Judge this from the passage on screen, not from whether the question looks
-  answerable in general. Some questions were written unanswerable; others are real
-  questions served with a document that does not carry the answer. Both are the same
-  case to you, and the pass marks both the same way on screen.
+- The question is marked unanswerable from the source, and the answer says so.
 
 Say **no** when:
 
 - The answer addresses a different question.
 - The answer refuses, or says only that it cannot help.
 - The answer is so vague that a reader still does not know the answer.
-- The passage DOES support an answer and the answer says it does not.
+- The question is answerable from the source and the answer says it is not.
 - The answer covers only part of what was asked, and the missing part is the substance rather
   than a detail.
 
 Each question ships with a `must_mention` list, written when the question was written and
-before any model had answered it, and the pass shows it as `expects`. **Use it as a
-checklist, not as a scoring rule.** It is shown only when the passage on screen is the
-one those points were written against; where the passage cannot contain them, showing
-them would be an instruction to mark a correct refusal incomplete, so they are withheld. An answer
+before any model had answered it. **Use it as a checklist, not as a scoring rule.** An answer
 that covers the substance in different words is complete; an answer that hits every phrase and
 still does not answer the question is not.
 
@@ -166,6 +159,28 @@ You will not be told which instances these are, and you should not try to work i
 passage does not contain the answer, judge on that, the same as you would for one of the twelve
 questions that were written unanswerable from the start.
 
-Why they exist: read by hand, the first 300 answers were faithful 300 of 300. A set with no
-unfaithful answer in it cannot measure whether a judge can spot one, so a judge calibrated on
-it would have a number that means nothing. `gate/distractors.py` says the rest.
+**Completeness on these is the ordinary rule, and it is the one that catches them.** "Does the
+answer address the question that was asked?" A refusal does not, so a distractor answer that
+correctly says the passage does not cover it is **faithful but NOT complete**. The user asked
+how much of their cheque they can use today and still does not know.
+
+This is the one place where completeness and faithfulness come apart in opposite directions, so
+it is worth being slow about:
+
+| what the answer does | faithful | complete |
+|---|---|---|
+| says the passage does not cover it, and it does not | yes | **no** |
+| states the fact anyway, correctly, from somewhere else | **no** | yes |
+| states the fact anyway and gets it wrong | **no** | yes |
+| answers a different question using the passage it was given | yes | **no** |
+
+Do not confuse these with the twelve questions that were **written** unanswerable. For those,
+"the document does not say" IS the complete answer, because that is what the question was asking
+and the pass tells you so on screen. For a distractor the question has a real answer, in a
+document you are not being shown, so a refusal leaves the question unanswered. If the screen
+does not say the question is unanswerable, it has an answer.
+
+Why they exist: read by hand, the first 300 answers were faithful 300 of 300 and complete 298 of
+300. A set with no unfaithful and no incomplete answer in it cannot measure whether a judge can
+spot either, so a judge calibrated on it would have a number that means nothing.
+`gate/distractors.py` says the rest.

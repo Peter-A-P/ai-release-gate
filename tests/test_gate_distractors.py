@@ -170,24 +170,47 @@ def test_the_stratum_is_hard_enough_to_be_worth_labelling(real: gold.GoldSet) ->
     assert sum(1 for s in scores if s >= 0.5) >= 20, "too few genuinely close documents"
 
 
-def test_restating_completeness_against_the_passage_changes_no_existing_label(
-    real: gold.GoldSet,
+def test_the_pass_marks_only_a_written_unanswerable_question_as_unanswerable(
+    real: gold.GoldSet, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The rubric used to say "the question is marked unanswerable"; it now says "the passage in
-    front of you does not support an answer", so that a distractor is judged the same way. That
-    is a rubric change, and a rubric change means re-reading the labels it affects. It affects
-    none: for every one of the first 300 the two phrasings pick out exactly the same instances,
-    because the served passage IS the question's own and `check_question` already refuses an
-    unanswerable question whose expected point is in its page.
+    """The distinction the whole completeness judgement turns on, driven through the real
+    command.
+
+    A question written unanswerable and a question served the wrong document look alike on
+    screen, and they take OPPOSITE completeness labels: for the first, "the document does not
+    say" is the complete answer; for the second it leaves a real question unanswered. So the
+    "NOT answerable from the passage" line must appear for one and not the other, and `expects`
+    must stay visible on a distractor, because it is what a complete answer would have had to
+    contain.
     """
-    for i in real.instances:
-        if not i.id.startswith("i-"):
-            continue
-        q = real.by_question[i.question_id]
-        assert i.source_id == q.source_id
-        haystack = gold.normalised(real.by_source[i.source_id].text)
-        supported = all(gold.normalised(p) in haystack for p in q.must_mention)
-        assert supported is not q.unanswerable, (
-            f"{i.id}: the two readings of the completeness rule disagree, so the 300 labels "
-            "would have to be read again"
-        )
+    from tests.test_gate_gold import _drive
+
+    q = distractors.questions_for(real)[0]
+    served = distractors.distractor_for(q, real.by_source)
+    answer = "The document does not cover that."
+    gold.write_all(tmp_path / gold.SOURCES_FILE, [real.by_source[q.source_id], served])
+    gold.write_all(tmp_path / gold.QUESTIONS_FILE, [q])
+    gold.write_all(
+        tmp_path / gold.INSTANCES_FILE,
+        [
+            gold.AnswerInstance(
+                id="d-0001",
+                question_id=q.id,
+                source_id=served.id,
+                arm_key="anthropic-a",
+                model_requested="anthropic/m",
+                model_returned="anthropic/m",
+                output=answer,
+                output_sha256=gold.sha256_of(answer),
+                finish_reason="stop",
+                generated_utc="2026-09-22T00:00:00Z",
+                run_id="d-1",
+            )
+        ],
+    )
+    out = _drive(tmp_path, ["y", "n", "x", "q"], monkeypatch)
+    assert "NOT answerable from the passage" not in out, (
+        "a distractor's question HAS an answer, so a refusal to it is incomplete"
+    )
+    assert "expects" in out, "the points a complete answer needed are what makes it incomplete"
+    assert served.title in out and q.question.split()[0] in out
