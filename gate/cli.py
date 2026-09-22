@@ -387,9 +387,17 @@ def gold_label(
             _field("passage", " ".join(source.text.split()))
             typer.echo("")
             _field("question", " ".join(question.question.split()))
-            if question.unanswerable:
+            # Two ways a passage fails to support its question: the question was written
+            # unanswerable, or it is a d- instance and the passage is not the question's own.
+            # They are the same case to judge, so they look the same here. `expects` is
+            # withheld in both, because those points come from a document that is not on
+            # screen: shown beside a passage that cannot contain them, a checklist becomes an
+            # instruction to mark a correct refusal incomplete.
+            supported = instance.source_id == question.source_id and not question.unanswerable
+            if not supported:
                 typer.echo("            (this one is NOT answerable from the passage)")
-            _field("expects", "; ".join(question.must_mention))
+            else:
+                _field("expects", "; ".join(question.must_mention))
             typer.echo("")
             _field("ANSWER", answer)
             if instance.truncated:

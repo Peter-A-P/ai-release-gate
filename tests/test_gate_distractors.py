@@ -168,3 +168,26 @@ def test_the_stratum_is_hard_enough_to_be_worth_labelling(real: gold.GoldSet) ->
     median = scores[len(scores) // 2]
     assert median >= 0.4, f"median overlap {median:.2f}: these distractors are too obvious"
     assert sum(1 for s in scores if s >= 0.5) >= 20, "too few genuinely close documents"
+
+
+def test_restating_completeness_against_the_passage_changes_no_existing_label(
+    real: gold.GoldSet,
+) -> None:
+    """The rubric used to say "the question is marked unanswerable"; it now says "the passage in
+    front of you does not support an answer", so that a distractor is judged the same way. That
+    is a rubric change, and a rubric change means re-reading the labels it affects. It affects
+    none: for every one of the first 300 the two phrasings pick out exactly the same instances,
+    because the served passage IS the question's own and `check_question` already refuses an
+    unanswerable question whose expected point is in its page.
+    """
+    for i in real.instances:
+        if not i.id.startswith("i-"):
+            continue
+        q = real.by_question[i.question_id]
+        assert i.source_id == q.source_id
+        haystack = gold.normalised(real.by_source[i.source_id].text)
+        supported = all(gold.normalised(p) in haystack for p in q.must_mention)
+        assert supported is not q.unanswerable, (
+            f"{i.id}: the two readings of the completeness rule disagree, so the 300 labels "
+            "would have to be read again"
+        )

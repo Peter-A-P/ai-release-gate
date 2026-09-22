@@ -58,19 +58,26 @@ Say **yes** when:
 
 - The answer covers the substance of the question. Brief is fine. Two accurate sentences that
   answer the question are complete.
-- The question is marked unanswerable from the source, and the answer says so.
+- **The passage in front of you does not support an answer, and the answer says so.**
+  Judge this from the passage on screen, not from whether the question looks
+  answerable in general. Some questions were written unanswerable; others are real
+  questions served with a document that does not carry the answer. Both are the same
+  case to you, and the pass marks both the same way on screen.
 
 Say **no** when:
 
 - The answer addresses a different question.
 - The answer refuses, or says only that it cannot help.
 - The answer is so vague that a reader still does not know the answer.
-- The question is answerable from the source and the answer says it is not.
+- The passage DOES support an answer and the answer says it does not.
 - The answer covers only part of what was asked, and the missing part is the substance rather
   than a detail.
 
 Each question ships with a `must_mention` list, written when the question was written and
-before any model had answered it. **Use it as a checklist, not as a scoring rule.** An answer
+before any model had answered it, and the pass shows it as `expects`. **Use it as a
+checklist, not as a scoring rule.** It is shown only when the passage on screen is the
+one those points were written against; where the passage cannot contain them, showing
+them would be an instruction to mark a correct refusal incomplete, so they are withheld. An answer
 that covers the substance in different words is complete; an answer that hits every phrase and
 still does not answer the question is not.
 
