@@ -669,6 +669,16 @@ design promises. 50 answers from the 2026-09 run, judged 5 times each, 250 calls
 at US$0.40 from the stored prompts. The command now refuses without
 `--i-am-allowed-to-call-vendors`, as the gold commands do, and takes `--limit`, so the first
 dispatch is a six-call probe and the second pays only for the rest.
+**Run 2026-09-23, and the expectation was wrong**: 250 calls, US$0.35, and the judge disagreed
+with itself on 0 of 50 items, 0.0% (0.0% to 4.9%), with 0 of 250 replies other than the one
+word. Under the 5% effect the suite can detect, interval and all, so candidate 1 is **not
+rejected** on the test as designed, and [`docs/rejected.md`](docs/rejected.md) says so with the
+three limits on it: the margin is thin (the exact bound on 0 of 50 is 7.1%), a same-day test
+cannot see the judge's own vendor changing it between months, and its one miss against the
+grader (`recall-1016`, "The Kestrelmoor." against "exactly: Kestrelmoor") was repeated all five
+times, a bias that repetition can never find. The first rendering printed this under
+"Rejected" with a collapsed "0.0% (0.0% to 0.0%)"; shares now carry Jeffreys intervals and the
+headings follow the verdict.
 
 1. **LLM-as-judge for drift.** Run a judge over 50 items alongside the programmatic
    grader for one dry run and show the judge's own repeat disagreement. Expected: the
@@ -706,7 +716,7 @@ dispatch is a six-call probe and the second pays only for the rest.
 - [x] Regrade-from-store reproduces the published numbers. **Checked 2026-09-14**: `drift replay --month 2026-09` regraded 15,993 stored outputs across all eight arms with 0 disagreeing with the run-time grade, and the report it regenerated is byte-for-byte the committed one
 - [ ] README results table updates from the job. Closer, and still not proven. On 2026-09-13 the Actions minutes ran out before `collect` was given a runner. On 2026-09-16 the job ran on a runner and folded, reported, committed and pushed the record by itself in 1m26s, so everything around the table is now exercised end to end. The table itself was not written, because that run passed `readme: false` on purpose: `write_readme` replaces everything between the markers, so a second run inside one month would have substituted its rows for September's. The one untested line is the write itself, and the October cron exercises it
 - [x] Actual cost of the first two runs recorded against the estimate. **US$19.53 and US$19.57, each against an expected US$20.35**, in the two `RUN.json` files and per arm within them. US$39.10 for the pair, against a CA$35 a month line, so the monthly budget holds with a second run inside it
-- [x] One Rule C item documented with evidence. **2026-09-18**, candidate 3 (k = 1, no repeats) in [`docs/rejected.md`](docs/rejected.md), reproducible offline with `drift rulec repeats --month 2026-09-run2 --baseline 2026-09`. Candidate 1, the judge, stays open: the harness is built and costs about a dollar to run from a network that may call vendors
+- [x] One Rule C item documented with evidence. **2026-09-18**, candidate 3 (k = 1, no repeats) in [`docs/rejected.md`](docs/rejected.md), reproducible offline with `drift rulec repeats --month 2026-09-run2 --baseline 2026-09`. Candidate 1, the judge, ran 2026-09-23 and was not rejected: 0 of 50 items flipped, 0.0% (0.0% to 4.9%), with the limits of that written beside it
 
 
 ---

@@ -108,14 +108,45 @@ tests are [`tests/test_repeats_experiment.py`](../tests/test_repeats_experiment.
 verdict is computed from the counts rather than asserted: given a record where no draw
 disagrees with another, the same code prints "Not rejected", and a test holds it to that.
 
-## The other candidate, still open
+## The other candidate: run, and not rejected
 
 PLAN.md section 10 names a second approach expected to fail: **an LLM judge in place of the
-programmatic graders**. The harness is built and offline-replayable
-([`drift/experiments/judge.py`](../drift/experiments/judge.py), `drift rulec judge`), and it
-is designed to reject the strongest form of the idea rather than a straw man: the judge sees
-the reference answer, is asked for one word, runs at temperature 0, and is shown identical
-stored text every time, so any disagreement it has with itself is a floor on the approach's
-noise rather than a ceiling. It has not been run, because it needs about a dollar of vendor
-calls from a network this project is allowed to call vendors from. When it runs, its result
-goes here whichever way it comes out.
+programmatic graders**. The harness ([`drift/experiments/judge.py`](../drift/experiments/judge.py),
+`drift rulec judge`) is built to reject the strongest form of the idea rather than a straw man:
+the judge sees the reference answer, is asked for one word, runs at temperature 0, and is shown
+identical stored text every time, so any disagreement it has with itself is a floor on the
+approach's noise rather than a ceiling.
+
+It ran on 2026-09-23 (the `rulec` workflow, runs 35839815033 and 35839909791), and **the
+expectation was wrong.** `claude-haiku-4-5-20251001` judged 50 stored answers from the 2026-09
+run, one per item, spread across all seven blocks, 5 times each: 250 calls, US$0.35.
+
+| Measure | Value |
+|---|---|
+| Judge disagrees with itself across repeats | 0.0% (0.0% to 4.9%, n = 50) |
+| Judge majority agrees with the programmatic grader | 98.0% (90.9% to 99.8%, n = 50) |
+| Replies that were not the single word asked for | 0 of 250 |
+
+Not one of the 50 items got two different verdicts in five tries. The upper bound, 4.9%, sits
+under the 5% effect the suite is powered to detect, so on the test as designed the approach is
+**not rejected**, and it is published as not rejected. Three things keep that from meaning more
+than it says:
+
+- **The margin is thin.** 4.9% against 5% is a Jeffreys interval; the more conservative exact
+  (Clopper-Pearson) bound on 0 of 50 is 7.1%, which would have called it undecided. What 50
+  items can say is that the judge does not waver often, not that it never does.
+- **It measures one of the two ways a judge adds noise.** A judge disagreeing with itself on one
+  day is the half this test can see. The other half is the judge's own vendor changing it between
+  months, which is exactly what this project exists to detect in other models, and a same-day
+  test is blind to it by construction. The programmatic graders cannot change at all, which is
+  why the drift record keeps them.
+- **The one error was a bias, not noise.** On `recall-1016` the stored answer was "The
+  Kestrelmoor." against a reference rendered as "exactly: Kestrelmoor". The grader normalises the
+  article and full stop and marks it right; the judge read "exactly" literally and marked it wrong,
+  all five times. Repeating a judge finds its noise and never its biases: a judge that is wrong
+  the same way every time scores perfectly on this test.
+
+Reproduce offline with `uv run drift rulec judge --month 2026-09 --replay`. The first rendering
+of this report printed the result under the heading "Rejected" with a self-disagreement of
+"0.0% (0.0% to 0.0%)", which were the expectation and a collapsed bootstrap writing the result;
+both are fixed and tested.

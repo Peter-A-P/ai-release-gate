@@ -166,7 +166,13 @@ days apart with nothing changed, that test **declares drift on 6 to 8 of the 8 c
 including the open-weights control whose weights physically cannot change, in every one of the
 25 ways the runs can be reduced to one call each.** The published rule declares none.
 
-Full evidence, and the command that reproduces it offline, in
+The second candidate came out the other way. An AI marker, asked to re-mark 50 stored answers
+five times each over identical text, never once changed its mind: 0.0% (0.0% to 4.9%). So that
+idea is published as **not rejected** on this test, with the catch that matters: a same-day test
+cannot see the marker's own vendor changing it between months, and its one mistake was made
+identically all five times, which is a bias that no amount of repetition finds.
+
+Full evidence for both, and the commands that reproduce them offline, in
 [docs/rejected.md](docs/rejected.md).
 
 ## What this deliberately does not do

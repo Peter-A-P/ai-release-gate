@@ -48,7 +48,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from drift.analysis.stats import Estimate, bootstrap_mean
+from drift.analysis.stats import Estimate, jeffreys_proportion
 from drift.items import Item
 from drift.review import constraint_sentences
 from drift.runner.records import CallRecord
@@ -328,11 +328,24 @@ class JudgeReport:
     uncosted: int
     by_block: dict[str, Estimate] = field(default_factory=dict)
     disagreeing_items: tuple[str, ...] = ()
+    # Items where the judge's majority verdict differs from the programmatic grader's.
+    against_grader: tuple[str, ...] = ()
 
 
 def majority(verdicts: Sequence[bool]) -> bool:
     """Ties count as incorrect, the same convention the record uses for item outcomes."""
     return sum(verdicts) * 2 > len(verdicts)
+
+
+def share(values: Sequence[float], *, seed: int = 0) -> Estimate:
+    """A share of items, each 0 or 1, with an interval that survives a share of none or all.
+
+    Every share here is a count of items, and the one that matters most is expected to come
+    out at or near zero. A bootstrap reported the first real run's self-disagreement as
+    "0.0% (0.0% to 0.0%)", which read as proof the judge never wavers rather than as 0 of 50;
+    the Jeffreys interval says how far above zero 50 items still allow it to be.
+    """
+    return jeffreys_proportion(int(sum(values)), len(values), seed=seed)
 
 
 def analyse(verdicts: Sequence[JudgeVerdict], *, seed: int = 0) -> JudgeReport:
@@ -346,6 +359,7 @@ def analyse(verdicts: Sequence[JudgeVerdict], *, seed: int = 0) -> JudgeReport:
     judged_correct: list[float] = []
     graded_correct: list[float] = []
     disagreeing: list[str] = []
+    against: list[str] = []
     for item_id, group in sorted(by_item.items()):
         readable = [v.verdict for v in group if v.verdict is not None]
         if len(readable) >= 2:
@@ -357,6 +371,8 @@ def analyse(verdicts: Sequence[JudgeVerdict], *, seed: int = 0) -> JudgeReport:
         if readable:
             said = majority(readable)
             agree.append(1.0 if said == group[0].grader_verdict else 0.0)
+            if said != group[0].grader_verdict:
+                against.append(item_id)
             judged_correct.append(1.0 if said else 0.0)
             graded_correct.append(1.0 if group[0].grader_verdict else 0.0)
 
@@ -366,16 +382,17 @@ def analyse(verdicts: Sequence[JudgeVerdict], *, seed: int = 0) -> JudgeReport:
         repeats=max((v.repeat for v in verdicts), default=-1) + 1,
         items=len(by_item),
         calls=len(verdicts),
-        self_disagreement=bootstrap_mean(flips, seed=seed),
-        agreement_with_grader=bootstrap_mean(agree, seed=seed),
-        judge_correct_rate=bootstrap_mean(judged_correct, seed=seed),
-        grader_correct_rate=bootstrap_mean(graded_correct, seed=seed),
+        self_disagreement=share(flips, seed=seed),
+        agreement_with_grader=share(agree, seed=seed),
+        judge_correct_rate=share(judged_correct, seed=seed),
+        grader_correct_rate=share(graded_correct, seed=seed),
         unreadable=sum(1 for v in verdicts if v.verdict is None),
         not_one_word=sum(1 for v in verdicts if not v.one_word),
         cost_usd=sum(v.cost_usd or 0.0 for v in verdicts if v.costed),
         uncosted=sum(1 for v in verdicts if not v.costed),
-        by_block={b: bootstrap_mean(f, seed=seed) for b, f in sorted(flips_by_block.items())},
+        by_block={b: share(f, seed=seed) for b, f in sorted(flips_by_block.items())},
         disagreeing_items=tuple(disagreeing),
+        against_grader=tuple(against),
     )
 
 
@@ -390,26 +407,39 @@ def render(report: JudgeReport, *, detectable_effect: float = DETECTABLE_EFFECT)
     r = report
     pct = f"{detectable_effect:.0%}"
     if r.self_disagreement.n == 0:
+        outcome = "empty"
         verdict_line = "there is nothing to compare yet: no item had two readable verdicts"
     elif r.self_disagreement.point >= detectable_effect:
+        outcome = "rejected"
         verdict_line = (
             f"the judge's own disagreement is at or above the {pct} effect this suite is "
             "powered to detect, so the instrument moves further than the thing it measures"
         )
     elif r.self_disagreement.hi >= detectable_effect:
+        outcome = "undecided"
         verdict_line = (
             f"the judge's own disagreement sits below the {pct} effect this suite is powered "
             f"to detect, but its interval reaches past it, so this sample cannot separate the "
             "two and a larger one is needed before the approach is rejected"
         )
     else:
+        outcome = "not rejected"
         verdict_line = (
             f"the judge's own disagreement stays below the {pct} effect this suite is powered "
             "to detect, interval and all. On this evidence the approach is NOT rejected, and "
             "the finding to publish is that it survived the test"
         )
+    # The headings follow the evidence. The first real run came out the other way from the
+    # plan's expectation and was printed under "Rejected" all the same, which is the
+    # expectation writing the result.
+    title, heading = {
+        "rejected": ("Rejected", "The number that rejects it"),
+        "undecided": ("Not yet decided", "The measurement"),
+        "not rejected": ("Not rejected", "The measurement"),
+        "empty": ("Not yet run", "The measurement"),
+    }[outcome]
     lines = [
-        "# Rejected: an LLM judge for measuring drift",
+        f"# {title}: an LLM judge for measuring drift",
         "",
         f"Judge `{r.judge_model}`, {r.items} stored answers from the {r.month} run, judged "
         f"{r.repeats} times each at temperature 0 over identical input. {r.calls} judge calls, "
@@ -419,7 +449,7 @@ def render(report: JudgeReport, *, detectable_effect: float = DETECTABLE_EFFECT)
         "The judge saw the item, the reference answer and one stored model answer, and was "
         "asked for one word. Nothing about its input varied between repeats.",
         "",
-        "## The number that rejects it",
+        f"## {heading}",
         "",
         "| Measure | Value |",
         "|---|---|",
@@ -430,6 +460,9 @@ def render(report: JudgeReport, *, detectable_effect: float = DETECTABLE_EFFECT)
         f"| Pass rate the programmatic grader reports | {r.grader_correct_rate.fmt()} |",
         f"| Replies that were not the single word asked for | {r.not_one_word} of {r.calls} |",
         f"| Replies that could not be read as either word | {r.unreadable} of {r.calls} |",
+        "",
+        "Shares are of items, with 95% Jeffreys intervals, which stay honest at a share of none "
+        "or all where a bootstrap collapses to a point.",
         "",
         "Drift is declared when a model's month-over-month flip rate exceeds the upper bound of "
         "its same-day flip rate (PLAN.md section 1). Judging identical text repeatedly is the "
@@ -456,14 +489,40 @@ def render(report: JudgeReport, *, detectable_effect: float = DETECTABLE_EFFECT)
             + (" ..." if len(r.disagreeing_items) > 20 else ""),
             "",
         ]
+    if r.against_grader:
+        lines += [
+            "Items where the judge's majority verdict differs from the programmatic grader's: "
+            + ", ".join(r.against_grader[:20])
+            + (" ..." if len(r.against_grader) > 20 else "")
+            + ". A disagreement the judge repeats every time is a bias rather than noise, and "
+            "no number of repeats will reveal it.",
+            "",
+        ]
+    lines += ["## What this does not claim", ""]
+    if outcome == "rejected":
+        lines.append(
+            "It does not claim a judge is useless. It claims a judge cannot be the instrument "
+            "for this measurement, where the effect is a few points and the whole design rests "
+            "on separating a real change from same-day noise. Part B calibrates a judge against "
+            "human labels for open-ended quality, which programmatic grading cannot reach at "
+            "all, and reports its kappa with every run for exactly this reason."
+        )
+    elif outcome == "not rejected":
+        lines.append(
+            "It does not claim a judge is fit to measure drift. It measures one of the two ways "
+            "a judge adds noise, disagreeing with itself over identical input on one day, under "
+            "the conditions most favourable to it. The other is the judge's own vendor changing "
+            "it between months, which is exactly what this project exists to detect in other "
+            "models, and a same-day test cannot see it. The drift record keeps its programmatic "
+            "graders, whose verdict on the same text cannot change at all."
+        )
+    else:
+        lines.append(
+            "It does not claim the judge passed or failed. The evidence does not yet place its "
+            "noise on either side of the effect, and nothing is written up either way until it "
+            "does."
+        )
     lines += [
-        "## What this does not claim",
-        "",
-        "It does not claim a judge is useless. It claims a judge cannot be the instrument for "
-        "this measurement, where the effect is a few points and the whole design rests on "
-        "separating a real change from same-day noise. Part B calibrates a judge against human "
-        "labels for open-ended quality, which programmatic grading cannot reach at all, and "
-        "reports its kappa with every run for exactly this reason.",
         "",
         "Reproduce with `uv run drift rulec judge --month "
         f"{r.month} --replay`, which recomputes every number above from the stored verdicts "

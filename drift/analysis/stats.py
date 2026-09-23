@@ -68,6 +68,27 @@ def bootstrap_mean(values: Sequence[float], *, resamples: int = 2000, seed: int 
     return Estimate(point, lo, hi, n)
 
 
+def jeffreys_proportion(successes: int, n: int, *, draws: int = 20000, seed: int = 0) -> Estimate:
+    """A share of `n` independent yes/no items, with the Jeffreys interval.
+
+    For a share that can come out at none or all of its items, where `bootstrap_mean` cannot
+    be used: resampling fifty identical zeros reproduces them exactly and prints
+    "0.0% (0.0% to 0.0%)", a bare number wearing an interval, when 0 of 50 plainly does not
+    mean the rate is exactly zero. The refusal classifier's error rate hit this first and
+    `drift.labelling` draws from the same Beta(x + 0.5, n - x + 0.5) posterior. The bound on
+    the side of an observed 0 or n is pinned at 0 or 1, the usual Jeffreys convention.
+    """
+    if n == 0:
+        return Estimate(float("nan"), float("nan"), float("nan"), 0)
+    if not 0 <= successes <= n:
+        raise ValueError(f"{successes} successes out of {n}")
+    rng = random.Random(seed)
+    sample = sorted(rng.betavariate(successes + 0.5, n - successes + 0.5) for _ in range(draws))
+    lo = 0.0 if successes == 0 else sample[int(0.025 * draws)]
+    hi = 1.0 if successes == n else sample[min(draws - 1, int(0.975 * draws))]
+    return Estimate(successes / n, lo, hi, n)
+
+
 def bootstrap_mean_by_cluster(
     values: Sequence[float],
     clusters: Sequence[Hashable],

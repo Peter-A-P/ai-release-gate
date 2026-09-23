@@ -377,23 +377,48 @@ def test_every_reported_share_carries_an_interval() -> None:
 
 
 @pytest.mark.parametrize(
-    ("flipped_of_ten", "must_say"),
+    ("items", "flipped", "must_say", "title"),
     [
-        (3, "at or above the 5% effect"),
-        (0, "NOT rejected"),
+        (10, 3, "at or above the 5% effect", "# Rejected:"),
+        # 0 of 10 is not evidence of a quiet judge: its interval reaches past 5%.
+        (10, 0, "cannot separate the two", "# Not yet decided:"),
+        (100, 0, "NOT rejected", "# Not rejected:"),
     ],
 )
 def test_the_verdict_is_stated_against_the_effect_the_suite_can_detect(
-    flipped_of_ten: int, must_say: str
+    items: int, flipped: int, must_say: str, title: str
 ) -> None:
     """Rule C is a claim about evidence, so the report has to be able to come out the other
-    way. A judge quieter than the effect being measured does not reject the approach."""
+    way. A judge quieter than the effect being measured does not reject the approach, and the
+    title says so rather than repeating the plan's expectation."""
     verdicts = []
-    for i in range(10):
+    for i in range(items):
         for k in range(5):
-            said = not (i < flipped_of_ten and k == 2)
+            said = not (i < flipped and k == 2)
             verdicts.append(verdict(f"i{i}", k, said, True))
-    assert must_say in render(analyse(verdicts))
+    text = render(analyse(verdicts))
+    assert must_say in text
+    assert text.startswith(title)
+    assert ("The number that rejects it" in text) == (title == "# Rejected:")
+
+
+def test_a_judge_that_never_wavers_still_gets_an_interval() -> None:
+    """The first real run: 0 flips in 50 items. A bootstrap printed "0.0% (0.0% to 0.0%)",
+    which reads as proof the judge never wavers. 0 of 50 allows up to about 5%."""
+    verdicts = [verdict(f"i{i}", k, True, True) for i in range(50) for k in range(5)]
+    e = analyse(verdicts).self_disagreement
+    assert e.point == 0.0 and e.lo == 0.0
+    assert 0.045 < e.hi < 0.052  # Jeffreys upper bound for 0 of 50 is 0.0485
+
+
+def test_a_steady_disagreement_with_the_grader_is_named_as_a_bias() -> None:
+    verdicts = [
+        *[verdict("a", k, False, True) for k in range(5)],  # steady, and against the grader
+        *[verdict("b", k, True, True) for k in range(5)],
+    ]
+    report = analyse(verdicts)
+    assert report.against_grader == ("a",) and report.disagreeing_items == ()
+    assert "a bias rather than noise" in render(report)
 
 
 def test_a_wide_interval_refuses_to_call_it_either_way() -> None:
