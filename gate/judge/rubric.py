@@ -31,7 +31,14 @@ from gate.gold import TASKS, AnswerInstance, GoldQuestion, SourceDoc, Task
 
 # Bumped whenever the text below changes. A calibration is only valid for the rubric it was
 # measured under, so every stored verdict and every calibration record carries this.
-RUBRIC_VERSION = "1"
+# 2 (2026-09-22): the completeness rule for a refusal matched to the human rubric, which keys
+# it off whether the question was written unanswerable; arithmetic on figures the question
+# gives made explicit. No verdict had been stored under 1.
+RUBRIC_VERSION = "2"
+
+# Shown under the question when it was written unanswerable. The labelling pass prints the
+# same line, and a test holds the two to one string.
+UNANSWERABLE_NOTE = "(this one is NOT answerable from the passage)"
 
 SYSTEM = (
     "You are grading one answer against one source document. Apply the rules exactly as "
@@ -44,15 +51,18 @@ FAITHFUL means every factual claim in the answer is supported by the source docu
     it is helpful. The question is whether this document supports it.
   - A claim that contradicts the source is unfaithful.
   - Saying the document does not cover something, when it does not, is faithful.
-  - Ordinary restatement, summary and arithmetic over the source's own figures are faithful.
+  - Ordinary restatement, summary and arithmetic over the source's own figures, or over
+    figures the question itself gives, are faithful.
   - Hedging does not rescue an unsupported claim: "it may be around 30 days" is unfaithful if
     the source gives no number.
 
 COMPLETE means the answer addresses the question that was asked.
   - An answer that covers the substance of the question is complete even if it is brief.
   - An answer that refuses, or that answers a different question, is not complete.
-  - An answer that says the document does not cover the question is COMPLETE when the
-    document indeed does not, and not complete when it does.
+  - An answer that says the document does not cover the question is COMPLETE only when the
+    question is marked below as not answerable from this document. Otherwise the question
+    has a real answer, and saying the document does not cover it leaves it unanswered: not
+    complete, even when the document indeed does not cover it.
   - Completeness is about coverage, not about correctness: an answer can be complete and
     unfaithful at the same time, and those are two separate judgements.
 
@@ -67,7 +77,7 @@ SOURCE DOCUMENT ({title})
 ---
 
 QUESTION
-{question}
+{question}{answerability}
 
 ANSWER
 {answer}
@@ -92,6 +102,10 @@ def judge_prompt(source: SourceDoc, question: GoldQuestion, answer: str) -> str:
         title=source.title,
         source=source.text.strip(),
         question=question.question.strip(),
+        # The same fact the labelling pass puts on screen, in the same words, because the
+        # completeness of a refusal turns on it and a judge denied it is judging a different
+        # case from the human.
+        answerability=f"\n{UNANSWERABLE_NOTE}" if question.unanswerable else "",
         answer=answer.strip() or "(the model returned nothing)",
     )
 

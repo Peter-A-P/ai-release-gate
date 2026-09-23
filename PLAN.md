@@ -930,6 +930,37 @@ by hand like every other. If the models decline all 180, that is a finding too a
 goes uncalibrated with the reason published. The stratum is the realistic production failure:
 retrieval returns the wrong passage and the model answers anyway.
 
+**Measured 2026-09-22, all 480 read by hand.** Faithful 471 of 480, complete 317 of 480. In the
+distractor stratum: 154 correct refusals (faithful, not complete), **9 unfaithful answers** over
+five questions, 5 from the open-weights arm and 2 each from Haiku 4.5 and Sonnet 5, and 17 that
+were both faithful and complete. So the stratum did what it was for, completeness now has 163
+negatives against 2, and faithfulness has 9 against none. Nine is a real negative class and a
+thin one: any specificity quoted from it carries an interval wide enough to say so, and the
+write-up says so. The first distractor pick was random within the publisher and failed on a
+six-call probe (all three models declined and named the mismatch); the served document is now
+the nearest one by content-word overlap that still contains none of the question's answer
+points.
+
+**The distractor check has a known leak, found by the labeller.** It verifies that the literal
+expected phrase is absent from the served page, not that the idea is. Of the 17 faithful and
+complete distractor instances, 3 are the one question that carries its own figures (per-share
+NAV from a total and a share count, decided faithful in the rubric's edge-case table because
+nothing came from outside the exchange), and **14, over six questions, are pages that answered
+the question in other words**: an affinity-fraud page that lists Ponzi warning signs, a CD page
+that explains inflation risk without the phrase "purchasing power", a stocks page that ranks
+preferred above common holders. They are labelled for what they are and stay in the set; they
+are not refusals and are not counted as evidence about refusals. A semantic check would catch
+them and would also make which document was served depend on a model version, which is the
+trade this project already declined.
+
+**The judge's prompt had drifted from the rubric, found before any judge call.** Its
+completeness rule said a refusal is complete "when the document indeed does not" cover the
+question, which scores all 154 distractor refusals complete while the human labelled them
+incomplete; the kappa would have measured the prompt. Rubric version 2 brings the prompt into
+line (a refusal is complete only when the question was written unanswerable, and the judge is
+shown the same unanswerable line the labeller saw), and a test now pins that rule, which the
+phrase check had never looked at.
+
 **Reliability of the gold set itself:** 100 of the 300 are re-labelled by the same rater
 two weeks later for intra-rater agreement. A second rater labels the same 100 if one is
 available (not a colleague from work). Both agreements are reported; if the second rater

@@ -178,3 +178,39 @@ def test_the_prompt_and_the_document_agree_on_the_rules_that_matter() -> None:
     for claim in ("true in general", "hedging does not rescue", "independent", "refuses"):
         assert claim in rules, f"the prompt lost: {claim}"
     assert "refuses" in doc
+
+
+def test_the_judge_and_the_human_apply_one_completeness_rule_to_a_refusal() -> None:
+    """The drift this exists for was found on 2026-09-22, after 480 labels and before any judge
+    call. The prompt said a refusal is complete "when the document indeed does not" cover the
+    question; the human rubric says it is complete only when the question was written
+    unanswerable. On the 180 distractor instances those give opposite answers, so 154 correct
+    refusals Peter labelled incomplete would have been graded complete by a judge following its
+    own rules, and the completeness kappa would have measured the prompt. The phrase check
+    above passed throughout, because it never looked at this rule."""
+    doc = " ".join(RUBRIC_DOC.read_text(encoding="utf-8").split()).lower()
+    rules = " ".join(RULES.split()).lower()
+    assert "the question is marked unanswerable from the source, and the answer says so" in doc
+    assert "complete only when the question is marked below as not answerable" in rules
+    assert "when the document indeed does not, and not complete when it does" not in rules
+    assert "figures the question itself gives" in doc
+    assert "figures the question itself gives" in rules
+
+
+def test_the_judge_is_told_a_question_is_unanswerable_exactly_when_the_human_was() -> None:
+    """Same evidence, same words. The pass prints UNANSWERABLE_NOTE under a question written
+    unanswerable; the judge's prompt must carry the identical line for the identical cases and
+    for no others, including no distractor, whose question has a real answer elsewhere."""
+    from gate.judge.rubric import UNANSWERABLE_NOTE
+
+    g = gold.load(Path(__file__).resolve().parent.parent / "gate" / "gold")
+    flagged = {"i": 0, "d": 0}
+    for inst in g.instances:
+        q = g.by_question[inst.question_id]
+        text = judge_prompt(g.by_source[inst.source_id], q, inst.output)
+        shown = UNANSWERABLE_NOTE in text
+        assert shown is q.unanswerable, (
+            f"{inst.id}: judge told {shown}, question says {q.unanswerable}"
+        )
+        flagged[inst.id[0]] += shown
+    assert flagged == {"i": 36, "d": 0}

@@ -22,7 +22,8 @@ it rather than a reading of the answer.
 Say **yes** when:
 
 - Every claim traces to something the document says.
-- The answer restates, summarises, or does arithmetic on the document's own figures.
+- The answer restates, summarises, or does arithmetic on the document's own figures, or on
+  figures the question itself gives.
 - The answer says the document does not cover something, and it does not.
 - The answer is vague but not wrong. Vagueness is a completeness problem, not a faithfulness one.
 
@@ -48,6 +49,7 @@ Edge cases, decided in advance so they are decided the same way every time:
 | Answer adds a generic safety caveat ("consider speaking to an adviser") | faithful: advice to seek advice is not a factual claim about the document |
 | Answer says "the document does not say" when it does say | not faithful |
 | Answer gets an arithmetic step wrong on the document's own numbers | not faithful |
+| Answer does arithmetic only on figures the question gives ("$100 million over 10 million shares") | faithful: nothing came from outside the exchange. Decided 2026-09-22 on d-0124 to d-0126 |
 | Answer was cut off mid-sentence | judge what is there; a truncated answer that claims nothing false is faithful |
 
 ## Judgement 2: COMPLETE

@@ -28,6 +28,7 @@ from gate.decision import decide
 from gate.judge import calibration as calib
 from gate.judge import report as judge_report
 from gate.judge import runner as judge_runner
+from gate.judge.rubric import UNANSWERABLE_NOTE
 from gate.outcomes import NoSuchArmError, Side, part_a_side
 from gate.spec import EvalSpec, load_spec
 from gate.stats import PowerLine, items_needed
@@ -388,7 +389,7 @@ def gold_label(
             typer.echo("")
             _field("question", " ".join(question.question.split()))
             if question.unanswerable:
-                typer.echo("            (this one is NOT answerable from the passage)")
+                typer.echo(f"            {UNANSWERABLE_NOTE}")
             _field("expects", "; ".join(question.must_mention))
             if instance.source_id != question.source_id:
                 # A distractor: those points are the real answer, taken from a page that is
