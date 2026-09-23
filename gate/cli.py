@@ -683,6 +683,9 @@ def judge_run(
         bool, typer.Option(help="also read each case with the parts reordered")
     ] = False,
     limit: Annotated[int, typer.Option(help="stop after this many calls, 0 for no limit")] = 0,
+    max_tokens: Annotated[
+        int, typer.Option(help="output budget; a thinking model needs room to think first")
+    ] = 64,
 ) -> None:
     """Ask a judge about every gold instance and store what it said. Resumable.
 
@@ -704,11 +707,16 @@ def judge_run(
     arm = arms[judge_key]
     from gate.judge.rubric import JudgeConfig
 
-    # 64 tokens, not 16, for the reason the drift panel raised multiple choice from 16 to 64:
-    # Gemini 3 thinks before it answers and cannot be told not to, so a budget sized for the
-    # two words wanted is spent thinking and the verdict comes back empty.
+    # 64 by default, not 16, for the reason the drift panel raised multiple choice from 16 to
+    # 64. It is still not enough for Gemini 3.8 Flash on a 1,000-token judge prompt: on the
+    # probe of 2026-09-23, 5 of 6 calls ended at max_tokens having written nothing or "FA".
+    # That judge runs with --max-tokens 1024, and every verdict records the budget it had.
     config = JudgeConfig(
-        key=judge_key, provider=arm.provider, model=arm.model, temperature=0.0, max_tokens=64
+        key=judge_key,
+        provider=arm.provider,
+        model=arm.model,
+        temperature=0.0,
+        max_tokens=max_tokens,
     )
     path = GOLD / judge_runner.VERDICTS_FILE
     skip = judge_runner.already_done(judge_runner.read_verdicts(path), judge_key)

@@ -32,6 +32,10 @@ on:
         description: "for what=judge: readings per instance (2 gives the test-retest figure)"
         required: false
         default: "1"
+      max_tokens:
+        description: "for what=judge: output budget; Gemini 3.8 Flash thinks first and needs 1024"
+        required: false
+        default: "64"
       swap:
         description: "for what=judge: also read each case with the parts reordered (order bias)"
         required: false
@@ -133,6 +137,7 @@ jobs:
         run: |
           ARGS="--i-am-allowed-to-call-vendors --judge-key ${{ inputs.judge_key }}"
           ARGS="$ARGS --repeats ${{ inputs.repeats }} --limit ${{ inputs.limit }}"
+          ARGS="$ARGS --max-tokens ${{ inputs.max_tokens }}"
           if [ "${{ inputs.swap }}" = "true" ]; then ARGS="$ARGS --swap"; fi
           uv run gate judge run $ARGS
 

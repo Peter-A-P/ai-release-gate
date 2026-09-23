@@ -180,6 +180,10 @@ class JudgeVerdict(BaseModel):
     latency_ms: float = 0.0
     cost_usd: float | None = None
     judged_utc: str = ""
+    # The output budget the call was made with. Recorded because it decides whether a thinking
+    # model can answer at all: Gemini 3.8 Flash spent 64 tokens thinking on 5 of 6 probe calls
+    # and returned nothing. None on verdicts stored before it was recorded.
+    max_tokens: int | None = None
 
     def value(self, task: Task) -> bool | None:
         return self.faithful if task == "faithful" else self.complete
@@ -220,4 +224,5 @@ def verdict_from_text(
         latency_ms=latency_ms,
         cost_usd=cost_usd,
         judged_utc=judged_utc,
+        max_tokens=config.max_tokens,
     )
