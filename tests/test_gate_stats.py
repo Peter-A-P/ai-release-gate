@@ -6,6 +6,8 @@ from __future__ import annotations
 import math
 import random
 
+import pytest
+
 from drift.analysis.stats import bootstrap_mean
 from gate.stats import (
     bootstrap_share,
@@ -141,3 +143,63 @@ def test_paired_bootstrap_matches_the_item_bootstrap_in_distribution() -> None:
     assert abs(t.difference.hi - naive[1949]) <= 1 / n
     p_naive = sum(1 for m in naive if m <= -0.03) / 2000
     assert abs(t.p_inferior - p_naive) < 0.03
+
+
+# ------------------------------------------------------ correcting a judge-graded difference
+
+
+def _sides(n: int, worse: int, better: int) -> tuple[dict[str, bool], dict[str, bool]]:
+    base = {f"q{i}": True for i in range(n)}
+    cand = dict(base)
+    for i in range(worse):
+        cand[f"q{i}"] = False
+    for i in range(worse, worse + better):
+        base[f"q{i}"] = False
+    return base, cand
+
+
+def test_a_judge_shrinks_a_regression_and_the_correction_undoes_it() -> None:
+    """Sensitivity 0.9 and specificity 0.6 make se + sp - 1 = 0.5, so a judge sees half of any
+    true difference. An observed drop of 5 points is a true drop of 10, and the gate must
+    decide on the 10: deciding on the 5 is a gate that gets more lenient the worse its judge."""
+    base, cand = _sides(400, worse=30, better=10)  # observed -5.0 points
+    raw = paired_difference(base, cand, delta=0.03, resamples=1000, seed=1)
+    fixed = paired_difference(
+        base, cand, delta=0.03, resamples=1000, seed=1, judge_counts=(90, 10, 40, 60)
+    )
+    assert math.isclose(raw.difference.point, -0.05)
+    assert math.isclose(fixed.difference.point, -0.10)
+    assert fixed.judge_youden is not None and math.isclose(fixed.judge_youden, 0.5)
+    assert raw.judge_youden is None
+
+
+def test_the_correction_carries_the_calibrations_own_uncertainty() -> None:
+    """Dividing the raw interval by 0.5 would treat se and sp as known exactly. They were
+    measured on a few hundred labels, so the corrected interval is wider than that."""
+    base, cand = _sides(400, worse=30, better=10)
+    raw = paired_difference(base, cand, delta=0.03, resamples=2000, seed=3)
+    fixed = paired_difference(
+        base, cand, delta=0.03, resamples=2000, seed=3, judge_counts=(90, 10, 40, 60)
+    )
+    raw_width = raw.difference.hi - raw.difference.lo
+    fixed_width = fixed.difference.hi - fixed.difference.lo
+    assert fixed_width > raw_width / 0.5, "the calibration's sampling error has to widen it"
+
+
+def test_a_perfect_judge_changes_nothing_but_the_stream() -> None:
+    base, cand = _sides(300, worse=12, better=4)
+    raw = paired_difference(base, cand, delta=0.03, resamples=2000, seed=5)
+    same = paired_difference(
+        base, cand, delta=0.03, resamples=2000, seed=5, judge_counts=(200, 0, 0, 100)
+    )
+    assert same.judge_youden == 1.0
+    assert math.isclose(same.difference.point, raw.difference.point)
+    assert abs(same.difference.lo - raw.difference.lo) < 0.01
+
+
+def test_a_judge_that_carries_no_information_is_refused_not_divided_by() -> None:
+    base, cand = _sides(100, worse=5, better=1)
+    with pytest.raises(ValueError, match="noise"):
+        paired_difference(base, cand, delta=0.03, judge_counts=(50, 50, 50, 50))
+    with pytest.raises(ValueError, match="no positives or no negatives"):
+        paired_difference(base, cand, delta=0.03, judge_counts=(317, 0, 0, 0))

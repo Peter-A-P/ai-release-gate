@@ -1,0 +1,34 @@
+name: gate
+
+# pull_request, never pull_request_target: the gate reads the pull request's prompt and sends
+# it to vendors with this repository's keys, and pull_request_target would hand those keys to
+# a branch from a fork.
+on:
+  pull_request:
+    paths: [prompts/**, gate.yaml]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Pin to a commit of ai-release-gate. A moving ref moves the gate.
+      - uses: Peter-A-P/ai-release-gate/action@main
+        with:
+          gate-ref: main

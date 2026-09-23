@@ -1,0 +1,100 @@
+# The release gate as a GitHub Action (PLAN.md B6).
+#
+# On a pull request: check out the base branch beside the pull request, run `gate check`,
+# which answers the suites with both sides' prompt and model and decides, then post one comment
+# (edited in place on every push, so a pull request carries only the current verdict) and exit
+# non-zero on a block, so branch protection can require the check.
+#
+# The rules come from the BASE branch's gate.yaml. A pull request that edits the margin is told
+# so in the comment, and its edit takes effect only once merged.
+#
+# Vendor keys come from the calling job's environment, never from this file: the workflow that
+# uses this action sets ANTHROPIC_API_KEY, GOOGLE_API_KEY and the rest from its own secrets.
+# The calling checkout needs `fetch-depth: 0` so the base branch can be checked out beside it.
+name: ai-release-gate
+description: Block a prompt or model change that cannot be shown not to regress.
+inputs:
+  config:
+    description: The gate config, relative to the repository root.
+    default: gate.yaml
+  gate-ref:
+    description: The ai-release-gate commit to run. Pin a SHA; a moving ref moves the gate.
+    default: main
+  github-token:
+    description: Token that may comment on the pull request.
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - name: Check out the base branch beside the pull request
+      shell: bash
+      run: |
+        git fetch --no-tags origin "${{ github.base_ref }}"
+        git worktree add --detach "$RUNNER_TEMP/gate-base" "origin/${{ github.base_ref }}"
+
+    - name: Check out the gate
+      uses: actions/checkout@v4
+      with:
+        repository: Peter-A-P/ai-release-gate
+        ref: ${{ inputs.gate-ref }}
+        path: .ai-release-gate
+
+    - uses: astral-sh/setup-uv@v6
+      with:
+        python-version: "3.13"
+
+    - name: Install the gate
+      shell: bash
+      working-directory: .ai-release-gate
+      run: uv sync --frozen --all-extras
+
+    # The development cache (B6): replies keyed by everything the vendor was sent, so an
+    # unchanged base branch costs nothing after its first run. Keys are immutable in Actions, so
+    # each run saves under its own id and restores the newest.
+    - name: Restore the development cache
+      uses: actions/cache@v4
+      with:
+        path: .gate-cache.jsonl
+        key: ai-release-gate-${{ github.run_id }}
+        restore-keys: ai-release-gate-
+
+    - name: Gate
+      id: gate
+      shell: bash
+      run: |
+        set +e
+        uv run --project .ai-release-gate gate check \
+          --base "$RUNNER_TEMP/gate-base" \
+          --candidate "$GITHUB_WORKSPACE" \
+          --config "${{ inputs.config }}" \
+          --cache "$GITHUB_WORKSPACE/.gate-cache.jsonl" \
+          --work "$RUNNER_TEMP/gate-work" \
+          --comment "$RUNNER_TEMP/gate-comment.md" \
+          --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+          --i-am-allowed-to-call-vendors
+        echo "code=$?" >> "$GITHUB_OUTPUT"
+
+    - name: Comment on the pull request
+      if: always()
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR: ${{ github.event.pull_request.number }}
+      run: |
+        body="$RUNNER_TEMP/gate-comment.md"
+        if [ ! -s "$body" ]; then
+          echo "no comment written: the gate stopped before deciding (see the Gate step)"
+          exit 0
+        fi
+        # One comment per pull request, found by the marker the renderer puts on line one.
+        id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+          --jq '.[] | select(.body | startswith("<!-- ai-release-gate -->")) | .id' | tail -n 1)
+        if [ -n "$id" ]; then
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F "body=@$body" > /dev/null
+        else
+          gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F "body=@$body" > /dev/null
+        fi
+
+    - name: Verdict
+      shell: bash
+      run: exit "${{ steps.gate.outputs.code }}"

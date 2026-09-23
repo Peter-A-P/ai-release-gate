@@ -8,7 +8,7 @@ number it turned on, because a block with no reason is an argument nobody can ha
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Literal
 
@@ -136,10 +136,16 @@ def _suite(
     cand: SuiteOutcomes,
     *,
     with_power: bool,
+    judge_counts: tuple[int, int, int, int] | None = None,
 ) -> tuple[SuiteResult, PairedTest]:
     delta = spec.delta_for(suite)
     test = paired_difference(
-        base.outcomes, cand.outcomes, delta=delta, resamples=spec.resamples, seed=spec.seed
+        base.outcomes,
+        cand.outcomes,
+        delta=delta,
+        resamples=spec.resamples,
+        seed=spec.seed,
+        judge_counts=judge_counts,
     )
     corrected: PairedTest | None = None
     if suite.benchmark is not None and test.paired_items > 0:
@@ -152,6 +158,7 @@ def _suite(
                 resamples=spec.resamples,
                 seed=spec.seed,
                 inflation=infl,
+                judge_counts=judge_counts,
             )
     decisive = corrected if (suite.correct_for_dependence and corrected is not None) else test
 
@@ -159,8 +166,14 @@ def _suite(
     power: PowerLine | None = None
     needed = suite.min_items
     if needed is None and with_power:
+        # A judge sees every true difference shrunk by se + sp - 1, so the items needed are
+        # the items needed to see the shrunk difference. Asking the bank for the full margin
+        # would call a judge-graded suite powered when the judge cannot see the drop.
+        margin = spec.delta_points if suite.delta_points is None else suite.delta_points
+        if test.judge_youden is not None:
+            margin *= test.judge_youden
         power = items_needed(
-            spec.delta_points if suite.delta_points is None else suite.delta_points,
+            margin,
             power=spec.power.target,
             accuracy=baseline_acc.point if baseline_acc.n else None,
             reference_ability=spec.power.reference_ability,
@@ -175,6 +188,18 @@ def _suite(
         reasons.append(
             f"{test.paired_items} paired items, fewer than the {needed} needed to see a "
             f"{delta:.0%} drop at {spec.power.target:.0%} power: under-powered, warns only"
+        )
+    if test.judge_youden is not None and suite.grader is not None:
+        reasons.append(
+            f"graded by {suite.grader.judge} on {suite.grader.task}; the difference is divided "
+            f"by its sensitivity + specificity - 1 = {test.judge_youden:.2f}, resampled from "
+            "the calibration, so the judge's own error is taken out of it rather than shrinking "
+            "the regression"
+            + (
+                f" ({test.dropped_resamples} resamples dropped as uninformative)"
+                if test.dropped_resamples
+                else ""
+            )
         )
     if corrected is not None:
         reasons.append(
@@ -199,13 +224,35 @@ def _suite(
     return result, decisive
 
 
-def decide(spec: EvalSpec, baseline: Side, candidate: Side, *, with_power: bool = True) -> Decision:
+def decide(
+    spec: EvalSpec,
+    baseline: Side,
+    candidate: Side,
+    *,
+    with_power: bool = True,
+    judges: Mapping[str, tuple[int, int, int, int]] | None = None,
+) -> Decision:
     """The gate. `with_power=False` skips the bank lookup, for a caller that has set
-    `min_items` on every suite or is running the A/A study thousands of times."""
+    `min_items` on every suite or is running the A/A study thousands of times.
+
+    `judges` maps a judge-graded suite's key to its judge's calibration counts (true positive,
+    false negative, false positive, true negative) on the suite's task. A suite with a grader
+    and no counts is refused: a judge's verdicts are not decided on uncorrected.
+    """
+    judges = judges or {}
     drafts: list[tuple[SuiteResult, PairedTest]] = []
     for s in spec.suites:
+        if s.grader is not None and s.key not in judges:
+            raise ValueError(f"suite {s.key!r} is judge-graded and no calibration was given")
         drafts.append(
-            _suite(spec, s, baseline.suites[s.key], candidate.suites[s.key], with_power=with_power)
+            _suite(
+                spec,
+                s,
+                baseline.suites[s.key],
+                candidate.suites[s.key],
+                with_power=with_power,
+                judge_counts=judges.get(s.key),
+            )
         )
 
     powered = [i for i, (r, _) in enumerate(drafts) if not r.under_powered]

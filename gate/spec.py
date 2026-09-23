@@ -16,10 +16,11 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-# Where a suite's items and outcomes come from. Stage 1 has one kind: a block of Part A's
-# frozen suite, read from the drift record. Later kinds (a project's own item file, a
-# red-team suite, a gold set) are added here and nowhere else.
-SourceKind = Literal["drift_block"]
+# Where a suite's items and outcomes come from. `drift_block` is a block of Part A's frozen
+# suite, read from the drift record, with outcomes already stored. `gold_questions` is the
+# regulated Q&A task of the gold set (stage 4): the 100 questions, each with its own source
+# document, answered live by the side under test and graded by a calibrated judge.
+SourceKind = Literal["drift_block", "gold_questions"]
 
 _KEY = r"^[a-z][a-z0-9_-]*$"
 
@@ -28,8 +29,32 @@ class Source(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     kind: SourceKind = "drift_block"
-    block: str = Field(min_length=1)
+    block: str = ""
     held_out: bool = False
+
+    @model_validator(mode="after")
+    def _block_for_drift(self) -> Source:
+        if self.kind == "drift_block" and not self.block:
+            raise ValueError("a drift_block source names its block")
+        if self.kind != "drift_block" and (self.block or self.held_out):
+            raise ValueError(f"a {self.kind} source takes no block")
+        return self
+
+
+class Grader(BaseModel):
+    """A calibrated LLM judge grading one task of the rubric (PLAN.md B2.3).
+
+    Names a judge in `gate/specs/gold-judges.yaml` and the output budget it runs with. The
+    budget is part of the judge: Gemini 3.8 Flash answers at 1024 tokens and returns nothing
+    at 64, so a calibration measured at one budget does not license the judge at another, and
+    `gate check` refuses a grader whose budget is not the one its verdicts were stored under.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    judge: str = Field(pattern=r"^[a-z0-9-]+$")
+    task: Literal["faithful", "complete"]
+    max_tokens: int = Field(default=64, ge=1)
 
 
 class SuiteSpec(BaseModel):
@@ -52,6 +77,18 @@ class SuiteSpec(BaseModel):
     # A floor on paired items below which the suite warns instead of blocking, overriding the
     # power analysis. None means `mselect.items_needed` decides.
     min_items: int | None = Field(default=None, ge=1)
+    # How a live suite is graded. None for a drift_block, whose outcomes are already graded
+    # by Part A's programmatic graders; required for gold_questions, which has no programmatic
+    # grader for an open answer.
+    grader: Grader | None = None
+
+    @model_validator(mode="after")
+    def _grader_for_live(self) -> SuiteSpec:
+        if self.source.kind == "gold_questions" and self.grader is None:
+            raise ValueError(f"suite {self.key!r}: gold_questions needs a grader")
+        if self.source.kind == "drift_block" and self.grader is not None:
+            raise ValueError(f"suite {self.key!r}: a drift_block is already graded")
+        return self
 
 
 class PowerSpec(BaseModel):
@@ -121,9 +158,15 @@ class EvalSpec(BaseModel):
         return self.model_copy(update={"suites": suites})
 
     def canonical(self) -> str:
-        return json.dumps(
-            self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=False
-        )
+        data = self.model_dump(mode="json")
+        # Fields added after specs were first hashed are left out while they hold their
+        # default, so an existing spec keeps the hash its ledger records were written under
+        # and the same comparison stays the same record id. Added in stage 4: a suite's
+        # `grader`, and a source's `block` becoming optional.
+        for suite in data["suites"]:
+            if suite.get("grader") is None:
+                suite.pop("grader", None)
+        return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
     def sha256(self) -> str:
         return hashlib.sha256(self.canonical().encode("utf-8")).hexdigest()

@@ -5,9 +5,12 @@ Every share carries its interval; a bare percentage is a bug here as in the reco
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from drift.analysis.stats import Estimate
 from gate.aa import AAStudy
 from gate.decision import Decision
+from gate.judge.calibration import CorrectedRate
 from gate.outcomes import Side
 from gate.stats import PowerLine
 
@@ -176,4 +179,69 @@ def render_aa(studies: list[tuple[str, AAStudy]], *, seed: int = 0) -> str:
             + ", ".join(up)
             + "."
         )
+    return "\n".join(out)
+
+
+# The marker the Action looks for to edit its own comment rather than add a new one on every
+# push, so a pull request carries one gate verdict, the current one.
+PR_MARKER = "<!-- ai-release-gate -->"
+
+
+def render_pr_comment(
+    d: Decision,
+    *,
+    judged: Sequence[tuple[str, str, str, float, CorrectedRate, CorrectedRate]],
+    spent_usd: float,
+    fresh_calls: int,
+    cache_hits: int,
+    rules_changed: bool,
+    run_url: str | None = None,
+) -> str:
+    """The pull-request comment: the decision, then what a judge-graded number means.
+
+    `judged` is one row per judge-graded suite: (suite, judge, task, kappa, baseline corrected
+    rate, candidate corrected rate). The rates in the main table are the judge's raw calls; the
+    corrected ones are the rates with the judge's own error taken out (Rogan-Gladen), and they
+    are shown because a reader deciding whether to merge needs the second, not the first.
+    """
+    out = [PR_MARKER, render_decision(d)]
+    detail = [(s.suite, r) for s in d.suites for r in s.reasons[1:]]
+    if detail:
+        out += ["", "**Per suite**", ""]
+        out += [f"- {suite}: {reason}" for suite, reason in detail]
+    if judged:
+        out += [
+            "",
+            "**Graded by a calibrated judge.** The rates above are what the judge said. Its own",
+            "error, measured against 480 hand labels, is taken out below, and taken out of the",
+            "difference the verdict rests on.",
+            "",
+            "| Suite | Judge | Task | Kappa | Baseline, corrected | Candidate, corrected |",
+            "|---|---|---|---:|---|---|",
+        ]
+        for suite, judge, task, kappa, base, cand in judged:
+            out.append(
+                f"| {suite} | {judge} | {task} | {kappa:.2f} | {base.corrected.fmt()} | "
+                f"{cand.corrected.fmt()} |"
+            )
+        out += [
+            "",
+            "Faithfulness is not gated: no judge passed calibration on it (kappa 0.07 and 0.11",
+            "against a floor of 0.6), and this gate does not grade with an instrument that has",
+            "not been shown to work. A faithfulness regression needs a human reading.",
+        ]
+    if rules_changed:
+        out += [
+            "",
+            "> **This pull request edits the gate's own rules in `gate.yaml`.** They were not",
+            "> applied: the margins, thresholds and suites always come from the base branch, or a",
+            "> change could pass itself. They take effect once merged.",
+        ]
+    out += [
+        "",
+        f"This run made {fresh_calls} vendor calls for US${spent_usd:.2f} and reused "
+        f"{cache_hits} identical requests from the development cache.",
+    ]
+    if run_url:
+        out.append(f"[Run log]({run_url})")
     return "\n".join(out)

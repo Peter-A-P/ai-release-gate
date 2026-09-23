@@ -123,6 +123,22 @@ honest release gate for prompt and model changes (phase 2).
 - An unparseable judge verdict is **ungradeable, not a disagreement**, exactly as an errored
   call is absent from the drift record's accuracy rather than counted wrong.
 
+## Part B stage 4, the gate on pull requests (`gate/live.py`, `action/`)
+
+- **The base branch sets the rules.** `gate check` takes margins, thresholds and suites from the
+  base branch's `gate.yaml` and only the prompt and model from the pull request. Never let the
+  candidate's config govern; a change that could loosen its own margin could pass itself.
+- **A judge is licensed before any call, or not used.** Same rubric hash, same output budget,
+  kappa at or above 0.6 on the task. Do not add a path that grades with an unlicensed judge, and
+  do not decide on a judge's raw difference: `paired_difference` takes `judge_counts` so the
+  judge's error is divided out, and `decide` refuses a graded suite without them.
+- **The live suite's margin is ten points and that is a finding, not a default.** It is reasoned
+  in `docs/gate-statistics.md` from `gate/live_aa.py`, and changes only with a measured
+  discordance written there in the same commit.
+- **The development cache is for pull requests only.** Part A's monthly run never uses one.
+- **Adding a spec field must not move an existing spec's hash.** Ledger records are
+  content-addressed on it; `EvalSpec.canonical` drops new fields at their default.
+
 ## What goes in the README
 
 The README opens with the one-liner, the results table, and the honest limitation, before

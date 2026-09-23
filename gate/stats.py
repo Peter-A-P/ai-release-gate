@@ -56,6 +56,14 @@ class PairedTest:
     mcnemar_p: float
     # The variance inflation applied for local dependence, 1.0 when none was.
     inflation: float
+    # For a judge-graded suite: sensitivity + specificity - 1 at the calibration's point, the
+    # factor a judge's own error shrinks every true difference by. None when outcomes came from
+    # a programmatic grader and need no correction.
+    judge_youden: float | None = None
+    # Resamples dropped because the resampled calibration left the judge with no information
+    # (sensitivity + specificity at or below 1). Reported, because a lot of them means the
+    # interval rests on the lucky draws.
+    dropped_resamples: int = 0
 
     @property
     def non_inferior(self) -> bool:
@@ -74,6 +82,7 @@ def paired_difference(
     resamples: int = 2000,
     seed: int = 0,
     inflation: float = 1.0,
+    judge_counts: tuple[int, int, int, int] | None = None,
 ) -> PairedTest:
     """Percentile bootstrap over items of the mean of (candidate - baseline).
 
@@ -88,15 +97,42 @@ def paired_difference(
     A paired difference on binary outcomes is -1, 0 or +1 per item, so a resample of n items
     is a multinomial count of the three, drawn here as two binomials rather than n item draws.
     Same distribution, a fraction of the time; see `bootstrap_share`.
+
+    `judge_counts` is (true positive, false negative, false positive, true negative) from the
+    judge's calibration, for a suite whose outcomes a judge gave rather than a programmatic
+    grader. A judge with sensitivity se and specificity sp reports a pass with probability
+    (se + sp - 1) p + (1 - sp) when the true rate is p, so on both sides of a paired
+    comparison the difference it sees is the true difference times (se + sp - 1), whatever
+    the two rates are. Uncorrected, that shrinks every regression towards zero and makes the
+    gate lenient in exact proportion to how bad the judge is. So each resample divides by that
+    factor, with se and sp themselves resampled from the calibration counts, which is what
+    carries the calibration's own uncertainty into the interval. It assumes the judge errs the
+    same way on both sides, which is the assumption a calibration over three answering models
+    of different capability is there to support, and which is stated wherever the figure is.
     """
     paired = sorted(set(baseline) & set(candidate))
     n = len(paired)
     if n == 0:
         nan = float("nan")
         return PairedTest(0, Estimate(nan, nan, nan, 0), delta, 1.0, 0, 0, 1.0, inflation)
+    youden: float | None = None
+    se_n = sp_n = 0
+    se_p = sp_p = 0.0
+    if judge_counts is not None:
+        tp, fn, fp, tn = judge_counts
+        se_n, sp_n = tp + fn, fp + tn
+        if se_n == 0 or sp_n == 0:
+            raise ValueError(
+                "a judge calibration with no positives or no negatives corrects nothing"
+            )
+        se_p, sp_p = tp / se_n, tn / sp_n
+        youden = se_p + sp_p - 1.0
+        if youden <= 0:
+            raise ValueError(f"sensitivity + specificity - 1 is {youden:.3f}: the judge is noise")
     worse = sum(1 for i in paired if baseline[i] and not candidate[i])
     better = sum(1 for i in paired if candidate[i] and not baseline[i])
-    point = (better - worse) / n
+    raw_point = (better - worse) / n
+    point = raw_point / youden if youden is not None else raw_point
     rng = random.Random(seed)
     spread = math.sqrt(inflation)
     p_worse = worse / n
@@ -105,12 +141,21 @@ def paired_difference(
     def one() -> float:
         w = rng.binomialvariate(n, p_worse)
         b = rng.binomialvariate(n - w, p_better_given_rest) if n > w else 0
-        return point + ((b - w) / n - point) * spread
+        raw = raw_point + ((b - w) / n - raw_point) * spread
+        if youden is None:
+            return raw
+        y = rng.binomialvariate(se_n, se_p) / se_n + rng.binomialvariate(sp_n, sp_p) / sp_n - 1
+        return raw / y if y > 0 else float("nan")
 
-    means = sorted(one() for _ in range(resamples))
-    lo = means[int(0.025 * resamples)]
-    hi = means[min(resamples - 1, int(0.975 * resamples))]
-    p = sum(1 for m in means if m <= -delta) / resamples
+    drawn = [one() for _ in range(resamples)]
+    means = sorted(m for m in drawn if not math.isnan(m))
+    dropped = resamples - len(means)
+    if not means:
+        raise ValueError("every resample left the judge with no information")
+    kept = len(means)
+    lo = means[int(0.025 * kept)]
+    hi = means[min(kept - 1, int(0.975 * kept))]
+    p = sum(1 for m in means if m <= -delta) / kept
     return PairedTest(
         paired_items=n,
         difference=Estimate(point, lo, hi, n),
@@ -120,6 +165,8 @@ def paired_difference(
         better=better,
         mcnemar_p=mcnemar_exact(worse, better),
         inflation=inflation,
+        judge_youden=youden,
+        dropped_resamples=dropped,
     )
 
 

@@ -12,9 +12,10 @@ else's middlebox (CLAUDE.md). `gold label` and `judge calibrate` are offline.
 
 from __future__ import annotations
 
+import contextlib
 import shutil
 import textwrap
-from collections.abc import Collection
+from collections.abc import Collection, Iterator
 from pathlib import Path
 from typing import Annotated
 
@@ -22,7 +23,7 @@ import typer
 
 from drift.panel import Arm, Panel, load_panel
 from drift.runner.records import arms_recorded, read_records, records_path
-from gate import __version__, aa, distractors, generate, gold, ledger, report
+from gate import __version__, aa, distractors, generate, gold, ledger, live, report
 from gate import sources as gold_sources
 from gate.decision import decide
 from gate.judge import calibration as calib
@@ -887,4 +888,152 @@ def gold_probe_models(
             servable.append(model)
     typer.echo(f"{len(servable)} of {len(wanted)} answered: {', '.join(servable) or 'none'}")
     if not servable:
+        raise typer.Exit(1)
+
+
+# ---------------------------------------------------------------------------- pull requests
+
+
+@contextlib.contextmanager
+def _open_chat(work: Path, run_id: str) -> Iterator[live.Chat]:
+    """The one place a live check reaches a vendor. Tests replace this function."""
+    from boundary import ChatRequest, Gateway
+
+    with Gateway.from_config(
+        BOUNDARY_CONFIG,
+        project=PROJECT,
+        ledger_path=work / "ledger.sqlite",
+        raw_store=work / "raw",
+    ) as gateway:
+
+        def send(r: live.Request) -> object:
+            return gateway.chat(
+                ChatRequest(
+                    model=r.model,
+                    system=r.system,
+                    messages=[{"role": "user", "content": r.prompt}],
+                    max_tokens=r.max_tokens,
+                    temperature=r.temperature,
+                    extra=dict(r.extra),
+                ),
+                purpose="gate check",
+                run_id=run_id,
+            )
+
+        yield live.timed(send)
+
+
+@app.command("check")
+def check(
+    base: Annotated[Path, typer.Option(help="the base branch's checkout")],
+    candidate: Annotated[Path, typer.Option(help="the pull request's checkout")] = Path("."),
+    config: Annotated[str, typer.Option(help="the gate config, relative to each root")] = (
+        live.CONFIG_FILE
+    ),
+    cache: Annotated[Path | None, typer.Option(help="development cache (JSON lines)")] = None,
+    work: Annotated[Path, typer.Option(help="scratch for the call ledger")] = Path(".gate-work"),
+    comment: Annotated[Path | None, typer.Option(help="write the PR comment here")] = None,
+    record: Annotated[Path | None, typer.Option(help="append the decision to this ledger")] = None,
+    run_url: Annotated[str, typer.Option(help="link to this run, for the comment")] = "",
+    allowed: Annotated[bool, typer.Option(VENDOR_FLAG, help=VENDOR_HELP)] = False,
+) -> None:
+    """Gate a pull request: run the base and the candidate live and decide. Exit 1 on a block.
+
+    The margins, thresholds and suites come from the BASE branch's config; only the prompt and
+    the model come from the candidate's. Every judge is licensed from its stored calibration
+    before any call is made, and refused if it was calibrated under another rubric or budget or
+    failed the kappa floor on the task.
+    """
+    try:
+        spec, base_subject, base_prompt = live.load_repo_config(base, config)
+        cand_spec, cand_subject, cand_prompt = live.load_repo_config(candidate, config)
+    except (live.ConfigError, ValueError) as e:
+        typer.echo(f"gate config: {e}", err=True)
+        raise typer.Exit(2) from e
+    rules_changed = cand_spec.canonical() != spec.canonical()
+
+    g = _gold_or_exit()
+    judges = _panel_or_exit(JUDGE_PANEL).arms
+    licences: dict[str, live.Licence] = {}
+    try:
+        for s in spec.suites:
+            if s.grader is not None:
+                licences[s.key] = live.license_judge(s.grader, judges, GOLD)
+    except live.ConfigError as e:
+        typer.echo(f"judge refused: {e}", err=True)
+        raise typer.Exit(2) from e
+    for key, lic in licences.items():
+        t = lic.calibration
+        typer.echo(
+            f"{key}: {lic.grader.judge} licensed for {lic.grader.task}, kappa "
+            f"{t.kappa.point:.3f}, sensitivity {t.sensitivity.point:.3f}, specificity "
+            f"{t.specificity.point:.3f}"
+        )
+    _refuse_unless_allowed(allowed, "gate check")
+
+    store = live.Cache(cache)
+    spend = live.Spend()
+    run_id = f"check-{live.sha16(base_prompt + cand_prompt + cand_subject.model)}"
+    with _open_chat(work, run_id) as chat:
+        base_side, base_live = live.run_side(
+            f"base: {base_subject.provider}/{base_subject.model}, prompt "
+            f"{live.sha16(base_prompt)[:8]}",
+            spec,
+            base_subject,
+            base_prompt,
+            g,
+            licences,
+            chat=chat,
+            cache=store,
+            spend=spend,
+        )
+        cand_side, cand_live = live.run_side(
+            f"candidate: {cand_subject.provider}/{cand_subject.model}, prompt "
+            f"{live.sha16(cand_prompt)[:8]}",
+            spec,
+            cand_subject,
+            cand_prompt,
+            g,
+            licences,
+            chat=chat,
+            cache=store,
+            spend=spend,
+        )
+    d = decide(spec, base_side, cand_side, judges={k: lic.counts for k, lic in licences.items()})
+    judged = []
+    for key, lic in licences.items():
+        judged.append(
+            (
+                key,
+                lic.grader.judge,
+                lic.grader.task,
+                lic.calibration.kappa.point,
+                calib.corrected_rate(
+                    judge_calls=base_live[key].judge_calls, calibration=lic.calibration
+                ),
+                calib.corrected_rate(
+                    judge_calls=cand_live[key].judge_calls, calibration=lic.calibration
+                ),
+            )
+        )
+    text = report.render_pr_comment(
+        d,
+        judged=judged,
+        spent_usd=spend.usd,
+        fresh_calls=spend.calls,
+        cache_hits=spend.cache_hits,
+        rules_changed=rules_changed,
+        run_url=run_url or None,
+    )
+    typer.echo(text)
+    if comment is not None:
+        comment.parent.mkdir(parents=True, exist_ok=True)
+        comment.write_text(text + "\n", encoding="utf-8", newline="\n")
+    if record is not None:
+        rec = ledger.record_for(
+            d, baseline=dict(base_side.source), candidate=dict(cand_side.source)
+        )
+        ledger.append(record, rec)
+        typer.echo(f"ledger record {rec.record_id} appended to {record}", err=True)
+    if d.blocked:
         raise typer.Exit(1)

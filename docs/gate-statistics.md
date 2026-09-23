@@ -172,3 +172,63 @@ uv run gate aa --month 2026-09-run2 --baseline 2026-09 --delta 5 --delta 2
 The second `compare` exits 1: it is the between-run false block on the control, and the reason
 it prints is the one this document describes. Both decisions are the first two records in
 [`gate/runs/ledger.jsonl`](../gate/runs/ledger.jsonl).
+
+## A live, judge-graded suite (stage 4)
+
+A pull request has no stored record, so `gate check` makes both sides live: the base branch's
+prompt and model, and the pull request's, each answer the gold set's 100 questions from their
+own documents, and a calibrated judge grades each answer for completeness. Two things change
+from the stage-1 suites, and both make the gate stricter to set up rather than easier to pass.
+
+### The judge's error is taken out of the difference
+
+A judge with sensitivity *se* and specificity *sp* reports a pass with probability
+(*se* + *sp* - 1) *p* + (1 - *sp*) when the true rate is *p*. On both sides of a paired comparison
+that is the same line, so the difference the judge sees is the true difference times
+(*se* + *sp* - 1), whatever the two rates are. Left alone, that shrinks every regression towards
+zero, and the gate gets more lenient in exact proportion to how bad its judge is.
+
+So `paired_difference` divides by that factor, and resamples *se* and *sp* from the calibration
+counts in every bootstrap draw, so the interval carries the calibration's own sampling error as
+well as the items'. For Gemini 3.8 Flash on completeness the factor is 0.89 (317 of 317 human
+passes agreed, 145 of 163 human failures): a true ten-point drop looks like 8.9, and is decided
+as ten. The power screen asks for the items needed to see the shrunk difference, not the full
+one. The assumption, stated wherever the figure appears, is that the judge errs the same way on
+both sides; a calibration over three answering models of different capability is the evidence
+for it, and it is an assumption rather than a measurement.
+
+A judge is licensed per task, from the stored calibration, before any call is made: same rubric
+hash, same output budget, source first, kappa at or above 0.6. Neither judge passed on
+faithfulness, so no live suite can be graded on it, and the pull-request comment says so.
+
+### Why ten points, not three (B5)
+
+This is the margin decision B5 says is taken only with the reasoning written down.
+
+Three points is right for a 420-item programmatic suite. It is wrong for 100 items graded by a
+judge, and not by a little. An unchanged prompt run twice does not give identical verdicts:
+some answers change at temperature 0, and the judge itself disagrees with itself on 1.2% of
+identical prompts. Each such item moves the paired difference, and the rule blocks whenever the
+interval's lower end, about 1.96 standard deviations below the observed difference, falls past
+the margin. Keeping false blocks under 5% needs a margin of about 3.6 standard deviations.
+
+`uv run python -m gate.live_aa` simulates it on the real test and the real judge counts: two runs
+drawn from the same per-item propensities, so every block is a false one.
+
+| items differing between two runs | 3 pts | 5 pts | 8 pts | 10 pts |
+|---|---:|---:|---:|---:|
+| 3.9% | 68.5% | 39.2% | 8.2% | 2.2% |
+| 6.7% | 80.2% | 60.2% | 19.2% | 9.5% |
+| 11.6% | 85.8% | 72.8% | 41.0% | 26.0% |
+
+At the gate's default three points an unchanged prompt is blocked about seven times in ten. Ten
+points is the smallest round margin that keeps the false-block rate near or under 5%, **and
+only if about 4% of items disagree between two runs of one prompt**. That rate is not measured
+yet. The demo repository's A/A pull request measures it, and if it comes out near 7% the
+false-block rate at ten points is near one in ten and the margin is revisited here, with the
+measurement, before anything is tuned.
+
+What this means in plain terms: a 100-question suite graded by a judge can guard against a
+regression of ten points or more and cannot see anything smaller. The remedy is more questions,
+not a narrower margin, and a narrower margin without them would be a gate that blocks at
+random.
