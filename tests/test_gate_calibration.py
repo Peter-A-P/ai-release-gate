@@ -280,3 +280,29 @@ def test_parse_verdict_is_strict_about_the_shape() -> None:
 def test_counts_are_a_plain_dataclass_so_a_ledger_can_store_them() -> None:
     c = Counts(1, 2, 3, 4)
     assert c.n == 10 and c.agreed == 5
+
+
+def test_a_rate_of_all_or_none_still_has_an_interval_with_width() -> None:
+    """The first real calibration printed a sensitivity of "100.0% (100.0% to 100.0%)" over 317
+    agreements. A bootstrap of identical outcomes reproduces them, and an interval of no width
+    is a bare number, which CLAUDE.md calls a bug. 317 of 317 bounds the miss rate; it does not
+    make it zero."""
+    from gate.judge.calibration import _share
+
+    every = _share([True] * 317, seed=0)
+    assert every.point == 1.0 and every.hi == 1.0
+    assert 0.98 < every.lo < 1.0, "317 of 317 cannot rule out missing one in a hundred"
+    none = _share([False] * 9, seed=0)
+    assert none.point == 0.0 and none.lo == 0.0 and none.hi > 0.1
+    mixed = _share([True] * 5 + [False] * 4, seed=0)
+    assert mixed.lo < mixed.point < mixed.hi
+
+
+def test_a_judge_that_never_misses_is_still_reported_with_an_interval() -> None:
+    """The real case, Gemini on completeness: 317 human-yes, all 317 agreed. Through
+    calibrate_task, not the helper alone, because the first fix went into a helper the
+    sensitivity figure never called."""
+    cal = make_calibration(tp=317, fn=0, fp=18, tn=145)
+    assert cal.sensitivity.point == 1.0
+    assert cal.sensitivity.lo < 0.995, "an interval with no width is a bare number"
+    assert cal.specificity.lo < cal.specificity.point < cal.specificity.hi

@@ -978,6 +978,36 @@ line (a refusal is complete only when the question was written unanswerable, and
 shown the same unanswerable line the labeller saw), and a test now pins that rule, which the
 phrase check had never looked at.
 
+**Calibrated 2026-09-23, rubric v2, both judges over all 480, each read twice and once swapped.**
+Reports: `docs/judge-calibration-openai-judge-small.md`, `docs/judge-calibration-google-judge-mid.md`.
+
+| judge | faithful kappa | complete kappa | decision |
+|---|---|---|---|
+| gpt-5.4-mini | 0.066 (-0.010 to 0.154) | 0.790 (0.729 to 0.848) | complete only |
+| gemini-3.8-flash | 0.108 (0.012 to 0.217) | 0.914 (0.875 to 0.950) | complete only |
+
+**Both are refused for faithfulness and usable for completeness.** The faithfulness refusal is
+almost entirely one-directional: the judges call 69 and 59 answers unfaithful that the human
+called faithful, against 4 and 5 the other way, and 43 of those are the same instances for both
+judges. Whether that is the judges being strict or the human being lenient is not settled by
+the calibration and is not settled by looking only at the disagreements, which would be
+re-reading the gold set in the direction the judge points. The second pass reads a sample
+drawn before any judge ran, and is the evidence. The rubric is not revised in response.
+**Order matters, most for the smaller judge.** Putting the answer before the source moves 93 of
+480 of gpt-5.4-mini's faithfulness verdicts (McNemar p = 0.007) and 32 of its completeness
+verdicts (p = 0.020). Gemini moves 18 faithfulness verdicts (p = 0.031) and 10 completeness
+verdicts with no direction (p = 1.000). An absolute rubric was chosen because it should barely
+move under reordering; for gpt-5.4-mini on faithfulness, one verdict in five depends on layout.
+Test-retest at temperature 0: 1 to 3 per cent of identical prompts get a different verdict.
+
+At the labeller's decision the aggregate figures above were shown to him before the second
+pass. The instance-level disagreements were not, and the write-up says both.
+
+The first run of the calibration printed completeness sensitivity as "100.0% (100.0 to
+100.0)", an interval of no width over 317 agreements. The four shares in each calibration now
+take a Jeffreys interval at none or all, as Part A's refusal-error rate does; it reads 100.0%
+(99.2 to 100.0).
+
 **Reliability of the gold set itself:** 100 of the 300 are re-labelled by the same rater
 two weeks later for intra-rater agreement. A second rater labels the same 100 if one is
 available (not a colleague from work). Both agreements are reported; if the second rater

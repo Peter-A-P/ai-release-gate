@@ -28,7 +28,7 @@ import random
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
-from drift.analysis.stats import Estimate, mcnemar_exact
+from drift.analysis.stats import Estimate, jeffreys_proportion, mcnemar_exact
 from gate.gold import TASKS, GoldLabel, Task
 from gate.judge.rubric import JudgeVerdict
 from gate.stats import bootstrap_share
@@ -176,6 +176,19 @@ def _rate(numerator: int, denominator: int) -> float:
 
 
 def _share(flags: Sequence[bool], *, seed: int) -> Estimate:
+    """A rate with an interval that has width even at none or all.
+
+    The bootstrap resamples 317 agreements into 317 agreements and printed the first
+    calibration's completeness sensitivity as "100.0% (100.0% to 100.0%)", which CLAUDE.md
+    calls a bare number: 317 of 317 does not mean the judge never misses. At 0 or n the
+    interval is Jeffreys, as Part A does for the refusal classifier; everywhere else it is
+    the binomial bootstrap, the same distribution as resampling the items. Only here, not in
+    `gate.stats.bootstrap_share`, which the gate's decisions use and which B5 says is
+    changed only with the reasoning recorded.
+    """
+    k = sum(1 for f in flags if f)
+    if flags and k in (0, len(flags)):
+        return jeffreys_proportion(k, len(flags), seed=seed)
     return bootstrap_share(flags, seed=seed)
 
 
@@ -397,30 +410,13 @@ def calibrate_task(
             resamples=resamples,
             seed=seed,
         ),
-        sensitivity=_bootstrap(
-            [p for p in pairs if p[0]],
-            lambda p: _rate(sum(1 for _, j in p if j), len(p)),
-            resamples=resamples,
-            seed=seed,
-        ),
-        specificity=_bootstrap(
-            [p for p in pairs if not p[0]],
-            lambda p: _rate(sum(1 for _, j in p if not j), len(p)),
-            resamples=resamples,
-            seed=seed,
-        ),
-        judge_rate=_bootstrap(
-            pairs,
-            lambda p: _rate(sum(1 for _, j in p if j), len(p)),
-            resamples=resamples,
-            seed=seed,
-        ),
-        human_rate=_bootstrap(
-            pairs,
-            lambda p: _rate(sum(1 for h, _ in p if h), len(p)),
-            resamples=resamples,
-            seed=seed,
-        ),
+        # Four shares of yes/no outcomes. Through `_share`, not the generic bootstrap, so that
+        # a share of none or all gets an interval with width: the first calibration printed
+        # completeness sensitivity as "100.0% (100.0 to 100.0)" over 317 agreements.
+        sensitivity=_share([j for h, j in pairs if h], seed=seed),
+        specificity=_share([not j for h, j in pairs if not h], seed=seed),
+        judge_rate=_share([j for _, j in pairs], seed=seed),
+        human_rate=_share([h for h, _ in pairs], seed=seed),
         note="; ".join(notes),
     )
 
