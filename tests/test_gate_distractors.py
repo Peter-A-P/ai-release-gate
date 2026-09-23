@@ -213,4 +213,5 @@ def test_the_pass_marks_only_a_written_unanswerable_question_as_unanswerable(
         "a distractor's question HAS an answer, so a refusal to it is incomplete"
     )
     assert "expects" in out, "the points a complete answer needed are what makes it incomplete"
+    assert "from another page" in out, "the labeller must be told where expects came from"
     assert served.title in out and q.question.split()[0] in out

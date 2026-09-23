@@ -390,6 +390,13 @@ def gold_label(
             if question.unanswerable:
                 typer.echo("            (this one is NOT answerable from the passage)")
             _field("expects", "; ".join(question.must_mention))
+            if instance.source_id != question.source_id:
+                # A distractor: those points are the real answer, taken from a page that is
+                # not on screen. Without this the line reads as a claim about the passage.
+                typer.echo(
+                    "            (from another page, not this one: a correct refusal here is"
+                    " faithful but NOT complete)"
+                )
             typer.echo("")
             _field("ANSWER", answer)
             if instance.truncated:
