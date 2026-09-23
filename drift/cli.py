@@ -439,12 +439,23 @@ def items_validate(path: Path) -> None:
 @rulec_app.command("judge")
 def rulec_judge(
     month: Annotated[str, typer.Option(help="the run whose stored answers are judged")],
+    # The dated id, not the alias: a judge is an instrument, and an instrument is pinned.
+    # Haiku 4.5 rather than Sonnet 5 because Sonnet 5 rejects `temperature` outright, and
+    # temperature 0 is the most favourable condition this experiment promises the judge.
     model: Annotated[
         str, typer.Option(help="the judge, as provider/model-id")
-    ] = "anthropic/claude-haiku-4-5",
+    ] = "anthropic/claude-haiku-4-5-20251001",
     items: int = judge.DEFAULT_ITEMS,
     repeats: int = judge.DEFAULT_REPEATS,
     seed: int = judge.DEFAULT_SEED,
+    limit: Annotated[int, typer.Option(help="stop after this many calls, 0 for no limit")] = 0,
+    allowed: Annotated[
+        bool,
+        typer.Option(
+            "--i-am-allowed-to-call-vendors",
+            help="confirm this machine and network may call vendors; CI passes it",
+        ),
+    ] = False,
     replay: Annotated[
         bool, typer.Option("--replay", help="recompute from stored verdicts, call nothing")
     ] = False,
@@ -460,6 +471,15 @@ def rulec_judge(
     reproduces every number offline.
     """
     out_dir = judge.out_dir_for(EXPERIMENTS, month)
+    if not replay and not allowed:
+        typer.echo(
+            "rulec judge makes vendor calls and would spend money. Pass "
+            "--i-am-allowed-to-call-vendors if this machine and network are allowed to make "
+            "them, or --replay to recompute from stored verdicts. They are not allowed from "
+            "the work network, which inspects TLS; the rulec workflow is where this runs.",
+            err=True,
+        )
+        raise typer.Exit(2)
     if not replay:
         suite = load_suite(SUITE_ROOT)
         records = [
@@ -488,6 +508,7 @@ def rulec_judge(
                     judge_model=model, items=items, repeats=repeats, seed=seed
                 ),
                 out_dir=out_dir,
+                limit=limit,
                 log=typer.echo,
             )
     verdicts = judge.read_verdicts(out_dir / judge.VERDICTS_FILE)

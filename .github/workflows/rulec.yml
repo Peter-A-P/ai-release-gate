@@ -1,0 +1,84 @@
+name: rulec
+
+# Rule C candidate 1 (PLAN.md section 10): an LLM judge reads stored answers from a finished
+# drift run, several times over identical input at temperature 0, and its disagreement with
+# itself is set against the programmatic grader's, which is zero by construction.
+#
+# Manual only, never scheduled. It runs here rather than on the laptop because the work
+# network inspects TLS (CLAUDE.md). Nothing it writes touches drift/runs/ or the results table:
+# the verdicts, the ledger and the report live under drift/experiments/judge/<month>/.
+#
+# 50 answers judged 5 times is 250 calls, about US$0.40 on Haiku 4.5 at the 2026-09-12 price
+# list, well under the per-run cap. RESUMABLE: `limit` defaults to a six-call probe that proves
+# the wiring, and a second dispatch with limit 0 pays only for the rest.
+
+on:
+  workflow_dispatch:
+    inputs:
+      month:
+        description: "the drift run whose stored answers are judged"
+        required: true
+        default: "2026-09"
+      model:
+        description: "the judge, as provider/model-id (dated, so the instrument is pinned)"
+        required: false
+        default: "anthropic/claude-haiku-4-5-20251001"
+      limit:
+        description: "stop after this many vendor calls; 0 for no limit. Start small."
+        required: false
+        default: "6"
+
+# One at a time, queued rather than cancelled, for the reason gold.yml gives: each run commits
+# a binary ledger, and a second run racing the first loses what it paid for at the commit step.
+concurrency:
+  group: rulec
+  cancel-in-progress: false
+
+jobs:
+  judge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      # The branch tip when the job starts, not the dispatch commit (see gold.yml, 2026-09-23).
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      # No extras: this is Part A, and the monthly job's install is the one it should run on.
+      - run: uv sync --frozen
+
+      - name: Judge the stored answers
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
+        run: |
+          uv run drift rulec judge \
+            --i-am-allowed-to-call-vendors \
+            --month "${{ inputs.month }}" \
+            --model "${{ inputs.model }}" \
+            --limit "${{ inputs.limit }}"
+
+      # Whatever happens at the commit step, the record of what was paid for survives the runner.
+      - name: Keep the record as an artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rulec-judge-${{ inputs.month }}-${{ github.run_id }}
+          path: drift/experiments/judge
+          retention-days: 30
+
+      - name: Commit the record
+        if: always()
+        run: |
+          git config user.name "Peter Parker"
+          git config user.email "peter.alexander.parker@outlook.com"
+          git add drift/experiments/judge
+          git commit -m "Rule C: judge self-disagreement (${{ inputs.month }})" || echo "nothing to commit"
+          git pull --rebase origin main
+          git push

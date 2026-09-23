@@ -227,6 +227,35 @@ def test_run_writes_a_verdict_per_call_and_resumes_without_repeating_one(tmp_pat
     assert again == [] and caller.calls == 6
 
 
+def test_a_limited_run_stops_early_and_the_next_run_carries_on(tmp_path: Path) -> None:
+    """A probe of a few calls proves the wiring; the full run then pays only for the rest."""
+    items = make_items()[:3]
+    suite = Suite(version="v1", items=tuple(items), hash="h")
+    records = [record(it, output="six", correct=True) for it in items]
+    caller = SimpleJudge([CORRECT])
+    config = JudgeConfig(judge_model="anthropic/x", items=3, repeats=2)
+    kwargs: dict[str, Any] = dict(
+        month="2026-09", suite=suite, records=records, caller=caller, config=config
+    )
+    probe = run(**kwargs, out_dir=tmp_path, limit=2, log=lambda _: None)
+    assert len(probe) == 2 and caller.calls == 2
+    rest = run(**kwargs, out_dir=tmp_path, log=lambda _: None)
+    assert len(rest) == 4 and caller.calls == 6
+    stored = read_verdicts(tmp_path / "verdicts.jsonl")
+    assert len({(v.item_id, v.repeat) for v in stored}) == 6
+
+
+def test_the_command_refuses_to_call_a_vendor_without_being_told_it_may() -> None:
+    """The work network inspects TLS, so a paid call is opt-in, as it is for the gold set."""
+    from typer.testing import CliRunner
+
+    from drift import cli
+
+    result = CliRunner().invoke(cli.app, ["rulec", "judge", "--month", "2026-09"])
+    assert result.exit_code == 2
+    assert "--i-am-allowed-to-call-vendors" in result.output
+
+
 def test_the_judge_is_asked_at_temperature_zero_over_identical_input(tmp_path: Path) -> None:
     """The experiment has to be the most favourable case for the judge, or it proves nothing."""
     captured: list[Any] = []

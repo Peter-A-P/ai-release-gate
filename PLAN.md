@@ -662,6 +662,13 @@ documented and the pair that proved it is 2026-09-13 and 2026-09-16, the two off
 not the Sep 27 and Oct 1 pair the calendar no longer contains. Candidate 1 is the better write-up and
 costs about a dollar, so it is built into the dry-run week rather than bolted on afterwards;
 `drift rulec judge` is the harness and `drift/experiments/judge.py` explains the design.
+**Given somewhere to run, 2026-09-23**: `.github/workflows/rulec.yml`, because the laptop may
+not call vendors. The judge is pinned at `claude-haiku-4-5-20251001`, the dated id, and not
+Sonnet 5, which rejects `temperature` and so cannot be given the temperature-0 condition the
+design promises. 50 answers from the 2026-09 run, judged 5 times each, 250 calls, estimated
+at US$0.40 from the stored prompts. The command now refuses without
+`--i-am-allowed-to-call-vendors`, as the gold commands do, and takes `--limit`, so the first
+dispatch is a six-call probe and the second pays only for the rest.
 
 1. **LLM-as-judge for drift.** Run a judge over 50 items alongside the programmatic
    grader for one dry run and show the judge's own repeat disagreement. Expected: the

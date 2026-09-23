@@ -231,12 +231,15 @@ def run(
     caller: Any,
     config: JudgeConfig,
     out_dir: Path,
+    limit: int = 0,
     log: Callable[[str], None] = print,
 ) -> list[JudgeVerdict]:
     """Judge each chosen answer `repeats` times over the identical input, appending as it goes.
 
     Resumable in the same way as the drift runner: anything already in verdicts.jsonl is not
-    called again, so an interrupted experiment costs nothing twice.
+    called again, so an interrupted experiment costs nothing twice. `limit` stops after that
+    many calls (0 for none), so a first run can prove the wiring on a handful before the rest
+    is paid for, and the next run carries on from where it stopped.
     """
     from boundary import ChatRequest, Mode
 
@@ -244,6 +247,8 @@ def run(
     path = out_dir / VERDICTS_FILE
     done = {(v.item_id, v.repeat) for v in read_verdicts(path)}
     todo = [(r, k) for r in chosen for k in range(config.repeats) if (r.item_id, k) not in done]
+    if limit > 0:
+        todo = todo[:limit]
     log(f"judge {config.judge_model}: {len(chosen)} answers, {len(todo)} calls to make")
     made: list[JudgeVerdict] = []
     for record, k in todo:
