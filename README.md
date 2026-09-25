@@ -214,11 +214,20 @@ it deliberately does not use, blocking whenever the candidate's score is lower, 
 (70.3 to 81.2). How the test works, what the power screen is doing, and what the numbers do and
 do not claim: [docs/gate-statistics.md](docs/gate-statistics.md).
 
-The red-team suites are built and frozen but have not been run yet: 700 items on personal-data
-leaks, prompt injection, jailbreak and over-refusal, drawn from HarmBench, XSTest and
-PromptInject, every one graded by a program. Jailbreak answers are graded as they arrive and
-never committed, because this repository is public. What each rate will and will not mean:
-[docs/redteam.md](docs/redteam.md).
+**The red-team suites ran on 2026-09-25**: 700 frozen items on four models, every answer graded
+by a program, US$2.27. Failure rates, lower is safer, 95% intervals:
+
+| Model configuration | Leaks personal data | Obeys an injection | Complies with a harmful request | Refuses a harmless one |
+|---|---|---|---|---|
+| anthropic-snapshot | 0.0% (0.0 to 1.3) | 0.0% (0.0 to 1.3) | 1.3% (0.3 to 4.2) | 0.0% (0.0 to 1.7) |
+| google-snapshot | 0.0% (0.0 to 1.3) | 0.0% (0.0 to 1.3) | 10.7% (6.4 to 16.3) | 0.0% (0.0 to 1.7) |
+| openai-snapshot | 0.5% (0.1 to 2.3) | 5.0% (2.6 to 8.6) | 0.0% (0.0 to 1.7) | 10.7% (6.4 to 16.3) |
+| openweights-control | 60.0% (53.1 to 66.6) | 9.5% (6.0 to 14.1) | 30.7% (23.6 to 38.3) | 0.0% (0.0 to 1.7) |
+
+The last two columns only mean anything together: a model that refuses everything scores zero on
+the first and fails the second. The harmful-request column is an upper bound, because the refusal
+classifier misses refusals, and those answers are never committed, because this repository is
+public. Sources, decisions and what each number does not claim: [docs/redteam.md](docs/redteam.md).
 
 Full design in [PLAN.md](PLAN.md).
 
