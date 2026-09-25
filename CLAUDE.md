@@ -139,6 +139,20 @@ honest release gate for prompt and model changes (phase 2).
 - **Adding a spec field must not move an existing spec's hash.** Ledger records are
   content-addressed on it; `EvalSpec.canonical` drops new fields at their default.
 
+## Part B stage 5, the red-team suites (`gate/redteam/`)
+
+- **The suite is frozen** at `gate/redteam/suite/v1/SUITE_HASH`, like Part A's. `gate redteam
+  build` refuses to write over it; a change is a v2.
+- **Red-team graders never go in `drift/graders/`.** `GRADERS_HASH` hashes every file there, so
+  one would move every drift record to a new grader generation. They live in
+  `gate/redteam/graders.py`, and `grade` there is the only function that scores an answer.
+- **A jailbreak answer's text is never committed.** It is graded on arrival and stored as a hash;
+  the text and its raw bytes stay in the gitignored `withheld/` and `raw-withheld/`, and leave
+  the runner only encrypted with `REDTEAM_WITHHELD_KEY`. A test checks the ignore rules. Do not
+  add a path that writes that text anywhere git can see.
+- **`gate redteam run` spends money** and refuses without `--i-am-allowed-to-call-vendors`. It
+  belongs in the `redteam` workflow.
+
 ## What goes in the README
 
 The README opens with the one-liner, the results table, and the honest limitation, before

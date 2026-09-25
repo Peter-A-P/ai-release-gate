@@ -1,10 +1,10 @@
-"""Command line: gate run | compare | aa | power | spec | gold | judge.
+"""Command line: gate run | compare | aa | power | spec | gold | judge | check | redteam.
 
 Stage 1 (PLAN.md B10): every side comes from Part A's stored records, so `run`, `compare`,
 `aa` and `power` call no vendor and spend nothing. A side is named `MONTH/ARM`, optionally
 `MONTH/ARM@0,1` to keep only those repeats.
 
-Stage 2 adds `gold` and `judge`. Of those only `judge run` makes a vendor call, and it refuses
+Stage 2 adds `gold` and `judge`. Stage 5 adds `redteam`, whose only spending command is `redteam run`. Of those only `judge run` makes a vendor call, and it refuses
 to unless `--i-am-allowed-to-call-vendors` is passed, because this laptop sits behind a TLS
 inspection proxy on the work network and a vendor call from it is a call through somebody
 else's middlebox (CLAUDE.md). `gold label` and `judge calibrate` are offline.
@@ -15,6 +15,7 @@ from __future__ import annotations
 import contextlib
 import shutil
 import textwrap
+import time
 from collections.abc import Collection, Iterator
 from pathlib import Path
 from typing import Annotated
@@ -31,6 +32,10 @@ from gate.judge import report as judge_report
 from gate.judge import runner as judge_runner
 from gate.judge.rubric import UNANSWERABLE_NOTE
 from gate.outcomes import NoSuchArmError, Side, part_a_side
+from gate.redteam import build as rt_build
+from gate.redteam import report as rt_report
+from gate.redteam import run as rt_run
+from gate.redteam import suite as rt_suite
 from gate.spec import EvalSpec, load_spec
 from gate.stats import PowerLine, items_needed
 
@@ -1037,3 +1042,183 @@ def check(
         typer.echo(f"ledger record {rec.record_id} appended to {record}", err=True)
     if d.blocked:
         raise typer.Exit(1)
+
+
+# ---------------------------------------------------------------------------- red team (stage 5)
+
+redteam_app = typer.Typer(help="the red-team suites: PII, injection, jailbreak, over-refusal")
+app.add_typer(redteam_app, name="redteam")
+REDTEAM_PANEL = SPECS / "redteam-panel.yaml"
+REDTEAM_REPORTS = ROOT / "gate" / "reports"
+SOURCE_CACHE = ROOT / ".cache" / "sources"
+
+
+@redteam_app.command("build")
+def redteam_build(
+    allowed: Annotated[
+        bool,
+        typer.Option(
+            "--i-am-allowed-to-reach-the-internet",
+            help="confirm this machine can read public pages; not needed once the cache is warm",
+        ),
+    ] = False,
+    check_only: Annotated[
+        bool, typer.Option("--check", help="rebuild into memory and compare with the committed")
+    ] = False,
+) -> None:
+    """Draw the four red-team suites from their public sources and the seed, once.
+
+    Refuses to write over a committed suite: it is frozen, and a change is a new version.
+    `--check` rebuilds from the cached sources and lists every item that would differ.
+    """
+
+    if not allowed and not check_only:
+        typer.echo(
+            "gate redteam build reads public sources (GitHub). Pass "
+            "--i-am-allowed-to-reach-the-internet if this machine can.",
+            err=True,
+        )
+        raise typer.Exit(2)
+    try:
+        built = rt_build.build(SOURCE_CACHE, GOLD)
+    except (rt_build.BuildError, OSError) as e:
+        typer.echo(f"build failed: {e}", err=True)
+        raise typer.Exit(1) from e
+    if check_only:
+        problems = rt_build.check(built, rt_suite.SUITE_DIR)
+        for p in problems:
+            typer.echo(f"DIFFERS  {p}", err=True)
+        typer.echo(
+            f"{len(built.all_items())} items rebuilt, {len(problems)} differ from the committed "
+            f"suite {rt_suite.committed_hash()}"
+        )
+        if problems:
+            raise typer.Exit(1)
+        return
+    try:
+        h = rt_build.write(built, rt_suite.SUITE_DIR)
+    except rt_build.BuildError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(2) from e
+    counts = ", ".join(f"{k} {v}" for k, v in built.manifest()["items"].items())
+    typer.echo(f"suite {h} written: {counts}")
+
+
+@redteam_app.command("status")
+def redteam_status(run_id: Annotated[str, typer.Option(help="the run to describe")] = "") -> None:
+    """What the suite holds and, with --run-id, how far that run has got."""
+
+    items = rt_suite.load_suite()
+    committed = rt_suite.committed_hash()
+    actual = rt_suite.suite_hash(items) if items else None
+    typer.echo(f"suite {committed or 'not built'}: {len(items)} items")
+    if committed and actual != committed:
+        typer.echo(f"PROBLEM  the items hash to {actual}, not the committed {committed}", err=True)
+        raise typer.Exit(1)
+    if run_id:
+        answers = rt_run.read_answers(rt_run.run_dir(run_id) / rt_run.ANSWERS_FILE)
+        typer.echo(f"run {run_id}: {rt_run.summary(answers)}")
+
+
+def _redteam_items_or_exit() -> list[rt_suite.RedTeamItem]:
+    items = rt_suite.load_suite()
+    committed = rt_suite.committed_hash()
+    if not items or committed is None:
+        typer.echo("the red-team suite is not built; run `gate redteam build`", err=True)
+        raise typer.Exit(2)
+    if rt_suite.suite_hash(items) != committed:
+        typer.echo("the red-team suite does not match its committed hash", err=True)
+        raise typer.Exit(2)
+    return items
+
+
+@redteam_app.command("run")
+def redteam_run(
+    allowed: Annotated[bool, typer.Option(VENDOR_FLAG, help=VENDOR_HELP)] = False,
+    panel_path: Annotated[Path, typer.Option("--panel", help="the models asked")] = REDTEAM_PANEL,
+    run_id: Annotated[str, typer.Option(help="names the run and its directory")] = "",
+    arm_key: Annotated[str, typer.Option("--arm", help="only this arm of the panel")] = "",
+    limit: Annotated[int, typer.Option(help="stop after this many calls, 0 for no limit")] = 0,
+) -> None:
+    """Ask the panel every red-team item. Resumable; about US$6 for the whole panel.
+
+    Appends each answer as it arrives. Jailbreak answers are graded on arrival and their text
+    is kept out of the repository (docs/redteam.md).
+    """
+    from boundary import ChatRequest, Gateway
+
+    _refuse_unless_allowed(allowed, "gate redteam run")
+    if not run_id:
+        typer.echo("name the run with --run-id, for example redteam-2026-09", err=True)
+        raise typer.Exit(2)
+    items = _redteam_items_or_exit()
+    panel = _panel_or_exit(panel_path)
+    arms = [a for a in panel.arms if not arm_key or a.key == arm_key]
+    if not arms:
+        typer.echo(f"no arm {arm_key!r} in {panel_path.name}", err=True)
+        raise typer.Exit(2)
+    root = rt_run.run_dir(run_id)
+    total = len(items) * len(arms)
+    stored = len(rt_run.read_answers(root / rt_run.ANSWERS_FILE))
+    typer.echo(f"{total} answers planned over {len(arms)} arms, {stored} already stored.")
+
+    with (
+        Gateway.from_config(
+            BOUNDARY_CONFIG,
+            project=PROJECT,
+            ledger_path=root / "ledger.sqlite",
+            raw_store=root / "raw",
+        ) as open_gateway,
+        # The jailbreak suite's raw responses hold its answers' text, so they go to a store the
+        # repository ignores, as Part A's held-out raw store does.
+        Gateway.from_config(
+            BOUNDARY_CONFIG,
+            project=PROJECT,
+            ledger_path=root / "ledger-withheld.sqlite",
+            raw_store=root / "raw-withheld",
+        ) as withheld_gateway,
+    ):
+
+        def caller(item: rt_suite.RedTeamItem, arm: Arm) -> rt_run.Reply:
+            gateway = withheld_gateway if item.suite in rt_run.WITHHELD_SUITES else open_gateway
+            started = time.perf_counter()
+            r = gateway.chat(
+                ChatRequest(
+                    model=arm.explicit,
+                    system=item.system,
+                    messages=[{"role": "user", "content": item.prompt}],
+                    max_tokens=rt_run.MAX_TOKENS,
+                    temperature=None if "temperature" in arm.omit else rt_run.TEMPERATURE,
+                    extra=arm.extra,
+                ),
+                purpose=f"red team {item.suite}",
+                run_id=run_id,
+            )
+            elapsed = (time.perf_counter() - started) * 1000.0
+            return rt_run.Reply(r.text, r.model_returned, r.finish_reason, r.cost_usd, elapsed)
+
+        made, stopped = rt_run.run(
+            rt_run.jobs(items, arms), caller, root=root, run_id=run_id, limit=limit
+        )
+    answers = rt_run.read_answers(root / rt_run.ANSWERS_FILE)
+    typer.echo(
+        f"{made} calls made{' (limit reached)' if stopped else ''}; {rt_run.summary(answers)}"
+    )
+
+
+@redteam_app.command("report")
+def redteam_report(
+    run_id: Annotated[str, typer.Option(help="the run to report")],
+    write: Annotated[
+        bool, typer.Option("--write", help="also write gate/reports/<run>.md")
+    ] = False,
+) -> None:
+    """Every red-team rate with its interval, regraded from the stored answers. Offline."""
+
+    items = _redteam_items_or_exit()
+    answers = rt_run.read_answers(rt_run.run_dir(run_id) / rt_run.ANSWERS_FILE)
+    if not answers:
+        typer.echo(f"no answers stored for run {run_id!r}", err=True)
+        raise typer.Exit(2)
+    text = rt_report.render(run_id, items, answers)
+    _write(REDTEAM_REPORTS / f"{run_id}.md" if write else None, text)

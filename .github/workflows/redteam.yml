@@ -1,0 +1,119 @@
+name: redteam
+
+# Part B stage 5: asking the red-team panel the four red-team suites (PLAN.md B7).
+#
+# A manual workflow, never scheduled, for the reason the gold workflow gives: vendor calls do not
+# belong on the work network. RESUMABLE and bounded by `limit`: a run that stops leaves a
+# committed prefix, and dispatching the same run id again continues from there.
+#
+# The whole panel is 700 items x 4 models = 2,800 calls, about US$6 (PLAN.md B11). Start with a
+# small limit on one arm to prove the wiring, then raise it.
+#
+# The jailbreak suite's answer TEXT never reaches the repository (docs/redteam.md): it is graded
+# on arrival and only its hash and grade are committed. The text is kept for the hand-labelling
+# pass only if the REDTEAM_WITHHELD_KEY secret is set, and then only encrypted with it, because
+# an artifact of a public repository can be downloaded by anyone signed in to GitHub.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "names the run and its directory under gate/redteam/runs/"
+        required: true
+        default: redteam-2026-09
+      arm:
+        description: "one arm of gate/specs/redteam-panel.yaml, or blank for all four"
+        required: false
+        default: ""
+      limit:
+        description: "stop after this many vendor calls; 0 for no limit. Start small."
+        required: false
+        default: "12"
+
+# One red-team run at a time: every run commits a binary ledger, which cannot be merged.
+concurrency:
+  group: redteam
+  cancel-in-progress: false
+
+jobs:
+  redteam:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: write
+    steps:
+      # The branch tip when the job starts, not the dispatch commit (see gold.yml for the run
+      # that lost 1,434 paid verdicts to that).
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - run: uv sync --frozen --all-extras
+
+      - name: Show what is there before anything is spent
+        run: uv run gate redteam status --run-id "${{ inputs.run_id }}"
+
+      - name: Ask the panel
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
+        run: |
+          ARGS="--i-am-allowed-to-call-vendors --run-id ${{ inputs.run_id }} --limit ${{ inputs.limit }}"
+          if [ -n "${{ inputs.arm }}" ]; then ARGS="$ARGS --arm ${{ inputs.arm }}"; fi
+          uv run gate redteam run $ARGS
+
+      - name: Write the report
+        if: always()
+        run: uv run gate redteam report --run-id "${{ inputs.run_id }}" --write || echo "no answers yet"
+
+      # Everything that is committed, as an artifact too, so a failed push loses nothing.
+      - name: Keep the record as an artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redteam-${{ inputs.run_id }}-${{ github.run_id }}
+          path: |
+            gate/redteam/runs/${{ inputs.run_id }}/answers.jsonl
+            gate/redteam/runs/${{ inputs.run_id }}/ledger.sqlite
+            gate/redteam/runs/${{ inputs.run_id }}/ledger-withheld.sqlite
+            gate/redteam/runs/${{ inputs.run_id }}/raw
+            gate/reports/${{ inputs.run_id }}.md
+          retention-days: 30
+
+      - name: Encrypt the withheld jailbreak text
+        if: always()
+        env:
+          KEY: ${{ secrets.REDTEAM_WITHHELD_KEY }}
+        run: |
+          DIR="gate/redteam/runs/${{ inputs.run_id }}"
+          if [ -z "$KEY" ]; then
+            echo "REDTEAM_WITHHELD_KEY is not set, so the withheld text is discarded with the runner."
+            exit 0
+          fi
+          if [ ! -d "$DIR/withheld" ]; then exit 0; fi
+          tar -czf - -C "$DIR" withheld raw-withheld \
+            | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:KEY -out "$RUNNER_TEMP/withheld.tgz.enc"
+
+      - name: Keep the encrypted withheld text for the labelling pass
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redteam-withheld-${{ inputs.run_id }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/withheld.tgz.enc
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Commit the record
+        if: always()
+        run: |
+          git config user.name "Peter Parker"
+          git config user.email "peter.alexander.parker@outlook.com"
+          # .gitignore keeps withheld/ and raw-withheld/ out of this add.
+          git add gate/redteam/runs gate/reports
+          git commit -m "Red team: ${{ inputs.run_id }}${{ inputs.arm != '' && format(' ({0})', inputs.arm) || '' }}" || echo "nothing to commit"
+          git pull --rebase origin main
+          git push
