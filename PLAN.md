@@ -1177,7 +1177,7 @@ Well inside the line. Actual invoices go next to the estimate in the portfolio's
 Mirrors the portfolio's definition:
 
 - [ ] Drift runs executing monthly since Sep 2026, data published (Part A)
-- [ ] Judge calibrated against human labels, kappa and alpha reported with CIs. **The measurement is built 2026-09-20** (`gate judge calibrate`); it awaits the labels
+- [x] Judge calibrated against human labels, kappa and alpha reported with CIs. **Done 2026-09-23** on all 480 hand labels, for both judges: refused for faithfulness (kappa 0.108 and 0.066) and usable for completeness (0.914 and 0.790), in [`docs/judge-calibration-google-judge-mid.md`](docs/judge-calibration-google-judge-mid.md) and [`docs/judge-calibration-openai-judge-small.md`](docs/judge-calibration-openai-judge-small.md)
 - [ ] Corrected pass rates reported next to raw. **Built 2026-09-20**: Rogan-Gladen with an interval that resamples the calibration set as well as the run, so the correction's own uncertainty is in the number rather than assumed away
 - [ ] Every reported score carries a bootstrap CI. **Enforced for the classifier's own error rate 2026-09-12** after it reported a zero-width interval, which is a bare number wearing an interval
 - [ ] Items filtered on discrimination before any of 02's difficulty parameters are used
