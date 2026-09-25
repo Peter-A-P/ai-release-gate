@@ -1,0 +1,40 @@
+# The four models the red-team suites are asked of (PLAN.md B7: "per model").
+#
+# One dated snapshot per vendor from the drift panel, and the open-weights control, carried over
+# with their request fields unchanged. Those fields were each bought with a failed dry run and
+# are explained in drift/panel.yaml; they are copied rather than re-derived so that a red-team
+# rate and a drift rate for the same arm describe the same configuration. The aliases are left
+# out on purpose: a red-team rate is a property of a model, and an alias names whichever model
+# the vendor points it at this week.
+version: 1
+chosen: 2026-09-25
+notes: "Carried over from drift/panel.yaml (chosen 2026-09-12), all four exercised in the two full drift runs of 2026-09-13 and 2026-09-16."
+
+arms:
+  - key: anthropic-snapshot
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+    arm: snapshot
+    family: claude-haiku
+  - key: openai-snapshot
+    provider: openai
+    model: gpt-5.4-mini-2026-03-17
+    arm: snapshot
+    family: gpt
+    extra:
+      reasoning_effort: none
+  - key: google-snapshot
+    provider: google
+    model: gemini-3.8-flash
+    arm: snapshot
+    family: gemini
+    extra:
+      generationConfig:
+        thinkingConfig:
+          thinkingLevel: low
+  - key: openweights-control
+    provider: openweights
+    model: meta-llama/Llama-3.3-70B-Instruct-Turbo
+    arm: control
+    family: control
+    weight_hash: 6f6073b423013f6a7d4d9f39144961bfbfbc386b

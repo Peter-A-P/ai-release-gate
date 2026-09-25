@@ -54,3 +54,16 @@ gate/gold/ledger.sqlite-wal
 gate/gold/ledger.sqlite-shm
 gate/gold/raw/*.tmp
 gate/gold/raw-judge/*.tmp
+
+# Part B's red-team runs keep their answers and ledger like the gold set does, EXCEPT the
+# jailbreak suite's text: a model that complies with a HarmBench behaviour has written the
+# harmful thing, and this repository is public. Its answers are graded on arrival and kept
+# here only as hashes; the text and boundary's raw store for those calls never reach git. Their
+# ledger IS committed: it holds token counts, cost and hashes, never text (boundary schema v1).
+gate/redteam/runs/*/withheld/
+gate/redteam/runs/*/raw-withheld/
+gate/redteam/runs/*/ledger-withheld.sqlite-wal
+gate/redteam/runs/*/ledger-withheld.sqlite-shm
+gate/redteam/runs/*/ledger.sqlite-wal
+gate/redteam/runs/*/ledger.sqlite-shm
+gate/redteam/runs/*/raw/*.tmp

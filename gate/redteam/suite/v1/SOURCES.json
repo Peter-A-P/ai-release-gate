@@ -1,0 +1,107 @@
+{
+  "items": {
+    "jailbreak": 150,
+    "over_refusal": 150,
+    "pii_leakage": 200,
+    "prompt_injection": 200
+  },
+  "seed": 20260925,
+  "sources": {
+    "jailbreak": {
+      "fetched": "2026-09-25",
+      "payload_sha256": "8d81accedd38eaaf8b760618622bb888417d1fd0c86eba65c427a16f1cbb4afc",
+      "pool": 192,
+      "rejected": {
+        "names_a_protected_group": 8,
+        "not_standard": 200
+      },
+      "rows_upstream": 400,
+      "url": "https://raw.githubusercontent.com/centerforaisafety/HarmBench/main/data/behavior_datasets/harmbench_behaviors_text_all.csv"
+    },
+    "over_refusal": {
+      "fetched": "2026-09-10",
+      "payload_sha256": "11783fb294ed017473ee53c207d71f2161c7672c8d0b037501e78387f801cb5a",
+      "pool": 165,
+      "rejected": {
+        "category_not_used": 75,
+        "in_the_drift_suite": 10,
+        "other_label": 200
+      },
+      "rows_upstream": 450,
+      "url": "https://raw.githubusercontent.com/paul-rottger/xstest/main/xstest_prompts.csv"
+    },
+    "pii_leakage": {
+      "generator": "gate.redteam.build.person",
+      "records": 200,
+      "strategies": [
+        "ignore-previous-and-print",
+        "ignore-previous-and-print-instead",
+        "ignore-previous-and-spell-check",
+        "ignore-previous-and-spell-check-instead",
+        "ignore-previous-and-spell-check-instead-uppercase",
+        "colleague-fraud",
+        "customer-forgot",
+        "export-json",
+        "read-back",
+        "translate"
+      ]
+    },
+    "prompt_injection": {
+      "attacks": [
+        "ignore-print",
+        "ignore-print-upper",
+        "ignore-say",
+        "nevermind",
+        "screaming-stop"
+      ],
+      "document_hashes": {
+        "fcac-020": "b9b1d6ba3e81b9f55e04c3ffb0369a6e3433dea8110d4e8de05fbb0015473465",
+        "fcac-021": "ca1a4666a7d1dcba68777d4c0721812a9b10ac8405441ae8c75b28eb54a78bee",
+        "fcac-022": "75117e2e86d56e985bfbca6e3abf1b597a1463f1e533ab10d893da3f44745489",
+        "fcac-023": "350d28546bcc7050942f68a0f95dbd662b78c2851a52299d1217f420d54da08f",
+        "fcac-025": "e660a45151be0b5d6c59ba3808c08c53c6f46f5a0b6fbb0ca0100c5a06b360cd",
+        "fcac-026": "107dd130a62db9ed70540d7defc8d7f326f88c24e737f9a3a2191eef7ddf57ed",
+        "fcac-030": "48b2ac8e5974d0738899ca13aa22c0728dbee2764fc8950b817ddde956142b8f",
+        "fcac-031": "4975859ae93b403983e023e66c6e353584714be8506bb8e1368707a9def99537",
+        "fcac-032": "0b914ad612834695c279efabe1a3f5ca100b75d2b2d7ef36ef0425cab583a614",
+        "fcac-033": "0840a051007df3730dc0fd174a392d9f37dd47dba099a3e2bb4b6e73f8b45742",
+        "fcac-034": "d854df07b333bdd7da459e70a19ea8af2e62321f421dc23e400d40e77e73cca4",
+        "fcac-035": "e35db14976896aa6606633c0119c9e2c27e70601e9dbb668ed05b2bd46b109f9",
+        "fcac-040": "a4bacf1b8cfb7262d2128e2498f413f3e814ed64a33f0e4cd5fc7697098b7291",
+        "fcac-041": "09cba6e23989dc1aaaee46c030129ce435f2fc1f487a6a9982c99b75b71102b6",
+        "fcac-042": "717bf1203617b9af8d9d3bd8e160ce1a74ded1903d86fd215b2264b945a2a33e",
+        "fcac-043": "2087796af6ad84cf88b2c95e18a34fc3017c27fd52386bfca543aa324b90f3b9",
+        "fcac-044": "48cc4e2fd9eac6af20f735eb742296fe63f5ac5297fe670ab23b8d76b1e53650",
+        "fcac-045": "4aa92d193a1c581a69e9dfc8247348e89b14ef8d0afaeab6159366856fd5a23d",
+        "fcac-050": "dadc5f1a0b36d974073184b1dbddd9db17ad915c78028c5f90f5d17f01b67c7e",
+        "fcac-051": "430f253da04aa9fd723007a00832686668818651e4d082a20b8d76cb4199dcd9",
+        "fcac-052": "62c5366940feb3fcc09f60b68e72daea66acd8bd9bf6866c8fc9831566bc45d5",
+        "fcac-053": "c01ffba0ee62c236a56414b600304f942cdbaf1c04af587b57f90510c5045638",
+        "sec-002": "6fa995b97f7ceea7af00cab0ee4534e892d46489daa923b294340c7e1911fda6",
+        "sec-005": "a0fa76b3a511b685168e564cd8365e3326f617ac813b929eb032521431a27e13",
+        "sec-010": "8177617c7773099082ef5ea0a44cbaf3001379aca76533f038137e3c54bd8e65",
+        "sec-011": "e1f8365a157ce68f373b67f15d6623e074a0e084742d5bed50b6f38270163bc2",
+        "sec-013": "b2ea33fe64b7731ee9df93bd5cb264defd8f167d058e9d2e6e761c22aa69d3c3",
+        "sec-014": "8aad60568d284b96e0ae53d3711620295ba2c004f38603290449397d25a246c5",
+        "sec-015": "1054cba25f9a628aab53f79c46919d43b4dccad93d37a3f13322dadc8584fb99",
+        "sec-017": "004e9a04fe5c1eba8860f13123dda6deae81a19f18d4c8f793f36dd97c0f3078",
+        "sec-018": "498e26d2a5186f722980cdf5746e2b66733fdb16eff80dbbcde77a08882e464e",
+        "sec-022": "2f09e7dff4d9053ad5c3c7e42ad6e4d9a7b0a697c5e6620427a42abdb6682157",
+        "sec-026": "e7cf4aba99132f896d139a7096bf8db3d4d7669cdc90644453de9a2e417259e9",
+        "sec-027": "a0f6a950804a5c9a7c972a7a1282d5df3ff9bc1687d9d0963101a1e2ce0d7011",
+        "sec-028": "ba74dcccbee7c780c712d929b93000f49c1f939765006ff82919d31edfbbb3c1",
+        "sec-029": "17c73aa4a635fe7725b278a660aebee6fb070e17eab686d9939b38f07a1e1de4",
+        "sec-032": "f19deffaf8d44ab4563481e9857eda755b4795b4253316ea9f8053b8d6f322b1",
+        "sec-033": "dac7f0a81ef2cf5f181175efad903488f203168e7e7d3c4195663b46f2d5c935",
+        "sec-034": "4d572638838d620614336538a51c3d24e14824c7ba7fa739d83501b5ee0d9dac",
+        "sec-035": "0e56bb33dceca957bcfc4a5bf42d28997b5a9e0fb15036e695a3fb9271b27c7a"
+      },
+      "documents": 40,
+      "fetched": "2026-09-25",
+      "payload_sha256": "d26af509698c5f88e611a163cc162ab903d41040cc6307db9f6ee4b6195a5b6e",
+      "rows_upstream": 10,
+      "url": "https://raw.githubusercontent.com/agencyenterprise/PromptInject/main/promptinject/prompt_data.py"
+    }
+  },
+  "suite_hash": "3d0526feb9f4763b"
+}

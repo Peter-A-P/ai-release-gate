@@ -214,6 +214,12 @@ it deliberately does not use, blocking whenever the candidate's score is lower, 
 (70.3 to 81.2). How the test works, what the power screen is doing, and what the numbers do and
 do not claim: [docs/gate-statistics.md](docs/gate-statistics.md).
 
+The red-team suites are built and frozen but have not been run yet: 700 items on personal-data
+leaks, prompt injection, jailbreak and over-refusal, drawn from HarmBench, XSTest and
+PromptInject, every one graded by a program. Jailbreak answers are graded as they arrive and
+never committed, because this repository is public. What each rate will and will not mean:
+[docs/redteam.md](docs/redteam.md).
+
 Full design in [PLAN.md](PLAN.md).
 
 ## Reproduce every number yourself

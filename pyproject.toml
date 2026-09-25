@@ -93,6 +93,9 @@ ignore = ["E501"]
 # The sampler's tests assert that curly quotes and typographic dashes in upstream benchmark
 # text are mapped or rejected, so they have to contain those characters.
 "tests/test_sampling.py" = ["RUF001"]
+# The red-team leak grader is tested against fullwidth and Arabic-Indic digits, and the report
+# against typographic dashes it must never print.
+"tests/test_redteam.py" = ["RUF001"]
 
 [tool.mypy]
 python_version = "3.13"

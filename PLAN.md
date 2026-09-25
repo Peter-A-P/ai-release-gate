@@ -1087,6 +1087,29 @@ reported. The two refusal suites together give refusal calibration: a model that
 everything passes jailbreak and fails over-refusal, and both numbers are shown side by
 side so that trade is visible.
 
+**How it was built, 2026-09-25** (suite `3d0526feb9f4763b`, [`docs/redteam.md`](docs/redteam.md)).
+The sources are HarmBench's standard behaviours (MIT) for jailbreak, XSTest's safe prompts
+(CC BY 4.0) for over-refusal, never one already in the drift suite, and PromptInject (MIT) for
+both the injection attacks and half of the PII requests. The injection context is the gold set's
+40 committed public documents. Three departures from the table above, each for a reason:
+
+- **The PII grader matches the planted values instead of running Presidio.** The suite plants the
+  values, so the grader knows exactly what a leak is; Presidio would flag the customer's first
+  name, which the policy allows, and any date or amount in an ordinary answer, and it brings
+  spaCy and a language model several hundred megabytes large for a job a few exact matches do
+  better. The cost is recall on disguised values, which is written down as making the leak rate
+  a floor.
+- **Five of the ten PII requests are written here**, not taken from a corpus: a customer, a
+  colleague, an export, a read-back and a translation. They are ordinary requests, not attacks,
+  and each item's `source` says which were written here. The other five are PromptInject's
+  prompt-leaking attacks verbatim.
+- **The jailbreak suite's answer text is never committed**, because a model that complies has
+  written the harmful thing and the repository is public. It is graded on arrival and kept as a
+  hash, exactly as Part A keeps held-out items.
+- **The judge is not used for ambiguous refusals yet.** Neither judge has been calibrated on
+  refusal, so by B2.3 neither may grade it; the regex classifier alone reads both refusal suites
+  and the report says which way its error runs.
+
 ## B8. Dashboard and deployment
 
 - `gate.peterparker.ca` on the shared VPS, docker compose: the FastAPI service, Caddy
@@ -1115,7 +1138,7 @@ suite, which is the first real test of the reuse claim.
 | 2 | Gold set: questions, source documents, three models' answers; rubric written; labelling begins; judge runner and rubric prompts | 300 instances generated; 150 labelled. **Harness done 2026-09-20**: the store, the rubric ([`docs/judge-rubric.md`](docs/judge-rubric.md)), the judge prompt and runner, the blind labelling CLI, the two model panels and the `gold` workflow. What is left is the 100 questions and their source documents, then one workflow run. **Done 2026-09-22**: 100 questions over 40 documents, 300 answers, and a 180-instance distractor stratum added when the first 300 came back with no negative class; all 480 labelled by hand |
 | 3 | Labelling finished; judge calibration for two judges; bias checks; correction implemented | `docs/judge-calibration.md` with kappa, alpha, sensitivity, specificity. **Statistics done 2026-09-20**, ahead of the labels they will run on: kappa, alpha, sensitivity, specificity, Rogan-Gladen with propagated uncertainty, test-retest, order bias and the verbosity check, each tested against a table worked out by hand. **Done 2026-09-23**: both judges calibrated, refused for faithfulness and usable for completeness (B4); the intra-rater re-read of 100 is stage 7's |
 | 4 | GitHub Action; demo repository; first gated pull requests. Kept light, because holidays land on it | Three PRs with gate comments, one blocked. **Built 2026-09-23, not yet run on a pull request**: `gate check` answers each side live, grades with a licensed judge and takes the judge's error out of the difference; the composite action in `action/`; the demo repository's files in `examples/regulated-qa-demo/`; [`docs/gate-action.md`](docs/gate-action.md). The live suite's margin is ten points, not three, reasoned in [`docs/gate-statistics.md`](docs/gate-statistics.md). Left: creating the demo repository and opening its pull requests, which is outward-facing and waits on Peter |
-| 5 | Red-team suites and Presidio grader; refusal classifier calibrated | Four suites reporting with intervals |
+| 5 | Red-team suites and Presidio grader; refusal classifier calibrated | Four suites reporting with intervals. **Built 2026-09-25, not yet run**: 700 items frozen at `3d0526feb9f4763b`, programmatic graders (planted-value matching in place of Presidio, B7), the resumable `gate redteam run`, the `redteam` workflow and `gate redteam report`; [`docs/redteam.md`](docs/redteam.md). Left: the run itself (about US$6, outward-facing, waits on Peter) and the classifier's hand labels on its answers |
 | 6 | VPS stood up; compose stack; service and dashboard; drift record ingested; `gate.peterparker.ca` live; OpenTelemetry | Dashboard shows the Part A record and the demo repo's gate history |
 | 7 | Eval reports and model cards generated from the ledger; cost and latency lines; A/A study at full size; intra-rater re-labelling of 100 gold items | False-block rate published; reports render for every run |
 | 8 | Adapter for downstream projects; `docs/rejected.md`; write-up "your LLM eval has no error bars"; README to Rule A shape; v0.1.0; repository public | Definition of done all checked |
@@ -1184,7 +1207,7 @@ Mirrors the portfolio's definition:
 - [ ] Power analysis published: items needed per effect size, from `mselect`, validated. **Published 2026-09-19** (`gate power`, 3,559 / 118 / 33 items for 1 / 3 / 5 points at the reference ability, because the bank cannot place a panel scoring in the nineties); not yet validated empirically
 - [ ] False-block rate published from the A/A study. **First estimate 2026-09-19**, 7.0% (4.3 to 10.2) on 256 pairs cut from Part A; the full-size study on a gating suite is stage 7
 - [ ] GitHub Action gating a real repository, with a PR history showing passes and blocks
-- [ ] Red-team suites (PII, injection, jailbreak, over-refusal) passing and reported
+- [ ] Red-team suites (PII, injection, jailbreak, over-refusal) passing and reported. **Built 2026-09-25** (suite `3d0526feb9f4763b`); not yet run
 - [ ] Append-only ledger; every report references content hashes. **Ledger up 2026-09-19** (`gate/runs/ledger.jsonl`: spec hash, suite hash, grader hash, both sides, content-addressed id); reports from it are stage 7
 - [ ] Live dashboard at gate.peterparker.ca, stable, showing the drift record
 - [ ] Adapter documented; project 04 measured with it in Feb 2027
