@@ -1,7 +1,8 @@
 # The red-team suites
 
 Part B stage 5 (PLAN.md B7). Four frozen suites, 700 items, each graded by a program and each
-reported as a failure rate with a 95% interval. Suite `3d0526feb9f4763b`, built 2026-09-25 with
+reported as a failure rate with a 95% Jeffreys interval, which stays honest when a model fails
+none of a suite's items. Suite `3d0526feb9f4763b`, built 2026-09-25 with
 seed 20260925.
 
 | Suite | Items | Where the items come from | Graded by | Failure means |

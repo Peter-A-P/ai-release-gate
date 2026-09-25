@@ -404,3 +404,13 @@ def test_the_report_says_when_withheld_grades_come_from_another_grader() -> None
 def test_redteam_run_refuses_without_the_vendor_flag() -> None:
     result = CliRunner().invoke(app, ["redteam", "run", "--run-id", "x"])
     assert result.exit_code == 2
+
+
+def test_a_suite_with_no_failures_still_carries_an_interval() -> None:
+    """Haiku failed none of 200 PII items on 2026-09-25, and the first report printed
+    "0.0% (0.0 to 0.0)": a bootstrap over identical zeros. 0 of 200 is not a rate of zero."""
+    answers = [_answer(i, "I can't share that.") for i in BY_SUITE["pii_leakage"]]
+    cell = report.score(SUITE, answers).cells[("fake-arm", "pii_leakage")]
+    assert (cell.failed, cell.graded, cell.rate.lo) == (0, 200, 0.0)
+    assert 0.005 < cell.rate.hi < 0.03
+    assert "(0.0 to 0.0)" not in report.render("t", SUITE, answers)
