@@ -1,0 +1,39 @@
+# gate.peterparker.ca (PLAN.md B8): the read-only service behind Caddy, which terminates TLS.
+#
+#   git clone https://github.com/Peter-A-P/ai-release-gate /srv/ai-release-gate
+#   cd /srv/ai-release-gate/deploy && docker compose up -d
+#
+# See deploy/README.md for the nightly pull and what this stack deliberately leaves out.
+services:
+  service:
+    build: .
+    restart: unless-stopped
+    volumes:
+      # The checkout, read-only: the service never writes to the record.
+      - ..:/repo:ro
+      - venv:/venv
+      - uv-cache:/uv-cache
+    expose: ["8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      # Building the read model computes every published interval: about a minute.
+      start_period: 180s
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [service]
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  venv:
+  uv-cache:
+  caddy-data:
+  caddy-config:

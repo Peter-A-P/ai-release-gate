@@ -1,0 +1,12 @@
+# TLS by Caddy's automatic certificates. The service answers GET only; everything else is 405.
+gate.peterparker.ca {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		# The pages load nothing from anywhere: no scripts, no fonts, no images, inline styles only.
+		Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; base-uri 'none'; frame-ancestors 'none'"
+	}
+	reverse_proxy service:8000
+}

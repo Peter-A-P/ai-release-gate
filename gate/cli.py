@@ -1,4 +1,4 @@
-"""Command line: gate run | compare | aa | power | spec | gold | judge | check | redteam.
+"""Command line: gate run | compare | aa | power | spec | gold | judge | check | redteam | serve.
 
 Stage 1 (PLAN.md B10): every side comes from Part A's stored records, so `run`, `compare`,
 `aa` and `power` call no vendor and spend nothing. A side is named `MONTH/ARM`, optionally
@@ -1222,3 +1222,25 @@ def redteam_report(
         raise typer.Exit(2)
     text = rt_report.render(run_id, items, answers)
     _write(REDTEAM_REPORTS / f"{run_id}.md" if write else None, text)
+
+
+# ---------------------------------------------------------------------------- the dashboard (stage 6)
+
+
+@app.command("serve")
+def serve(
+    host: Annotated[str, typer.Option(help="interface to listen on")] = "127.0.0.1",
+    port: Annotated[int, typer.Option(help="port to listen on")] = 8000,
+) -> None:
+    """The read-only dashboard over this checkout. Needs the `service` extra. Offline."""
+    try:
+        import uvicorn
+
+        from service.app import create_app
+    except ImportError as e:
+        typer.echo(
+            f"the dashboard needs the service extra: uv sync --extra service ({e})", err=True
+        )
+        raise typer.Exit(2) from e
+    typer.echo("building the read model from the committed record; about a minute", err=True)
+    uvicorn.run(create_app(ROOT), host=host, port=port)
