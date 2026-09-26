@@ -36,6 +36,19 @@ gate = [
   # re-exported interface 02's own CHANGELOG promises not to change.
   "mselect>=0.3,<0.4",
 ]
+# Part B stage 6, the dashboard (`service/`). Its own extra so neither the monthly drift job nor
+# the gate on a pull request installs a web server it never runs. CI installs it with
+# --all-extras.
+service = [
+  # The read-only API and the server-rendered pages (PLAN.md B2.1, B8). 0.x is the only line and
+  # FastAPI's minor releases have broken things before, so pinned to the 0.141 line.
+  "fastapi>=0.141,<0.142",
+  # The ASGI server the service runs under. 0.x only; pinned below 1.
+  "uvicorn>=0.54,<1",
+  # The read model (PLAN.md B3: "DuckDB arrives with the service as a read model"), built in
+  # memory from the committed JSON lines and never written to. 1.x keeps its SQL stable.
+  "duckdb>=1.5,<2",
+]
 
 [dependency-groups]
 dev = [
@@ -44,6 +57,9 @@ dev = [
   "ruff>=0.13,<1",
   "types-PyYAML>=6,<7",
   "types-jsonschema>=4,<5",
+  # FastAPI's TestClient, for the service's tests. Starlette 1.x imports httpx2 first and warns
+  # that plain httpx is deprecated for its test client. Pinned to the 2.x line.
+  "httpx2>=2.13,<3",
 ]
 
 [tool.uv.sources]
@@ -75,7 +91,7 @@ requires = ["hatchling>=1,<2"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["drift", "gate"]
+packages = ["drift", "gate", "service"]
 
 [tool.ruff]
 line-length = 100
@@ -100,7 +116,7 @@ ignore = ["E501"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-files = ["drift", "gate", "tests"]
+files = ["drift", "gate", "service", "tests"]
 plugins = ["pydantic.mypy"]
 warn_unreachable = true
 

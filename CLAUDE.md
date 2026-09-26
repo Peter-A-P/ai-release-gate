@@ -153,6 +153,17 @@ honest release gate for prompt and model changes (phase 2).
 - **`gate redteam run` spends money** and refuses without `--i-am-allowed-to-call-vendors`. It
   belongs in the `redteam` workflow.
 
+## Part B stage 6, the dashboard (`service/`, `deploy/`)
+
+- **Needs the `service` extra.** Nothing in `drift/` or `gate/` imports `service/` (only `gate
+  serve`, lazily); a test enforces it.
+- **The service computes nothing of its own.** Every figure on a page comes from the library
+  function that prints it in a report (`metrics_for_month`, `calib.calibrate`,
+  `gate.redteam.report.score`) and is formatted by `Estimate.compact`, the README's formatter.
+  DuckDB is a read model for per-call breakdowns only, never written to and never the source of
+  a published rate. `tests/test_service.py` holds pages to reports; keep it that way.
+- **Read-only.** GET only, a read-only mount, no ledger opened, no answer text loaded.
+
 ## What goes in the README
 
 The README opens with the one-liner, the results table, and the honest limitation, before

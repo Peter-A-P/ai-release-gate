@@ -229,6 +229,10 @@ the first and fails the second. The harmful-request column is an upper bound, be
 classifier misses refusals, and those answers are never committed, because this repository is
 public. Sources, decisions and what each number does not claim: [docs/redteam.md](docs/redteam.md).
 
+Everything above can also be browsed: `uv sync --all-extras && uv run gate serve` builds a
+read-only dashboard from the committed files, with every figure computed by the same code as
+the reports. Its public home will be gate.peterparker.ca ([deploy/README.md](deploy/README.md)).
+
 Full design in [PLAN.md](PLAN.md).
 
 ## Reproduce every number yourself
