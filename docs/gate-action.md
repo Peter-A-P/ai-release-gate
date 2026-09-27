@@ -66,3 +66,35 @@ US$0.20. The comment states what each run spent and how many calls the cache sav
 - It cannot see a regression smaller than about ten points on a 100-question suite; see "Why
   ten points" in `docs/gate-statistics.md`.
 - The development cache is for pull requests only. Part A's monthly drift run never uses one.
+
+## The first three pull requests, 2026-09-27
+
+On [regulated-qa-demo](https://github.com/Peter-A-P/regulated-qa-demo), each answered live on the
+100 gold questions by Haiku 4.5 and graded for completeness by Gemini 3.8 Flash (kappa 0.914):
+
+| Pull request | Expected | Verdict | Baseline | Candidate | Difference | Cost |
+|---|---|---|---|---|---|---|
+| [#1](https://github.com/Peter-A-P/regulated-qa-demo/pull/1) reword, same meaning | pass | pass | 100.0% | 100.0% | +0.0 | US$0.34 |
+| [#2](https://github.com/Peter-A-P/regulated-qa-demo/pull/2) state the document's figures | pass | pass | 100.0% | 100.0% | +0.0 | US$0.36 |
+| [#3](https://github.com/Peter-A-P/regulated-qa-demo/pull/3) one sentence of 15 words at most | **block** | **pass** | 100.0% | 99.0% | -1.1 (-3.5 to +0.0) | US$0.33 |
+
+The machinery worked end to end: the base branch's rules, both sides answered live, a licensed
+judge, its error divided out of the difference, one comment per pull request, costs as
+estimated. **The verdict on #3 is a finding, not a malfunction.** The judge scored answers cut to
+one sentence 99% complete, and the unchanged prompt 100%: on these questions, with this rubric,
+"complete" is at its ceiling for any answer that states the main point, so the suite has no room
+to show the regression #3 was written to be. A ten-point margin on a suite at 100% blocks
+nothing short of a collapse. That is the same lesson as the margin itself (`docs/gate-statistics.md`),
+from the other side: the suite needs items a short answer fails, or a grader that asks for more
+than the main point, before it can gate brevity. Neither is changed here; the rubric is the
+standard (`docs/judge-rubric.md`) and is not revised to make a demo come out as expected.
+
+Two more things the comments show:
+
+- **Zero-width intervals in the gate's own statistics**: "100.0% (100.0 to 100.0)" and
+  "+0.0% (+0.0 to +0.0)" when every item agrees. The same fault was fixed in Part A's reports on
+  2026-09-27. Here it is part of the decision rule, not only its display, so it is left for a
+  decision written into `docs/gate-statistics.md` rather than changed with the reports.
+- **The development cache saved little** (34, 18 and 0 of about 400 requests), because Actions
+  caches written on one pull request's branch are not visible to another's. The base side is
+  paid for on every pull request until a cache is written from `main`.
