@@ -161,9 +161,12 @@ def overview(model: ReadModel) -> str:
         '<li><a href="/costs">Cost</a>: what every run spent, by model and block.</li></ul>'
     )
     parts.append(
-        '<p class="muted">Machine-readable: <a href="/api/drift">/api/drift</a>, '
-        '<a href="/api/gate">/api/gate</a>, <a href="/api/judge">/api/judge</a>, '
-        '<a href="/api/redteam">/api/redteam</a>, <a href="/api/costs">/api/costs</a>.</p>'
+        '<p class="muted">Machine-readable, the same figures: '
+        + ", ".join(
+            f'<a href="/data/{n}.json">/data/{n}.json</a>'
+            for n in ("drift", "gate", "judge", "redteam", "costs", "build")
+        )
+        + ".</p>"
     )
     return "\n".join(parts)
 

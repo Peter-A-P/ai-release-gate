@@ -1,4 +1,4 @@
-"""Command line: gate run | compare | aa | power | spec | gold | judge | check | redteam | serve.
+"""Command line: gate run | compare | aa | power | spec | gold | judge | check | redteam | serve | export.
 
 Stage 1 (PLAN.md B10): every side comes from Part A's stored records, so `run`, `compare`,
 `aa` and `power` call no vendor and spend nothing. A side is named `MONTH/ARM`, optionally
@@ -1244,3 +1244,21 @@ def serve(
         raise typer.Exit(2) from e
     typer.echo("building the read model from the committed record; about a minute", err=True)
     uvicorn.run(create_app(ROOT), host=host, port=port)
+
+
+@app.command("export")
+def export_site(
+    out: Annotated[Path, typer.Option(help="the directory to write the site to")] = ROOT / "site",
+) -> None:
+    """The dashboard as static files, for Azure Static Web Apps. Offline; needs the `service`
+    extra. Writes every page and JSON document the service answers, byte for byte, plus
+    staticwebapp.config.json. The directory is emptied first."""
+    try:
+        from service.export import export
+        from service.readmodel import build
+    except ImportError as e:
+        typer.echo(f"the export needs the service extra: uv sync --extra service ({e})", err=True)
+        raise typer.Exit(2) from e
+    typer.echo("building the read model from the committed record; about a minute", err=True)
+    files = export(build(ROOT), out)
+    typer.echo(f"{len(files)} files written to {out}")

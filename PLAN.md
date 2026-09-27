@@ -733,8 +733,8 @@ headings follow the verdict.
 # Part B. The release gate
 
 **Build:** evenings and weekends. Depends on `mselect` from project 02 (**already landed:
-v0.1.0 through v0.3.0 all tagged 2026-09-11**, see below) and on the shared VPS (portfolio
-action 2b) by the time the dashboard is stood up.
+v0.1.0 through v0.3.0 all tagged 2026-09-11**, see below). Not on the shared VPS: since
+2026-09-27 the dashboard is static files on Azure Static Web Apps (B8.1).
 
 **`mselect` v0.3.0, available now.** Project 02 has already tagged it, so the fallback for
 building without it is not needed. Install it the way `boundary` is installed, from the private
@@ -871,7 +871,7 @@ gate/
   cli.py        gate run, gate compare, gate calibrate-judge, gate aa, gate report, gate serve
 action/         composite GitHub Action: checkout, gate compare base..head, comment, exit code
 service/        FastAPI: read-only API over the ledger and drift/runs; static dashboard
-deploy/         docker compose for the VPS: service, Caddy for TLS at gate.peterparker.ca
+deploy/         the fallback, never the deployment (B8.1): docker compose, the service, Caddy
 docs/
   judge-calibration.md   the gold set, the raters, the numbers
   gate-statistics.md     the non-inferiority test, delta, power, false-block rate
@@ -1121,25 +1121,22 @@ both the injection attacks and half of the PII requests. The injection context i
 
 ## B8. Dashboard and deployment
 
-> **Superseded in part on 2026-09-27, not yet implemented: see B8.1.** The dashboard is to be
-> served as static files from Azure Static Web Apps, not from the shared VPS. The bullets below
-> are the original design and stay as written until the change in B8.1 is built, when they are
-> rewritten in the same commit.
-
-- `gate.peterparker.ca` on the shared VPS, docker compose: the FastAPI service, Caddy
-  for TLS, the OpenTelemetry collector. Read-only, no accounts.
+- `gate.peterparker.ca` on Azure Static Web Apps, free tier: static files written by
+  `gate export`, the service's own responses byte for byte, with nothing running behind them.
+  Read-only, no accounts. Rebuilt nightly, on demand and on a push that changes the record, by
+  `.github/workflows/dashboard.yml` (B8.1).
 - Pages: drift record (per model and arm, accuracy with intervals, flip rates, refusal
   rates, cost, latency, month by month); gate history for the demo repository; judge
-  calibration figures; red-team results per model.
-- The service reads the ledger and `drift/runs` from a nightly `git pull`; it never
-  writes. If the VPS is down, nothing is lost and the CLI still reproduces every number.
-- Uptime is monitored by a free external ping; the drift job does not depend on the VPS
+  calibration figures; red-team results per model. The same figures as JSON under `/data/`.
+- If the site is down, nothing is lost: it holds no state, and the CLI still reproduces every
+  number from the repository. `gate serve` runs the same pages locally.
+- Uptime is monitored by a free external ping; the drift job does not depend on the site
   at all.
 
 ### B8.1 Decision 2026-09-27: static hosting on Azure Static Web Apps, not the VPS
 
-Decided with Peter on 2026-09-27. **Not implemented yet**; this section is the brief for
-whoever builds it, and nothing else in the repository has been changed for it.
+Decided with Peter on 2026-09-27. **Built 2026-09-27, not yet deployed**; status at the end of
+this section. The brief below is kept as written.
 
 **What was found.** The dashboard needs no server. `service/app.py` has six fixed HTML pages
 (`/`, `/drift`, `/costs`, `/gate`, `/judge`, `/redteam`) and five fixed JSON endpoints
@@ -1162,8 +1159,9 @@ nothing extra, and cost is not the reason. The reasons are:
 - **A clean measurement for 04.** 04 publishes a latency figure taken on that box; any other
   tenant, however quiet, is noise in it.
 - **Nothing to operate.** No container, no Caddy, no certificate renewal, no nightly pull, no
-  process to watch or patch. It also retires the open risk in stage 6: the container has never
-  started, because Docker on the build laptop starts none.
+  process to watch or patch. (This said the container had never started. It was started later
+  the same day, once Docker on the laptop was fixed, and served every page; see
+  `deploy/README.md`. The reason stands without it.)
 - **A snapshot suits a record.** Each night's pages are fixed files built from a known commit,
   which is easier for an auditor to trust than a process computing the same page on request.
 - **Consistency.** It is the pattern already running for three sites in the portfolio.
@@ -1236,6 +1234,19 @@ about an hour's work.
    say) or dropped from the technical line, and write the decision here. Do not bundle it into
    this change.
 
+**Status, 2026-09-27.** Done: steps 1 to 5 and 8. `gate export` writes the six pages, six JSON
+documents and `staticwebapp.config.json` from `service.app.ROUTES`, the table the service itself
+answers from, so the two cannot differ; tests hold every file to the service byte for byte and
+check that no answer text and nothing withheld is published. Step 4 was settled without a test
+deployment by doing what 01 does on the same host: JSON is published under `/data/*.json`, which
+works whether or not Static Web Apps would serve files under `/api/`, and `gate serve` still
+answers the `/api/` paths with the same bytes. The pages were loaded under the exact headers in
+the config, from a local server applying them, and the browser blocked nothing; that check is
+repeated on the live site once it exists. The workflow runs without the deployment token and
+keeps the site as an artifact until it is set. Left: step 6 (the Azure resource, its token as
+`AZURE_STATIC_WEB_APPS_API_TOKEN`, the CNAME and domain validation), step 7 (the uptime ping)
+and step 9 (the OpenTelemetry decision).
+
 ## B9. Reuse by projects 04, 05, 06 and 10
 
 `gate` ships as a package with a documented adapter: a project provides an eval spec and
@@ -1253,7 +1264,7 @@ suite, which is the first real test of the reuse claim.
 | 3 | Labelling finished; judge calibration for two judges; bias checks; correction implemented | `docs/judge-calibration.md` with kappa, alpha, sensitivity, specificity. **Statistics done 2026-09-20**, ahead of the labels they will run on: kappa, alpha, sensitivity, specificity, Rogan-Gladen with propagated uncertainty, test-retest, order bias and the verbosity check, each tested against a table worked out by hand. **Done 2026-09-23**: both judges calibrated, refused for faithfulness and usable for completeness (B4); the intra-rater re-read of 100 is stage 7's |
 | 4 | GitHub Action; demo repository; first gated pull requests. Kept light, because holidays land on it | Three PRs with gate comments, one blocked. **Built 2026-09-23, not yet run on a pull request**: `gate check` answers each side live, grades with a licensed judge and takes the judge's error out of the difference; the composite action in `action/`; the demo repository's files in `examples/regulated-qa-demo/`; [`docs/gate-action.md`](docs/gate-action.md). The live suite's margin is ten points, not three, reasoned in [`docs/gate-statistics.md`](docs/gate-statistics.md). **Demo repository created 2026-09-25**, [Peter-A-P/regulated-qa-demo](https://github.com/Peter-A-P/regulated-qa-demo), public, the action pinned to `562b25d`, with three pull-request branches pushed: a rewording that should pass, a request for the document's own figures that should pass, and one-sentence answers that should be blocked. Left: its `ANTHROPIC_API_KEY` and `GOOGLE_API_KEY` secrets, which only Peter can set, then opening the three pull requests |
 | 5 | Red-team suites and Presidio grader; refusal classifier calibrated | Four suites reporting with intervals. **Done 2026-09-25**: 700 items frozen at `3d0526feb9f4763b` (planted-value matching in place of Presidio, B7), run on four models for US$2.27, all four reporting with Jeffreys intervals in [`docs/redteam.md`](docs/redteam.md). The classifier's hand labels on these answers were declined on 2026-09-25, so it is not calibrated on them; the jailbreak rates are upper bounds and say so |
-| 6 | VPS stood up; compose stack; service and dashboard; drift record ingested; `gate.peterparker.ca` live; OpenTelemetry | Dashboard shows the Part A record and the demo repo's gate history. **Service built 2026-09-26, not deployed**: `service/`, FastAPI over a DuckDB read model built in memory from the committed files, six server-rendered pages and a JSON API, every figure computed by the library function the reports use and held to them by `tests/test_service.py`; `gate serve` locally; `deploy/` with the image, compose file, Caddyfile and nightly pull ([`deploy/README.md`](deploy/README.md)). The container was run on 2026-09-27 against this checkout, read-only, and served every page; `caddy validate` accepts the Caddyfile. Left: the VPS, DNS and uptime ping (portfolio action 2b), and OpenTelemetry, deferred until it is decided whether a collector on the VPS is exposed to Actions |
+| 6 | Static site on Azure Static Web Apps (B8.1): export, publish workflow, Static Web App; service and dashboard; drift record ingested; `gate.peterparker.ca` live; OpenTelemetry | Dashboard shows the Part A record and the demo repo's gate history. **Service built 2026-09-26, static export and workflow 2026-09-27, not deployed**: `service/`, FastAPI over a DuckDB read model built in memory from the committed files, six server-rendered pages and JSON, every figure computed by the library function the reports use and held to them by `tests/test_service.py`; `gate serve` locally; `gate export` writes the same responses as files, held to the service byte for byte; `.github/workflows/dashboard.yml` publishes them. `deploy/` keeps the container stack as the fallback, run once on 2026-09-27 ([`deploy/README.md`](deploy/README.md)). Left: the Static Web App, its deployment token, DNS and uptime ping, which only Peter can do, and the OpenTelemetry decision (B8.1 step 9) |
 | 7 | Eval reports and model cards generated from the ledger; cost and latency lines; A/A study at full size; intra-rater re-labelling of 100 gold items | False-block rate published; reports render for every run |
 | 8 | Adapter for downstream projects; `docs/rejected.md`; write-up "your LLM eval has no error bars"; README to Rule A shape; v0.1.0; repository public | Definition of done all checked |
 
@@ -1277,7 +1288,7 @@ vendors assumed comparable and checked before the first run.
 | A/A study, 50 pairs per suite on cached baselines | ~3,000 | ~US$5 |
 | Development margin | | ~US$10 |
 | **Phase B API total** | | **~US$37, about CA$50** |
-| VPS share for phase B (a share of the CA$300 line) | | ~CA$50 |
+| Hosting for phase B | | CA$0: the dashboard is static on Azure Static Web Apps' free tier, and no longer uses the shared VPS (B8.1) |
 
 Well inside the line. Actual invoices go next to the estimate in the portfolio's STATUS.
 
@@ -1289,7 +1300,7 @@ Well inside the line. Actual invoices go next to the estimate in the portfolio's
 | Single-rater gold set | Reported as a limitation; second rater sought outside work; intra-rater agreement published either way |
 | Judge below kappa 0.6 on a task | That is a finding, published. The gate refuses the judge for that task and uses programmatic grading or flags for human review |
 | Holidays land mid-build | The stages they land on carry the two most self-contained pieces (the Action, the red-team suites) and have slack built in |
-| VPS not ready in time | The dashboard can run locally and be shown as static exports; the drift job is unaffected. Action 2b in the portfolio STATUS tracks it |
+| Static hosting differs from local serving (headers, routing, MIME types) | The export is served locally under its own `staticwebapp.config.json` headers and rewrites before publishing, and checked again on the live site; JSON lives under `/data/` because the host reserves `/api/`. If a page ever needs to answer live questions, `deploy/` is the way back to a server |
 | Scope sprawl into a general eval framework | The eval spec stays small. Anything not needed by the demo repository or a downstream project is not built |
 | Vendor changes a judge model mid-build | Judges are pinned by dated identifier; a change means recalibration, which is a one-command rerun on the gold set |
 | Red-team suites misread as adversarial research | Public items only, from published benchmarks; documented in the README |

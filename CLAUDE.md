@@ -163,6 +163,10 @@ honest release gate for prompt and model changes (phase 2).
   DuckDB is a read model for per-call breakdowns only, never written to and never the source of
   a published rate. `tests/test_service.py` holds pages to reports; keep it that way.
 - **Read-only.** GET only, a read-only mount, no ledger opened, no answer text loaded.
+- **The published site is the export, and the export is the service's output, never its own.**
+  `gate export` writes `service.app.ROUTES`, the table the service answers from; add a page there
+  and both get it. The site is static on Azure Static Web Apps (PLAN.md B8.1), JSON under
+  `/data/` because the host reserves `/api/`, and `deploy/` is the fallback, not the deployment.
 
 ## What goes in the README
 

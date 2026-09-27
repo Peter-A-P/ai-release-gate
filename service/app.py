@@ -1,19 +1,25 @@
-"""The FastAPI app: pages and a JSON API over the read model. GET only; nothing here writes.
+"""The FastAPI app: pages and JSON over the read model. GET only; nothing here writes.
 
-uv run gate serve                       # http://127.0.0.1:8000
-uv run uvicorn service.app:app          # the same, as the container runs it
+    uv run gate serve                       # http://127.0.0.1:8000
+    uv run gate export --out site/          # the same responses as files, for static hosting
+
+Every response is one entry of `ROUTES`, rendered to bytes from the read model. The app serves
+those bytes and `service.export` writes them to files, so the published site is the service's
+output by construction and never a second implementation of it (PLAN.md B8.1).
 """
 
 from __future__ import annotations
 
+import json
 import math
 import os
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import Response
 
 from drift.analysis.stats import Estimate
 from gate.redteam.suite import SUITES
@@ -109,6 +115,64 @@ def redteam_json(m: ReadModel) -> dict[str, Any]:
     }
 
 
+def costs_json(m: ReadModel) -> list[dict[str, Any]]:
+    return m.query(
+        "SELECT run_label, arm_key, block, count(*) AS calls, sum(cost_usd) AS cost_usd, "
+        "sum(input_tokens) AS input_tokens, sum(output_tokens) AS output_tokens "
+        "FROM calls GROUP BY ALL ORDER BY run_label, arm_key, block"
+    )
+
+
+def gate_json(m: ReadModel) -> list[dict[str, Any]]:
+    return [r.model_dump(mode="json") for r in m.decisions]
+
+
+def build_json(m: ReadModel) -> dict[str, Any]:
+    """What the pages were built from: the uptime ping's target, and an auditor's first check."""
+    return {"ok": True, "commit": m.commit, "built_utc": m.built_utc, "runs": len(m.runs)}
+
+
+HTML = "text/html; charset=utf-8"
+JSON = "application/json"
+
+
+@dataclass(frozen=True, slots=True)
+class Route:
+    path: str  # where the page is served, by the app and on the static site
+    file: str  # where the export writes it, relative to the site root
+    media_type: str
+    render: Callable[[ReadModel], bytes]
+    # Older paths the app still answers with the same bytes. Not exported: the static site
+    # publishes JSON under /data/, because Azure Static Web Apps reserves /api/ for Functions.
+    aliases: tuple[str, ...] = ()
+
+
+def _page(path: str, title: str, body: Callable[[ReadModel], str]) -> Callable[[ReadModel], bytes]:
+    return lambda m: pages.page(m, path, title, body(m)).encode("utf-8")
+
+
+def _json(value: Callable[[ReadModel], Any]) -> Callable[[ReadModel], bytes]:
+    return lambda m: json.dumps(
+        value(m), ensure_ascii=False, allow_nan=False, separators=(",", ":")
+    ).encode("utf-8")
+
+
+ROUTES: tuple[Route, ...] = (
+    Route("/", "index.html", HTML, _page("/", "Overview", pages.overview)),
+    Route("/drift", "drift.html", HTML, _page("/drift", "Drift record", pages.drift_page)),
+    Route("/costs", "costs.html", HTML, _page("/costs", "Cost", pages.costs_page)),
+    Route("/gate", "gate.html", HTML, _page("/gate", "Gate decisions", pages.gate_page)),
+    Route("/judge", "judge.html", HTML, _page("/judge", "Judge calibration", pages.judge_page)),
+    Route("/redteam", "redteam.html", HTML, _page("/redteam", "Red team", pages.redteam_page)),
+    Route("/data/drift.json", "data/drift.json", JSON, _json(drift_json), ("/api/drift",)),
+    Route("/data/costs.json", "data/costs.json", JSON, _json(costs_json), ("/api/costs",)),
+    Route("/data/gate.json", "data/gate.json", JSON, _json(gate_json), ("/api/gate",)),
+    Route("/data/judge.json", "data/judge.json", JSON, _json(judge_json), ("/api/judge",)),
+    Route("/data/redteam.json", "data/redteam.json", JSON, _json(redteam_json), ("/api/redteam",)),
+    Route("/data/build.json", "data/build.json", JSON, _json(build_json), ("/healthz",)),
+)
+
+
 def create_app(root: Path = ROOT, *, builder: Callable[[Path], ReadModel] = build) -> FastAPI:
     holder = Holder(root, builder=builder)
     app = FastAPI(
@@ -119,55 +183,16 @@ def create_app(root: Path = ROOT, *, builder: Callable[[Path], ReadModel] = buil
         openapi_url="/api/openapi.json",
     )
 
-    def html(
-        path: str, title: str, render: Callable[[ReadModel], str]
-    ) -> Callable[[], HTMLResponse]:
-        def handler() -> HTMLResponse:
-            m = holder.current()
-            return HTMLResponse(pages.page(m, path, title, render(m)))
+    def handler(route: Route) -> Callable[[], Response]:
+        def respond() -> Response:
+            return Response(route.render(holder.current()), media_type=route.media_type)
 
-        handler.__name__ = f"page_{title.lower().replace(' ', '_')}"
-        return handler
+        respond.__name__ = "get_" + (route.file.replace("/", "_").replace(".", "_"))
+        return respond
 
-    for path, title, render in (
-        ("/", "Overview", pages.overview),
-        ("/drift", "Drift record", pages.drift_page),
-        ("/costs", "Cost", pages.costs_page),
-        ("/gate", "Gate decisions", pages.gate_page),
-        ("/judge", "Judge calibration", pages.judge_page),
-        ("/redteam", "Red team", pages.redteam_page),
-    ):
-        app.get(path, response_class=HTMLResponse)(html(path, title, render))
-
-    @app.get("/api/drift")
-    def api_drift() -> dict[str, Any]:
-        return drift_json(holder.current())
-
-    @app.get("/api/costs")
-    def api_costs() -> list[dict[str, Any]]:
-        return holder.current().query(
-            "SELECT run_label, arm_key, block, count(*) AS calls, sum(cost_usd) AS cost_usd, "
-            "sum(input_tokens) AS input_tokens, sum(output_tokens) AS output_tokens "
-            "FROM calls GROUP BY ALL ORDER BY run_label, arm_key, block"
-        )
-
-    @app.get("/api/gate")
-    def api_gate() -> list[dict[str, Any]]:
-        return [r.model_dump(mode="json") for r in holder.current().decisions]
-
-    @app.get("/api/judge")
-    def api_judge() -> dict[str, Any]:
-        return judge_json(holder.current())
-
-    @app.get("/api/redteam")
-    def api_redteam() -> dict[str, Any]:
-        return redteam_json(holder.current())
-
-    @app.get("/healthz")
-    def healthz() -> dict[str, Any]:
-        m = holder.current()
-        return {"ok": True, "commit": m.commit, "built_utc": m.built_utc, "runs": len(m.runs)}
-
+    for route in ROUTES:
+        for path in (route.path, *route.aliases):
+            app.get(path, response_class=Response)(handler(route))
     return app
 
 

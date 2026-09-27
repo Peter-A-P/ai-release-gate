@@ -175,3 +175,71 @@ def test_nothing_in_drift_or_gate_imports_the_service() -> None:
                 if path.name == "cli.py" and package == "gate":
                     continue  # `gate serve` imports it lazily, inside the command
                 assert not [n for n in names if n.split(".")[0] == "service"], path
+
+
+# ---------------------------------------------------------------------------- the static export
+
+
+@pytest.fixture(scope="module")
+def site(model: readmodel.ReadModel, tmp_path_factory: pytest.TempPathFactory) -> Path:
+    from service.export import export
+
+    out = tmp_path_factory.mktemp("site")
+    export(model, out)
+    return out
+
+
+def test_every_exported_file_is_the_services_response_byte_for_byte(
+    client: TestClient, site: Path
+) -> None:
+    """The published site is the service's output, so the service's guarantee (every figure is
+    the report's) holds for what is actually published."""
+    from service.app import ROUTES
+
+    for route in ROUTES:
+        got = client.get(route.path)
+        assert got.status_code == 200, route.path
+        assert (site / route.file).read_bytes() == got.content, route.path
+        assert got.headers["content-type"].startswith(route.media_type.split(";")[0])
+        for alias in route.aliases:  # gate serve still answers the old paths, identically
+            assert client.get(alias).content == got.content, alias
+
+
+def test_the_export_publishes_no_answer_text_and_nothing_withheld(site: Path) -> None:
+    from drift.runner.records import read_records, records_path
+
+    files = sorted(p for p in site.rglob("*") if p.is_file())
+    assert not [p for p in files if "withheld" in p.as_posix()]
+    published = "\n".join(p.read_text(encoding="utf-8") for p in files)
+    answers = [
+        r.output
+        for r in read_records(records_path(ROOT / "drift" / "runs", RUN, "openweights-control"))
+        if r.output and len(r.output) >= 60
+    ]
+    rt = rt_run.read_answers(
+        ROOT / "gate" / "redteam" / "runs" / "redteam-2026-09" / rt_run.ANSWERS_FILE
+    )
+    answers += [a.text for a in rt if a.text and len(a.text) >= 60]
+    assert len(answers) > 500
+    assert not [a for a in answers if a in published]
+    for key in ('"output"', '"text"', '"normalised"'):
+        assert key not in published
+
+
+def test_the_hosting_config_serves_every_page_at_its_clean_url(site: Path) -> None:
+    from service.app import HTML, ROUTES
+    from service.export import CONFIG_FILE, CSP
+
+    cfg = json.loads((site / CONFIG_FILE).read_text(encoding="utf-8"))
+    rewrites = {r["route"]: r["rewrite"] for r in cfg["routes"] if "rewrite" in r}
+    for route in ROUTES:
+        if route.media_type == HTML and route.path != "/":
+            assert rewrites[route.path] == "/" + route.file
+            assert (site / route.file).is_file()
+    assert (site / "index.html").is_file()
+    assert cfg["globalHeaders"]["Content-Security-Policy"] == CSP
+    assert "script-src" not in CSP and "default-src 'none'" in CSP
+    assert cfg["mimeTypes"][".json"] == "application/json"
+    # Azure Static Web Apps reserves /api/ for Functions, so nothing is published under it.
+    assert not (site / "api").exists()
+    assert not [r for r in ROUTES if r.path.startswith("/api/")]

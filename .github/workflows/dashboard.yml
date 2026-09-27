@@ -1,0 +1,73 @@
+name: dashboard
+
+# Publishes the dashboard to Azure Static Web Apps as static files (PLAN.md B8.1).
+#
+# `gate export` writes every page and JSON document the service answers, byte for byte, from the
+# committed record. Nothing runs on the site afterwards. This workflow calls no vendor and spends
+# nothing; building the read model takes about a minute.
+#
+# Deploys with the Static Web App's deployment token, held as the repository secret
+# AZURE_STATIC_WEB_APPS_API_TOKEN, never an Azure credential. Until that secret exists the site
+# is built and kept as an artifact, so the workflow proves the export before Azure is set up.
+
+on:
+  schedule:
+    # Nightly. The monthly drift run starts at 06:00 UTC on the 1st and commits within hours, so
+    # the next night's build publishes it.
+    - cron: "40 7 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "drift/runs/**"
+      - "drift/analysis/**"
+      - "drift/graders/**"
+      - "gate/**"
+      - "service/**"
+      - "uv.lock"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dashboard
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SWA_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+    steps:
+      # Full history is not needed, but the commit is: the footer and data/build.json name it.
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      # The export needs the gate and service extras. Part A's monthly job still installs
+      # without them.
+      - run: uv sync --frozen --all-extras
+
+      - name: Export the site
+        run: uv run gate export --out site
+
+      - name: Keep the site as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-site-${{ github.run_id }}
+          path: site
+          retention-days: 14
+
+      - name: Deploy to Azure Static Web Apps
+        if: env.SWA_TOKEN != ''
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: site
+          skip_app_build: true
+
+      - name: Say why nothing was deployed
+        if: env.SWA_TOKEN == ''
+        run: echo "AZURE_STATIC_WEB_APPS_API_TOKEN is not set; the site was built and kept as an artifact only."

@@ -67,3 +67,6 @@ gate/redteam/runs/*/ledger-withheld.sqlite-shm
 gate/redteam/runs/*/ledger.sqlite-wal
 gate/redteam/runs/*/ledger.sqlite-shm
 gate/redteam/runs/*/raw/*.tmp
+
+# The exported dashboard (`gate export`): built by the dashboard workflow, never committed.
+site/
