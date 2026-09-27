@@ -78,6 +78,9 @@ On [regulated-qa-demo](https://github.com/Peter-A-P/regulated-qa-demo), each ans
 | [#2](https://github.com/Peter-A-P/regulated-qa-demo/pull/2) state the document's figures | pass | pass | 100.0% | 100.0% | +0.0 | US$0.36 |
 | [#3](https://github.com/Peter-A-P/regulated-qa-demo/pull/3) one sentence of 15 words at most | **block** | **pass** | 100.0% | 99.0% | -1.1 (-3.5 to +0.0) | US$0.33 |
 
+#1 and #2 were merged; #2 was gated again first on the combined prompt, and passed at 0 of 100
+items judged differently. #3 stays open as the record of the pass that should have been a block.
+
 The machinery worked end to end: the base branch's rules, both sides answered live, a licensed
 judge, its error divided out of the difference, one comment per pull request, costs as
 estimated. **The verdict on #3 is a finding, not a malfunction.** The judge scored answers cut to
@@ -92,9 +95,11 @@ standard (`docs/judge-rubric.md`) and is not revised to make a demo come out as 
 Two more things the comments show:
 
 - **Zero-width intervals in the gate's own statistics**: "100.0% (100.0 to 100.0)" and
-  "+0.0% (+0.0 to +0.0)" when every item agrees. The same fault was fixed in Part A's reports on
-  2026-09-27. Here it is part of the decision rule, not only its display, so it is left for a
-  decision written into `docs/gate-statistics.md` rather than changed with the reports.
+  "+0.0% (+0.0 to +0.0)" when every item agrees. Fixed the same day in 75737ef, with the reasoning
+  in `docs/gate-statistics.md` ("Unanimous counts"), and the demo moved to it
+  ([#4](https://github.com/Peter-A-P/regulated-qa-demo/pull/4)). #3, re-run under it against the
+  merged #1 and #2, now reads 100.0% (97.5 to 100.0) against 99.0% (97.0 to 100.0), a difference
+  of -1.1 (-3.5 to +3.4): still a pass, and now an honest one.
 - **The development cache saved little** (34, 18 and 0 of about 400 requests), because Actions
   caches written on one pull request's branch are not visible to another's. The base side is
   paid for on every pull request until a cache is written from `main`.
