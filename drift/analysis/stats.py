@@ -55,12 +55,27 @@ class Estimate:
         return f"{self.point:.1%} ({self.lo * 100:.1f} to {self.hi * 100:.1f})"
 
 
+def _unanimous(values: Sequence[float]) -> bool:
+    """Every value 0, or every value 1: a share with nothing in it to resample."""
+    return all(v == 0.0 for v in values) or all(v == 1.0 for v in values)
+
+
 def bootstrap_mean(values: Sequence[float], *, resamples: int = 2000, seed: int = 0) -> Estimate:
-    """Percentile bootstrap of the mean over items. Never a bare percentage."""
+    """Percentile bootstrap of the mean over items. Never a bare percentage.
+
+    Except where a bootstrap cannot give one: a share whose values are all 0 or all 1 resamples
+    to itself and would print "0.0% (0.0 to 0.0)", a bare number wearing an interval. Until
+    2026-09-27 it did, in every published report: the error, truncation and "wrongly refused"
+    columns of most arms, and per-block accuracy wherever a model scored 100%. Such a share gets
+    the Jeffreys interval instead (`jeffreys_proportion`), with the point unchanged.
+    """
     n = len(values)
     if n == 0:
         return Estimate(float("nan"), float("nan"), float("nan"), 0)
     point = sum(values) / n
+    if _unanimous(values):
+        j = jeffreys_proportion(round(point * n), n, seed=seed)
+        return Estimate(point, j.lo, j.hi, n)
     rng = random.Random(seed)
     means = sorted(sum(values[rng.randrange(n)] for _ in range(n)) / n for _ in range(resamples))
     lo = means[int(0.025 * resamples)]
@@ -130,6 +145,11 @@ def bootstrap_mean_by_cluster(
     k = len(members)
     if k == 1:
         return Estimate(point, float("nan"), float("nan"), n, 1)
+    if _unanimous(values):
+        # Nothing to resample, as in `bootstrap_mean`, and the evidence is k clusters, not n
+        # values: 0 refusals in 100 answers to 20 questions is 20 questions' worth of "low".
+        j = jeffreys_proportion(0 if point == 0.0 else k, k, seed=seed)
+        return Estimate(point, j.lo, j.hi, n, k)
     totals = [(sum(g), len(g)) for g in members]
     rng = random.Random(seed)
     means: list[float] = []

@@ -18,7 +18,13 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from drift.analysis.stats import Estimate, bootstrap_mean, mcnemar_exact, percentile
+from drift.analysis.stats import (
+    Estimate,
+    bootstrap_mean,
+    bootstrap_mean_by_cluster,
+    mcnemar_exact,
+    percentile,
+)
 from drift.graders import is_refusal
 from drift.runner.records import CallRecord
 
@@ -89,8 +95,13 @@ def arm_metrics(arm_key: str, records: list[CallRecord], *, seed: int = 0) -> Ar
             norms = [r.normalised for r in recs if r.normalised is not None]
             stable.append(1.0 if len(set(norms)) == 1 else 0.0)
 
+    # Each answer with the question it answers, so the interval resamples questions, not the
+    # five repeats of one question as if they were five pieces of evidence. PLAN.md section 4:
+    # items are what is resampled. Until 2026-09-27 these were bootstrapped over answers.
     should_answer: list[float] = []
     should_refuse: list[float] = []
+    answer_items: list[str] = []
+    refuse_items: list[str] = []
     for r in records:
         if r.block != "refusal_calibration":
             continue
@@ -101,7 +112,12 @@ def arm_metrics(arm_key: str, records: list[CallRecord], *, seed: int = 0) -> Ar
             continue
         else:
             refused = 1.0 if is_refusal(r.output) else 0.0
-        (should_answer if r.grader == "must_answer" else should_refuse).append(refused)
+        if r.grader == "must_answer":
+            should_answer.append(refused)
+            answer_items.append(r.item_id)
+        else:
+            should_refuse.append(refused)
+            refuse_items.append(r.item_id)
 
     # A failed call and a call cut off at the budget are different facts. Errors are the
     # vendor failing; truncation is our own budget binding, and it is ours to fix.
@@ -120,8 +136,12 @@ def arm_metrics(arm_key: str, records: list[CallRecord], *, seed: int = 0) -> Ar
         accuracy_by_block={b: bootstrap_mean(v, seed=seed) for b, v in sorted(by_block.items())},
         same_day_flip_rate=bootstrap_mean(flips, seed=seed),
         output_stability=bootstrap_mean(stable, seed=seed),
-        refusal_rate_should_answer=bootstrap_mean(should_answer, seed=seed),
-        refusal_rate_should_refuse=bootstrap_mean(should_refuse, seed=seed),
+        refusal_rate_should_answer=bootstrap_mean_by_cluster(
+            should_answer, answer_items, seed=seed
+        ),
+        refusal_rate_should_refuse=bootstrap_mean_by_cluster(
+            should_refuse, refuse_items, seed=seed
+        ),
         latency_p50_ms=percentile(latencies, 0.50),
         latency_p95_ms=percentile(latencies, 0.95),
         cost_usd=cost,

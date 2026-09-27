@@ -290,6 +290,15 @@ settle:
 
 - **Accuracy CI:** percentile bootstrap over items, 2,000 resamples, reported as
   point estimate with 95% interval. Never a bare percentage.
+- **A share where every item agrees gets a Jeffreys interval** (added 2026-09-27). A bootstrap
+  of all zeros or all ones resamples to itself, and until this date every published report
+  printed such shares as "0.0% (0.0 to 0.0)": the errors, truncation and refusal columns of
+  most arms, and per-block accuracy wherever a model scored 100%. Where items are clustered the
+  Jeffreys interval is over the clusters. No point estimate and no drift call changed.
+- **The refusal rate is resampled by question** (fixed 2026-09-27). It is 100 answers to 20
+  questions, and it was bootstrapped as 100 independent answers, against the rule above; five
+  asks of one question are one piece of evidence. Its intervals widened, and "0 refused" now
+  reads 0.0% (0.0 to 11.7), twenty questions' worth of confidence.
 - **Month-over-month change:** paired by item, McNemar's test on correct/incorrect
   flips, alongside the flip rate and its CI. Reported per model, per block.
 - **Drift call:** as defined in section 1, flip rate against the same-day noise floor.

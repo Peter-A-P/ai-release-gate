@@ -119,9 +119,10 @@ point estimate is lower**, which PLAN.md B13 names as an approach expected to fa
 | delta 3, as specified, all | 256 | 1 of 8 | **7.0% (4.3 to 10.2)** | **75.8% (70.3 to 81.2)** |
 | delta 3, every suite decided, all | 256 | 8 of 8 | 94.5% (91.8 to 97.3) | 75.8% (70.3 to 81.2) |
 | delta 5, as specified, all | 256 | 5 of 8 | 60.9% (54.7 to 66.8) | 75.8% (70.3 to 81.2) |
-| delta 2, as specified, all | 256 | 0 of 8 | 0.0% (0.0 to 0.0) | 75.8% (70.3 to 81.2) |
+| delta 2, as specified, all | 256 | 0 of 8 | 0.0% (0.0 to 1.0) | 75.8% (70.3 to 81.2) |
 
-Intervals are 95% bootstrap intervals over pairs. The full table, with per-suite and per-arm
+Intervals are 95% bootstrap intervals over pairs, Jeffreys where every pair agrees (a bootstrap
+of 256 zeros printed "0.0 to 0.0" here until 2026-09-27). The full table, with per-suite and per-arm
 counts, is [`gate/reports/aa-2026-09.md`](../gate/reports/aa-2026-09.md).
 
 Four things to read off it.

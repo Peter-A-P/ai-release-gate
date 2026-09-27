@@ -21,8 +21,22 @@ def test_bootstrap_mean_brackets_the_point() -> None:
 
 def test_bootstrap_degenerate() -> None:
     assert bootstrap_mean([]).n == 0 and bootstrap_mean([]).fmt() == "n/a"
+    # All ones resamples to all ones. That used to be returned as a zero-width interval, which
+    # is a bare number wearing brackets; it is Jeffreys now, and 3 of 3 does not mean certainty.
     e = bootstrap_mean([1.0, 1.0, 1.0])
-    assert e.point == e.lo == e.hi == 1.0
+    assert e.point == e.hi == 1.0 and 0.3 < e.lo < 0.6
+
+
+def test_a_unanimous_share_never_prints_a_zero_width_interval() -> None:
+    zeros = bootstrap_mean([0.0] * 2100)
+    assert zeros.lo == 0.0 and 0.0005 < zeros.hi < 0.002
+    assert "(0.0 to 0.0)" not in bootstrap_mean([0.0] * 100).compact()
+    # 100 answers to 20 questions: the evidence is 20 questions, so the bound is theirs.
+    clustered = bootstrap_mean_by_cluster([0.0] * 100, [i // 5 for i in range(100)])
+    assert clustered.compact() == "0.0% (0.0 to 11.7)" and clustered.clusters == 20
+    # Anything not unanimous is still an ordinary bootstrap.
+    mixed = bootstrap_mean([1.0] * 3 + [0.0] * 97, seed=1)
+    assert mixed.lo < 0.03 < mixed.hi
 
 
 def test_mcnemar_exact_known_values() -> None:

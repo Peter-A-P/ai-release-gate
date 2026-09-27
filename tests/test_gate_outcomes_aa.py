@@ -124,7 +124,10 @@ def test_a_study_on_a_steady_arm_never_blocks_and_the_point_rule_never_fires() -
     assert st.n == 30 and st.false_block_rate().point == 0.0 and st.point_rule_rate().point == 0.0
     assert st.blocks_by_arm() == {"openweights-control": (30, 0)}
     text = report.render_aa([("delta 3", st)])
-    assert "30 pairs" in text and "0.0% (0.0 to 0.0)" in text
+    # No block in 30 pairs is not a false-block rate of exactly zero: until 2026-09-27 this
+    # printed "0.0% (0.0 to 0.0)", and the rate carries a Jeffreys upper bound now.
+    assert "30 pairs" in text and "(0.0 to 0.0)" not in text
+    assert 0.05 < st.false_block_rate().hi < 0.12
 
 
 def noisy(n: int, repeats: int, *, p_wrong: float, seed: int) -> list[CallRecord]:

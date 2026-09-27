@@ -86,19 +86,22 @@ ordinary program, so the marker cannot drift either.
 
 | Run | Model configuration | Accuracy | Noise floor (same-day) | Change vs previous run | Wrongly refused | Cost / 1,000 calls |
 |---|---|---|---|---|---|---|
-| 2026-09 | anthropic-alias | 95.0% (92.9 to 96.9) | 0.5% (0.0 to 1.2) | first run | 0.0% (0.0 to 0.0) | US$1.33 |
-| 2026-09 | anthropic-snapshot | 95.0% (92.9 to 96.9) | 0.2% (0.0 to 0.7) | first run | 0.0% (0.0 to 0.0) | US$1.33 |
-| 2026-09 | anthropic-sonnet-snapshot | 97.6% (96.0 to 98.8) | 1.4% (0.5 to 2.6) | first run | 0.0% (0.0 to 0.0) | US$2.78 |
-| 2026-09 | google-alias | 97.4% (95.7 to 98.8) | 4.0% (2.4 to 6.0) | first run | 0.0% (0.0 to 0.0) | US$1.16 |
-| 2026-09 | google-snapshot | 96.9% (95.0 to 98.3) | 5.0% (3.1 to 7.4) | first run | 0.0% (0.0 to 0.0) | US$1.13 |
-| 2026-09 | openai-alias | 94.5% (92.4 to 96.7) | 4.0% (2.4 to 6.2) | first run | 3.0% (0.0 to 7.0) | US$0.49 |
-| 2026-09 | openai-snapshot | 94.8% (92.6 to 96.9) | 1.0% (0.2 to 2.1) | first run | 5.0% (1.0 to 10.0) | US$0.49 |
-| 2026-09 | openweights-control | 92.1% (89.5 to 94.5) | 3.6% (1.9 to 5.5) | first run | 0.0% (0.0 to 0.0) | US$0.60 |
+| 2026-09 | anthropic-alias | 95.0% (92.9 to 96.9) | 0.5% (0.0 to 1.2) | first run | 0.0% (0.0 to 11.7) | US$1.33 |
+| 2026-09 | anthropic-snapshot | 95.0% (92.9 to 96.9) | 0.2% (0.0 to 0.7) | first run | 0.0% (0.0 to 11.7) | US$1.33 |
+| 2026-09 | anthropic-sonnet-snapshot | 97.6% (96.0 to 98.8) | 1.4% (0.5 to 2.6) | first run | 0.0% (0.0 to 11.7) | US$2.78 |
+| 2026-09 | google-alias | 97.4% (95.7 to 98.8) | 4.0% (2.4 to 6.0) | first run | 0.0% (0.0 to 11.7) | US$1.16 |
+| 2026-09 | google-snapshot | 96.9% (95.0 to 98.3) | 5.0% (3.1 to 7.4) | first run | 0.0% (0.0 to 11.7) | US$1.13 |
+| 2026-09 | openai-alias | 94.5% (92.4 to 96.7) | 4.0% (2.4 to 6.2) | first run | 3.0% (0.0 to 9.0) | US$0.49 |
+| 2026-09 | openai-snapshot | 94.8% (92.6 to 96.9) | 1.0% (0.2 to 2.1) | first run | 5.0% (0.0 to 15.0) | US$0.49 |
+| 2026-09 | openweights-control | 92.1% (89.5 to 94.5) | 3.6% (1.9 to 5.5) | first run | 0.0% (0.0 to 11.7) | US$0.60 |
 
 <!-- drift:end -->
 
-Intervals are 95% bootstrap intervals. Accuracy and flip rates are over n = 420 questions, the
-refusal column over n = 100.
+Intervals are 95% bootstrap intervals over questions. Accuracy and flip rates are over n = 420
+questions. The refusal column is 100 answers to 20 questions and is resampled by question, so
+five asks of one question count as one piece of evidence, not five. Where every answer agrees,
+0 refused or all refused, a bootstrap has nothing to resample and the interval is Jeffreys over
+the 20 questions: 0.0% (0.0 to 11.7) means no refusal was seen, not that the rate is zero.
 
 **The noise floor runs from 0.2% to 5.0% depending on the model configuration.** That spread is
 itself the point: a 2% change means nothing on a Google arm and would be remarkable on an
