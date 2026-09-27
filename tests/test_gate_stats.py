@@ -30,19 +30,38 @@ def test_bootstrap_share_matches_the_item_bootstrap_in_distribution() -> None:
 
 def test_bootstrap_share_degenerate() -> None:
     assert bootstrap_share([]).n == 0
+    # None or all has nothing to resample; it is Jeffreys, never zero-width (rate_draw).
     e = bootstrap_share([True, True, True])
-    assert e.point == e.lo == e.hi == 1.0
-    e = bootstrap_share([False, False])
-    assert e.point == e.lo == e.hi == 0.0
+    assert e.point == e.hi == 1.0 and 0.3 < e.lo < 0.6
+    e = bootstrap_share([False] * 100)
+    assert e.point == e.lo == 0.0 and 0.015 < e.hi < 0.03
 
 
-def test_paired_difference_on_identical_sides_is_exactly_zero() -> None:
+def test_identical_sides_differ_by_zero_but_the_interval_is_the_rule_of_three() -> None:
+    """No item disagrees, so the difference is 0; but 0 of n bounds the rate of getting worse
+    near 3/n, not at 0. Until 2026-09-27 this interval was exactly (0, 0) and p_inferior 0."""
     side = {f"i{k}": k % 3 != 0 for k in range(60)}
     t = paired_difference(side, side, delta=0.03)
-    assert t.paired_items == 60
-    assert t.difference.point == t.difference.lo == t.difference.hi == 0.0
+    assert t.paired_items == 60 and t.difference.point == 0.0
     assert t.worse == t.better == 0 and t.mcnemar_p == 1.0
-    assert t.p_inferior == 0.0 and t.non_inferior
+    assert -0.06 < t.difference.lo < -0.03 < 0.03 < t.difference.hi
+    assert not t.non_inferior, "60 items cannot rule out a 3-point drop"
+    big = {f"i{k}": k % 3 != 0 for k in range(400)}
+    t = paired_difference(big, big, delta=0.03)
+    assert t.non_inferior and -0.012 < t.difference.lo < 0.0
+
+
+def test_rate_draw_leaves_every_other_count_bit_for_bit_as_it_was() -> None:
+    """The fix draws a random number only at 0 or n, so a comparison with discordance on both
+    sides gives exactly the interval it gave before."""
+    import random
+
+    from gate.stats import rate_draw
+
+    rng = random.Random(0)
+    before = rng.getstate()
+    assert rate_draw(rng, 3, 10) == 0.3 and rng.getstate() == before
+    assert 0.0 < rate_draw(rng, 0, 10) < 1.0 and rng.getstate() != before
 
 
 def test_paired_difference_counts_the_discordant_pairs_and_pairs_by_item() -> None:

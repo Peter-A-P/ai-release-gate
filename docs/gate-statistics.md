@@ -117,12 +117,13 @@ point estimate is lower**, which PLAN.md B13 names as an approach expected to fa
 | delta 3, as specified, within | 240 | 1 of 8 | 7.1% (4.2 to 10.4) | 75.4% (69.6 to 80.8) |
 | delta 3, as specified, between | 16 | 1 of 8 | 6.2% (0.0 to 18.8) | 81.2% (62.5 to 100.0) |
 | delta 3, as specified, all | 256 | 1 of 8 | **7.0% (4.3 to 10.2)** | **75.8% (70.3 to 81.2)** |
-| delta 3, every suite decided, all | 256 | 8 of 8 | 94.5% (91.8 to 97.3) | 75.8% (70.3 to 81.2) |
-| delta 5, as specified, all | 256 | 5 of 8 | 60.9% (54.7 to 66.8) | 75.8% (70.3 to 81.2) |
+| delta 3, every suite decided, all | 256 | 8 of 8 | 100.0% (99.0 to 100.0) | 75.8% (70.3 to 81.2) |
+| delta 5, as specified, all | 256 | 5 of 8 | 100.0% (99.0 to 100.0) | 75.8% (70.3 to 81.2) |
 | delta 2, as specified, all | 256 | 0 of 8 | 0.0% (0.0 to 1.0) | 75.8% (70.3 to 81.2) |
 
 Intervals are 95% bootstrap intervals over pairs, Jeffreys where every pair agrees (a bootstrap
-of 256 zeros printed "0.0 to 0.0" here until 2026-09-27). The full table, with per-suite and per-arm
+of 256 zeros printed "0.0 to 0.0" here until 2026-09-27). The two rows with 100.0% were 94.5% and
+60.9% before the rule of three below, which is why they moved; the headline row did not. The full table, with per-suite and per-arm
 counts, is [`gate/reports/aa-2026-09.md`](../gate/reports/aa-2026-09.md).
 
 Four things to read off it.
@@ -174,6 +175,38 @@ The second `compare` exits 1: it is the between-run false block on the control, 
 it prints is the one this document describes. Both decisions are the first two records in
 [`gate/runs/ledger.jsonl`](../gate/runs/ledger.jsonl).
 
+## Unanimous counts: the rule of three (2026-09-27)
+
+The paired test resamples the counts of items that got worse and better at their observed rates.
+When a count is zero, a bootstrap can only ever redraw zero: a candidate with no item worse than
+the baseline was passed with an interval of exactly (+0.0 to +0.0) and a p-value of 0, a
+certainty that nothing could have got worse. The first gated pull requests printed exactly that,
+and "100.0% (100.0 to 100.0)" beside it for each side. But no disagreement in n items bounds the
+rate of getting worse near 3/n, not at 0 (the rule of three): two sides that agree on all 60
+items leave an interval of about -5 to +5 points, not (0, 0).
+
+So `gate.stats.rate_draw` draws a count of 0 or n from its Jeffreys posterior, Beta(k + 1/2,
+n - k + 1/2), in every resample, for the worse and better counts and for the judge's sensitivity
+and specificity, and `bootstrap_share` gives Jeffreys at 0 or n. Every other count keeps the
+percentile bootstrap with no extra random number drawn, so any comparison with discordance on
+both sides and an imperfect judge gets the interval it got before, bit for bit. Decisions made
+under the change carry gate version `0.1.0.dev2`; the ledger's earlier records keep theirs.
+
+What it changed, measured on the A/A study above:
+
+- **The headline does not move**: 7.0% (4.3 to 10.2) false blocks as specified, 75.8% under the
+  point rule. The one suite decided at three points has 120 items, where a zero count bounds the
+  drop at about 2.5 points, inside the margin.
+- **Small suites can no longer pass on having seen nothing.** With the power screen off, or at
+  five points, the suites of 20 to 40 items now block every A/A pair (the two rows marked above).
+  That is correct, and it is a finding about the power screen: `mselect` says 33 items detect a
+  five-point drop, yet 33 items with no disagreement at all cannot rule one out (0 of 33 bounds the
+  rate of getting worse near 7%). The power numbers were already documented as a floor; this is the floor measured. The
+  screen keeps those suites out of the decision as specified, so no shipped verdict changes.
+- **The live suite still passes an unchanged prompt**: with 0 of 100 disagreements the interval's
+  lower end is about -3.0 points, about -3.4 once the judge's error is divided out, against a
+  ten-point margin.
+
 ## A live, judge-graded suite (stage 4)
 
 A pull request has no stored record, so `gate check` makes both sides live: the base branch's
@@ -218,9 +251,9 @@ drawn from the same per-item propensities, so every block is a false one.
 
 | items differing between two runs | 3 pts | 5 pts | 8 pts | 10 pts |
 |---|---:|---:|---:|---:|
-| 3.9% | 68.5% | 39.2% | 8.2% | 2.2% |
-| 6.7% | 80.2% | 60.2% | 19.2% | 9.5% |
-| 11.6% | 85.8% | 72.8% | 41.0% | 26.0% |
+| 3.9% | 70.8% | 39.8% | 7.0% | 2.2% |
+| 6.7% | 80.0% | 60.8% | 20.0% | 9.5% |
+| 11.6% | 86.0% | 72.2% | 42.5% | 26.5% |
 
 At the gate's default three points an unchanged prompt is blocked about seven times in ten. Ten
 points is the smallest round margin that keeps the false-block rate near or under 5%, **and
@@ -228,6 +261,15 @@ only if about 4% of items disagree between two runs of one prompt**. That rate i
 yet. The demo repository's A/A pull request measures it, and if it comes out near 7% the
 false-block rate at ten points is near one in ten and the margin is revisited here, with the
 measurement, before anything is tuned.
+
+**First evidence, 2026-09-27.** The table was recomputed under the rule of three below and moved
+by at most 2.3 points in any cell, 0.5 at ten points. The demo's first pull requests are not an
+A/A pair, but the nearest of them, a rewording of the same three instructions
+([#1](https://github.com/Peter-A-P/regulated-qa-demo/pull/1)), had **0 of 100 items** judged
+differently from the base prompt, and so did the next
+([#2](https://github.com/Peter-A-P/regulated-qa-demo/pull/2)). That is under the table's lowest
+row, so ten points keeps false blocks near 2% or lower, with the caveat that both sides sat at a
+completeness of 100%, where there is little room to disagree ([`gate-action.md`](gate-action.md)).
 
 What this means in plain terms: a 100-question suite graded by a judge can guard against a
 regression of ten points or more and cannot see anything smaller. The remedy is more questions,

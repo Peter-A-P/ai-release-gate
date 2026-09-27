@@ -13,7 +13,25 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import cache
 
-from drift.analysis.stats import Estimate, mcnemar_exact
+from drift.analysis.stats import Estimate, jeffreys_proportion, mcnemar_exact
+
+
+def rate_draw(rng: random.Random, k: int, n: int) -> float:
+    """The rate to resample `k` successes in `n` at, for one bootstrap replicate.
+
+    The observed k / n, exactly as a percentile bootstrap uses it, except at 0 or n. There the
+    bootstrap can only ever redraw the same 0 or n, so it reports a zero-width interval, and in
+    a paired comparison a zero "worse" count becomes a certainty that nothing got worse. An
+    observed 0 is not a known 0. So at 0 or n the rate is drawn from its Jeffreys posterior,
+    Beta(k + 1/2, n - k + 1/2), the interval Part A and the calibration already use for the same
+    case. Only those replicates change, and no random number is drawn otherwise, so a
+    comparison with no zero count gives the identical interval it gave before 2026-09-27.
+    """
+    if n <= 0:
+        return 0.0
+    if 0 < k < n:
+        return k / n
+    return rng.betavariate(k + 0.5, n - k + 0.5)
 
 
 def bootstrap_share(values: Sequence[bool], *, resamples: int = 2000, seed: int = 0) -> Estimate:
@@ -29,7 +47,8 @@ def bootstrap_share(values: Sequence[bool], *, resamples: int = 2000, seed: int 
         return Estimate(float("nan"), float("nan"), float("nan"), 0)
     k = sum(1 for v in values if v)
     if k in (0, n):
-        return Estimate(k / n, k / n, k / n, n)
+        # Nothing to resample: 100 of 100 does not mean a rate of exactly one (see rate_draw).
+        return jeffreys_proportion(k, n, seed=seed)
     rng = random.Random(seed)
     p = k / n
     means = sorted(rng.binomialvariate(n, p) / n for _ in range(resamples))
@@ -135,16 +154,20 @@ def paired_difference(
     point = raw_point / youden if youden is not None else raw_point
     rng = random.Random(seed)
     spread = math.sqrt(inflation)
-    p_worse = worse / n
-    p_better_given_rest = better / (n - worse) if n > worse else 0.0
+    tp = round(se_p * se_n)
+    tn = round(sp_p * sp_n)
 
     def one() -> float:
-        w = rng.binomialvariate(n, p_worse)
-        b = rng.binomialvariate(n - w, p_better_given_rest) if n > w else 0
+        # Every rate through rate_draw: the observed rate, or a Jeffreys draw when a count is 0
+        # or all, so no discordance and a flawless judge are never taken as certainties.
+        w = rng.binomialvariate(n, rate_draw(rng, worse, n))
+        b = rng.binomialvariate(n - w, rate_draw(rng, better, n - worse)) if n > w else 0
         raw = raw_point + ((b - w) / n - raw_point) * spread
         if youden is None:
             return raw
-        y = rng.binomialvariate(se_n, se_p) / se_n + rng.binomialvariate(sp_n, sp_p) / sp_n - 1
+        se_d = rng.binomialvariate(se_n, rate_draw(rng, tp, se_n)) / se_n
+        sp_d = rng.binomialvariate(sp_n, rate_draw(rng, tn, sp_n)) / sp_n
+        y = se_d + sp_d - 1
         return raw / y if y > 0 else float("nan")
 
     drawn = [one() for _ in range(resamples)]

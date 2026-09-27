@@ -28,10 +28,10 @@ import random
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
-from drift.analysis.stats import Estimate, jeffreys_proportion, mcnemar_exact
+from drift.analysis.stats import Estimate, mcnemar_exact
 from gate.gold import TASKS, GoldLabel, Task
 from gate.judge.rubric import JudgeVerdict
-from gate.stats import bootstrap_share
+from gate.stats import bootstrap_share, rate_draw
 
 # PLAN.md B2.3. Below this on a task, the judge is refused for that task and the gate falls
 # back to a programmatic grader or to "needs human review".
@@ -176,19 +176,10 @@ def _rate(numerator: int, denominator: int) -> float:
 
 
 def _share(flags: Sequence[bool], *, seed: int) -> Estimate:
-    """A rate with an interval that has width even at none or all.
-
-    The bootstrap resamples 317 agreements into 317 agreements and printed the first
-    calibration's completeness sensitivity as "100.0% (100.0% to 100.0%)", which CLAUDE.md
-    calls a bare number: 317 of 317 does not mean the judge never misses. At 0 or n the
-    interval is Jeffreys, as Part A does for the refusal classifier; everywhere else it is
-    the binomial bootstrap, the same distribution as resampling the items. Only here, not in
-    `gate.stats.bootstrap_share`, which the gate's decisions use and which B5 says is
-    changed only with the reasoning recorded.
-    """
-    k = sum(1 for f in flags if f)
-    if flags and k in (0, len(flags)):
-        return jeffreys_proportion(k, len(flags), seed=seed)
+    """A rate with an interval that has width even at none or all. The bootstrap once printed
+    the first calibration's completeness sensitivity as "100.0% (100.0% to 100.0%)"; since
+    2026-09-27 `gate.stats.bootstrap_share` itself gives Jeffreys at 0 or n, with the reasoning
+    in docs/gate-statistics.md, so this is that function."""
     return bootstrap_share(flags, seed=seed)
 
 
@@ -302,10 +293,16 @@ def corrected_rate(
     negatives = [False] * c.true_negative + [True] * c.false_positive
 
     def resample_rate(values: Sequence[bool], *, want: bool = True) -> float:
-        """The share of a bootstrap draw from `values` equal to `want`."""
+        """The share of a bootstrap draw from `values` equal to `want`; at none or all, a draw
+        from the Jeffreys posterior instead (`gate.stats.rate_draw`), because resampling 100
+        passes can only ever give 100 and the corrected rate came out "100.0% (100.0% to
+        100.0%)" on the first gated pull requests."""
         m = len(values)
         if m == 0:
             return float("nan")
+        k = sum(1 for v in values if v is want)
+        if k in (0, m):
+            return rate_draw(rng, k, m)
         return sum(1 for _ in range(m) if values[rng.randrange(m)] is want) / m
 
     apparent_draws: list[float] = []

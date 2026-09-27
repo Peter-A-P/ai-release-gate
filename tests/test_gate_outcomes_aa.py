@@ -117,7 +117,10 @@ def test_repeat_splits_are_every_ordered_disjoint_pair() -> None:
 
 
 def test_a_study_on_a_steady_arm_never_blocks_and_the_point_rule_never_fires() -> None:
-    recs = {"openweights-control": steady(60, 5)}
+    # 200 items: enough that no disagreement at all rules out a 3-point drop. At 60 it does not
+    # (the rule of three: 0 of 60 bounds the rate of getting worse near 5%), and the gate says so;
+    # see test_too_few_identical_items_cannot_rule_out_the_margin.
+    recs = {"openweights-control": steady(200, 5)}
     pairs = aa.within_run_pairs(SPEC, recs, month="2026-09", size=2)
     assert len(pairs) == 30
     st = aa.study(SPEC, pairs, with_power=False)
@@ -172,7 +175,7 @@ def test_between_run_pairs_go_both_ways_and_only_for_shared_arms() -> None:
 def test_ledger_records_are_content_addressed_and_append_only(tmp_path: object) -> None:
     from pathlib import Path
 
-    recs = steady(60, 5)
+    recs = steady(200, 5)
     a = side_from_records(SPEC, recs, label="a", source={"kind": "test", "which": "a"})
     d = decide(SPEC, a, a, with_power=False)
     r1 = ledger.record_for(d, baseline=dict(a.source), candidate=dict(a.source))
@@ -204,3 +207,17 @@ def test_rendered_decision_carries_no_bare_percentage_in_its_table() -> None:
         cells = [c.strip() for c in line.split("|")]
         for cell in cells[3:6]:
             assert "(" in cell, f"bare number in the table: {cell!r}"
+
+
+def test_too_few_identical_items_cannot_rule_out_the_margin() -> None:
+    """A side compared with itself on 60 items: no item disagrees, and still a 3-point drop is
+    not ruled out, because 0 of 60 bounds the rate of getting worse near 5%. Before 2026-09-27
+    the bootstrap redrew those 60 agreements as 60 agreements and passed it with certainty."""
+    a = side_from_records(SPEC, steady(60, 5), label="a", source={"kind": "test", "which": "a"})
+    d = decide(SPEC, a, a, with_power=False)
+    assert not d.passed
+    line = next(
+        s for s in ledger.record_for(d, baseline={}, candidate={}).suites if s.suite == "reason"
+    )
+    assert line.verdict == "block" and line.difference == 0.0 and line.lo is not None
+    assert -0.06 < line.lo < -0.03

@@ -53,7 +53,7 @@ def all_right(n: int) -> dict[str, bool]:
 
 
 def test_identical_sides_pass_with_a_reason_for_every_suite() -> None:
-    a = side("a", alpha=suite("alpha", all_right(50)), beta=suite("beta", all_right(50)))
+    a = side("a", alpha=suite("alpha", all_right(400)), beta=suite("beta", all_right(400)))
     d = decide(spec(), a, a)
     assert d.passed and not d.blocked
     assert all(s.verdict == "pass" for s in d.suites)
@@ -62,9 +62,9 @@ def test_identical_sides_pass_with_a_reason_for_every_suite() -> None:
 
 
 def test_a_real_regression_blocks_and_names_the_suite() -> None:
-    a = side("a", alpha=suite("alpha", all_right(200)), beta=suite("beta", all_right(50)))
+    a = side("a", alpha=suite("alpha", all_right(200)), beta=suite("beta", all_right(400)))
     worse = {f"i{k}": k >= 40 for k in range(200)}  # 20 points down on alpha
-    b = side("b", alpha=suite("alpha", worse), beta=suite("beta", all_right(50)))
+    b = side("b", alpha=suite("alpha", worse), beta=suite("beta", all_right(400)))
     d = decide(spec(), a, b)
     assert d.blocked
     alpha = d.suites[0]
@@ -74,9 +74,9 @@ def test_a_real_regression_blocks_and_names_the_suite() -> None:
 
 
 def test_under_powered_suites_warn_and_are_not_in_the_holm_family() -> None:
-    a = side("a", alpha=suite("alpha", all_right(50)), beta=suite("beta", all_right(4)))
+    a = side("a", alpha=suite("alpha", all_right(400)), beta=suite("beta", all_right(4)))
     dropped = {"i0": False, "i1": False, "i2": True, "i3": True}  # beta halves, on 4 items
-    b = side("b", alpha=suite("alpha", all_right(50)), beta=suite("beta", dropped))
+    b = side("b", alpha=suite("alpha", all_right(400)), beta=suite("beta", dropped))
     d = decide(spec(), a, b)
     assert d.passed, "a suite too small to see the margin cannot block"
     beta = d.suites[1]
@@ -116,13 +116,13 @@ def test_the_point_rule_blocks_where_the_interval_rule_does_not() -> None:
 def test_latency_and_cost_lines_block_on_their_own_and_say_so() -> None:
     a = side(
         "a",
-        alpha=suite("alpha", all_right(50), latency=100.0, cost=0.001),
-        beta=suite("beta", all_right(50), latency=100.0, cost=0.001),
+        alpha=suite("alpha", all_right(400), latency=100.0, cost=0.001),
+        beta=suite("beta", all_right(400), latency=100.0, cost=0.001),
     )
     b = side(
         "b",
-        alpha=suite("alpha", all_right(50), latency=250.0, cost=0.001),
-        beta=suite("beta", all_right(50), latency=250.0, cost=0.001),
+        alpha=suite("alpha", all_right(400), latency=250.0, cost=0.001),
+        beta=suite("beta", all_right(400), latency=250.0, cost=0.001),
     )
     from gate.spec import Threshold
 
@@ -140,16 +140,16 @@ def test_a_line_not_measured_on_both_sides_warns_rather_than_guessing() -> None:
 
     a = side(
         "a",
-        alpha=suite("alpha", all_right(50), calls=0),
-        beta=suite("beta", all_right(50), calls=0),
+        alpha=suite("alpha", all_right(400), calls=0),
+        beta=suite("beta", all_right(400), calls=0),
     )
     d = decide(spec(cost=Threshold(max_increase_pct=50)), a, a)
     assert d.passed and d.lines[0].verdict == "warn"
 
 
 def test_nothing_in_common_is_not_decided() -> None:
-    a = side("a", alpha=suite("alpha", {"x": True}), beta=suite("beta", all_right(50)))
-    b = side("b", alpha=suite("alpha", {"y": True}), beta=suite("beta", all_right(50)))
+    a = side("a", alpha=suite("alpha", {"x": True}), beta=suite("beta", all_right(400)))
+    b = side("b", alpha=suite("alpha", {"y": True}), beta=suite("beta", all_right(400)))
     d = decide(spec(), a, b)
     assert d.passed and d.suites[0].verdict == "warn"
     assert d.suites[0].reasons[0] == "no item was graded on both sides"
