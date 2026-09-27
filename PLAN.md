@@ -1121,6 +1121,11 @@ both the injection attacks and half of the PII requests. The injection context i
 
 ## B8. Dashboard and deployment
 
+> **Superseded in part on 2026-09-27, not yet implemented: see B8.1.** The dashboard is to be
+> served as static files from Azure Static Web Apps, not from the shared VPS. The bullets below
+> are the original design and stay as written until the change in B8.1 is built, when they are
+> rewritten in the same commit.
+
 - `gate.peterparker.ca` on the shared VPS, docker compose: the FastAPI service, Caddy
   for TLS, the OpenTelemetry collector. Read-only, no accounts.
 - Pages: drift record (per model and arm, accuracy with intervals, flip rates, refusal
@@ -1130,6 +1135,106 @@ both the injection attacks and half of the PII requests. The injection context i
   writes. If the VPS is down, nothing is lost and the CLI still reproduces every number.
 - Uptime is monitored by a free external ping; the drift job does not depend on the VPS
   at all.
+
+### B8.1 Decision 2026-09-27: static hosting on Azure Static Web Apps, not the VPS
+
+Decided with Peter on 2026-09-27. **Not implemented yet**; this section is the brief for
+whoever builds it, and nothing else in the repository has been changed for it.
+
+**What was found.** The dashboard needs no server. `service/app.py` has six fixed HTML pages
+(`/`, `/drift`, `/costs`, `/gate`, `/judge`, `/redteam`) and five fixed JSON endpoints
+(`/api/drift`, `/api/costs`, `/api/gate`, `/api/judge`, `/api/redteam`), none taking a
+parameter, a query string or a user. Every response is a pure function of the committed
+repository, and the only way it changes is a new commit, which the VPS design already picked up
+just once a night through `deploy/pull.sh`. A page that is the same for every visitor and changes
+once a night is a file, and files can be built ahead of time and served without a running
+process. That is the pattern peterparker.ca (rebuilt daily), 01 (targeting.peterparker.ca) and
+08 (capacity.peterparker.ca) already use on Azure Static Web Apps, free tier.
+
+**Why static even though the VPS will exist.** The shared VPS is still needed, for project 04:
+its published overhead figure (k6 at 500 rps), its daily audit anchor and its hosted demo all
+need an always-on machine answering live requests. So hosting this dashboard there would cost
+nothing extra, and cost is not the reason. The reasons are:
+
+- **Separate failure.** The VPS is where 04's experiments run, including a load test built to
+  push it hard. The dashboard is the page a stranger opens to check this project's numbers, and
+  should not go down because a different project had a bad day or the box was rebuilt.
+- **A clean measurement for 04.** 04 publishes a latency figure taken on that box; any other
+  tenant, however quiet, is noise in it.
+- **Nothing to operate.** No container, no Caddy, no certificate renewal, no nightly pull, no
+  process to watch or patch. It also retires the open risk in stage 6: the container has never
+  started, because Docker on the build laptop starts none.
+- **A snapshot suits a record.** Each night's pages are fixed files built from a known commit,
+  which is easier for an auditor to trust than a process computing the same page on request.
+- **Consistency.** It is the pattern already running for three sites in the portfolio.
+
+What is given up: the FastAPI service running live on the internet, and the live OpenAPI docs at
+`/api/docs`. FastAPI stays in the stack honestly: it is the code that renders every page, and
+`gate serve` still runs it locally. `deploy/` is kept, unchanged, as the way back: if a page ever
+needs to answer live questions (a filterable per-call breakdown, say), moving onto the VPS is
+about an hour's work.
+
+**What needs to be done.** In the order it would be built:
+
+1. **An export command**, for example `gate export --out site/`, that writes every page and
+   every JSON endpoint to a directory using the existing `service.pages` renderers and the read
+   model, not a second implementation (the service computes nothing of its own; neither may the
+   export). `/drift` becomes `drift/index.html` or `drift.html`, whichever the routing below
+   serves at the same URL. Export `openapi.json` too if it is cheap; the interactive docs page
+   is not needed.
+2. **A test that holds the export to the service**: each exported file is byte for byte what the
+   service returns for that path, so `tests/test_service.py`'s guarantee (every figure equals
+   the report that prints it) carries over to what is actually published. And a test that the
+   export directory holds nothing from `withheld/` or `raw-withheld/` and no answer text, since
+   it is published.
+3. **`staticwebapp.config.json`** in the export, carrying the headers the Caddyfile sends today
+   (HSTS, `nosniff`, `Referrer-Policy: no-referrer`, and the same strict Content-Security-Policy
+   in `globalHeaders`), plus routes so the clean URLs work and JSON is served as
+   `application/json`. **Check the pages under the deployed policy, not just locally**: 01 found
+   its chart legend's colours had been blocked by its own CSP on the live site since launch,
+   which a plain local server could not show.
+4. **Verify the `/api` path first.** Azure Static Web Apps reserves `/api/*` for its managed
+   Functions backend, and static files under it may not be served. If they are not, publish the
+   JSON under another prefix (`/data/drift.json`, say), keep `gate serve` answering the old
+   paths, and say so in `deploy/README.md`. Do not add a Functions backend to keep the path; the
+   point is that nothing runs.
+5. **A publish workflow**, `.github/workflows/dashboard.yml`: on a schedule (nightly, after the
+   drift run's day) and on `workflow_dispatch`, and on push to `main` if it stays cheap. It
+   installs with `uv sync --all-extras` (the export needs the `gate` and `service` extras;
+   Part A's monthly job still installs without them), runs the export (building the read model
+   takes about a minute), and uploads with the Static Web Apps deploy action or
+   `npx @azure/static-web-apps-cli deploy` using a **deployment token held as a repository
+   secret**, never an Azure credential. The workflow calls no vendor and spends nothing.
+6. **Azure and DNS, which only Peter can do**: create a new Static Web App (free tier), for example `gate-peterparker-ca`. It must be its own
+   resource, not the portfolio site's: one Static Web App serves one set of files to every
+   hostname on it, so a subdomain with different content needs a second app (01's lesson). Put
+   its deployment token in this repository's secrets, add the Cloudflare CNAME for
+   `gate.peterparker.ca` (DNS only, not proxied, as for the others) and validate the custom
+   domain in Azure.
+7. **Uptime ping**, the free external one B8 already lists, pointed at the static site.
+8. **Rewrite the plan and the docs in the same commit as the code**, as CLAUDE.md requires:
+   - B8 bullets above: static on Azure Static Web Apps, rebuilt nightly by the workflow; drop
+     "VPS", "docker compose", "Caddy" and "nightly `git pull`"; remove the notice at the top.
+   - B3's layout line for `deploy/` (docker compose for the VPS): now the fallback, not the
+     deployment.
+   - B10 stage 6: "VPS stood up; compose stack" becomes the export, the workflow and the Static
+     Web App; the "Left:" list loses the VPS.
+   - B11: the "VPS share for phase B" line (~CA$50) becomes CA$0, with a line saying why.
+   - B12: the "VPS not ready in time" risk no longer applies to this project; replace it with
+     the Static Web Apps risks, if any are found in step 4.
+   - Part A's infrastructure note that the VPS is where phase 2 lives (the Part B introduction,
+     "and on the shared VPS") likewise.
+   - `deploy/README.md`: lead with the static deployment; keep the compose stack as a documented
+     fallback that has never run.
+   - README.md's line "Its public home will be gate.peterparker.ca" stays true; check its link.
+   - CLAUDE.md's stage 6 section ("Read-only. GET only, a read-only mount") stays true; add that
+     the published site is the export, and the export is the service's output, never its own.
+9. **OpenTelemetry**, still open. It was deferred because every vendor call runs in GitHub
+   Actions, which reaches a collector on the VPS only if it is exposed to the internet. With the
+   dashboard off the VPS there is no reason for this project to run a collector there. Decide
+   separately whether tracing is recorded from the Actions runs (exported as a file artefact,
+   say) or dropped from the technical line, and write the decision here. Do not bundle it into
+   this change.
 
 ## B9. Reuse by projects 04, 05, 06 and 10
 
