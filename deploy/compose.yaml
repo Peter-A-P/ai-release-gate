@@ -19,8 +19,9 @@ services:
       interval: 60s
       timeout: 10s
       retries: 3
-      # Building the read model computes every published interval: about a minute.
-      start_period: 180s
+      # A first start syncs the environment (about four minutes, measured 2026-09-27) and then
+      # computes every published interval (about one). Later starts reuse the venv volume.
+      start_period: 600s
 
   caddy:
     image: caddy:2

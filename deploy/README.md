@@ -36,13 +36,14 @@ can obtain its certificate. Ports 80 and 443 open.
 
 ## What was verified, and what was not
 
-- Verified on 2026-09-26: `docker compose config` is valid and the image builds. The service
-  itself was run with `gate serve` and every page and API checked, and `tests/test_service.py`
-  holds every figure on a page to the committed report that prints it.
-- **Not verified: the container running.** Docker on the laptop it was built on creates
-  containers but does not start any, its own welcome container included, so the first real start
-  is on the VPS. Watch `docker compose logs -f service` on that first start: building the read
-  model takes about a minute.
+- Verified on 2026-09-27, on Docker Desktop: the image builds, the container starts from the
+  checkout mounted read-only, reads its commit through git inside the container, and serves
+  every page and API; POST is refused with 405. The first start took 294 seconds, most of it
+  syncing the environment, which is why the healthcheck allows 600. `caddy validate` accepts the
+  Caddyfile. `tests/test_service.py` holds every figure on a page to the committed report that
+  prints it.
+- **Not verified: Caddy serving the real domain.** It needs the DNS record and ports 80 and 443
+  on the VPS to obtain a certificate, so its first real start is there.
 - **Not built: the OpenTelemetry collector** B8 lists. The spans worth keeping are `boundary`'s,
   one per vendor call, and every vendor call runs in GitHub Actions, which would reach a
   collector on the VPS only if it were exposed to the internet. Tracing belongs with that
