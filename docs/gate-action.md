@@ -109,3 +109,32 @@ Two more things the comments show:
 - **The development cache saved little** (34, 18 and 0 of about 400 requests), because Actions
   caches written on one pull request's branch are not visible to another's. The base side is
   paid for on every pull request until a cache is written from `main`.
+
+## #6: a regression the model declined to make, 2026-09-28
+
+[#6](https://github.com/Peter-A-P/regulated-qa-demo/pull/6) was written to be blocked. It is the
+kind of change a compliance review asks for. The prompt tells the model not to give amounts, time
+limits or conditions, and to send the customer to the document or the regulator instead. It
+passed: 100.0% (97.5 to 100.0) against 100.0% (97.5 to 100.0), a difference of +0.0 (-3.4 to
++3.4), for US$0.39.
+
+To see why, the gate now keeps every answer (point 5 above), and #6 was re-run on the new gate
+from its cache for US$0.00. **The regression never happened.** Haiku 4.5 ignored the
+instruction:
+- 47 of the 100 candidate answers still contain a figure, exactly as many as the base branch's.
+- The candidate states the facts and then adds a referral, "you should contact your financial
+  institution directly", on 52 answers. Its answers got longer, not shorter: a median of 75 words
+  against 47.5.
+
+The judge's 100% is right. Answers containing every expected phrase fell from 75 to 62 of 88. All
+16 items that lost a phrase were read, and every one keeps the substance in other words: "do not
+lend money directly to you", "last in line", "Loss of your job". That is also a small argument
+for the rubric's rule that `must_mention` is a checklist, not a scoring rule: a literal phrase
+match would have called 16 complete answers incomplete.
+
+So #6 shows the gate passing a change that did not regress. It does not show it blocking one.
+The prompt was not made stronger and re-run until it blocked. That would be tuning the demo
+until it came out as expected, the same error as tuning a rubric. #6 stays open, not to be
+merged, as the record. A block that means something comes from the suite that brevity can fail
+(`gate/gold_multipart.py`, a draft under review), with #3 re-run on it. Until then the block path
+is exercised only by the tests, end to end on a fake vendor (`tests/test_gate_live.py`).

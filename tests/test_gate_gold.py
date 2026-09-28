@@ -246,6 +246,25 @@ def test_every_question_fits_the_passage_it_names() -> None:
     assert gold_questions.problems(GOLD) == []
 
 
+def test_the_drafted_multipart_questions_fit_their_passages_and_stay_out_of_the_set() -> None:
+    """The draft stratum (gate/gold_multipart.py): every expected point, held-back questions
+    included, is in its passage; every question asks for at least three; the ids cannot collide
+    with the first hundred; and none of it is in questions.jsonl until it has been reviewed."""
+    from gate import gold_multipart
+
+    assert gold_multipart.problems(GOLD) == []
+    drafted = gold_multipart.questions()
+    assert len(drafted) == 50
+    assert all(len(q.must_mention) >= 3 and not q.unanswerable for q in drafted)
+    committed = gold.load(GOLD)
+    assert {q.source_id for q in drafted} == set(committed.by_source)
+    assert not {q.id for q in drafted} & {q.id for q in committed.questions}
+    assert not {q.question for q in drafted} & {q.question for q in committed.questions}
+    assert len(committed.questions) == 100, "the draft is not in the gold set yet"
+    review = gold_multipart.REVIEW_DOC.read_text(encoding="utf-8")
+    assert review == gold_multipart.review_markdown(GOLD), "rerun with --write-doc"
+
+
 def test_the_gold_set_is_the_shape_the_plan_asked_for() -> None:
     g = gold.load(GOLD)
     questions = g.questions
