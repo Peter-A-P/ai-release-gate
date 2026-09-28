@@ -1,6 +1,7 @@
 # Deploying the dashboard
 
-`gate.peterparker.ca` is **static files on Azure Static Web Apps** (PLAN.md B8.1). Nothing in
+[gate.peterparker.ca](https://gate.peterparker.ca) is **static files on Azure Static Web Apps**
+(PLAN.md B8.1), live since 2026-09-28. Nothing in
 this directory is used for it; this directory is the fallback, below. Locally:
 `uv sync --all-extras && uv run gate serve` serves the pages at http://127.0.0.1:8000, and
 `uv run gate export --out site` writes the files that are published.
@@ -13,20 +14,36 @@ service answers, byte for byte, plus `staticwebapp.config.json` with the headers
 rewrites, and uploads the directory with the Static Web App's deployment token. It calls no
 vendor and spends nothing.
 
-What only the repository owner can do, once:
+**Then it checks the live site.** It reads `/data/build.json` back from
+`https://gate.peterparker.ca` and fails unless that names the commit just built. It retries for
+ten minutes while the upload propagates. This is the uptime check: GitHub emails the owner when
+a scheduled run fails. An external ping was dropped because a host serving yesterday's pages
+after a failed deploy still answers a ping. `build.json` is served `no-store` so a cached copy
+cannot pass. Not caught: the site going down between two nightly runs.
 
-1. Create a Static Web App of its own (free tier), not the portfolio site's: one app serves one
-   set of files to every hostname on it.
-2. Put its deployment token in this repository's secrets as `AZURE_STATIC_WEB_APPS_API_TOKEN`.
-   Until then the workflow builds the site and keeps it as an artifact only.
-3. Add the CNAME for `gate.peterparker.ca` (DNS only, not proxied) and validate the custom domain
-   in Azure.
-4. Point the uptime ping at `https://gate.peterparker.ca/data/build.json`, which names the commit
-   the site was built from.
+The one-time setup, done on 2026-09-28:
 
-Then load the live pages once in a browser with the developer console open. The pages were
-checked under these exact headers locally and nothing was blocked, but 01 found a policy blocking
-its own chart colours only on the live site.
+1. A Static Web App of its own (free tier), not the portfolio site's: one app serves one set of
+   files to every hostname on it.
+2. Its deployment token in this repository's secrets as `AZURE_STATIC_WEB_APPS_API_TOKEN`.
+   Without it the workflow builds the site and keeps it as an artifact only.
+3. In Cloudflare, a CNAME `gate` to the app's `*.azurestaticapps.net` host, **DNS only (grey
+   cloud)**. Then, and only then, the custom domain added in Azure ("Custom domain on other
+   DNS", CNAME). Azure cannot write into a Cloudflare zone, so validating first fails with
+   "CNAME Record is invalid". A proxied record fails the same way, because Azure then sees
+   Cloudflare's addresses instead of the CNAME.
+
+Checked on the live site on 2026-09-28:
+- The certificate is issued for `gate.peterparker.ca`, valid to 2027-03-28, and HTTP redirects
+  to HTTPS.
+- All five headers arrive as `service/export.py` writes them.
+- Every page and JSON document answers 200 with the right type at its clean URL, and an unknown
+  path is 404.
+- `/data/build.json` names the commit on `main`.
+- Nothing on the served pages can be blocked by the policy: no script, image, stylesheet link,
+  font or `url()`. The one chart is inline SVG styled inline, which `style-src 'unsafe-inline'`
+  allows. 01 found its own policy blocking its chart colours only on the live site, which is why
+  this check was repeated there.
 
 **The JSON is under `/data/`, not `/api/`**, because Static Web Apps reserves `/api/` for its
 Functions backend. `gate serve` still answers the old `/api/` paths with the same bytes.
@@ -78,4 +95,5 @@ obtain its certificate, with ports 80 and 443 open.
   one per vendor call, and every vendor call runs in GitHub Actions, which would reach a
   collector on the VPS only if it were exposed to the internet. Tracing belongs with that
   decision, not in this stack by default.
-- **Not done: the VPS itself, the DNS record and the uptime ping.** Those are portfolio action 2b.
+- **Not done: the VPS itself.** Not needed while the site is static; it is portfolio action 2b,
+  for project 04.

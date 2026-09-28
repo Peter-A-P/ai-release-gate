@@ -39,7 +39,12 @@ HEADERS = {
 
 def config() -> dict[str, Any]:
     """Clean URLs by explicit rewrite (/drift serves drift.html), JSON as application/json, and
-    the headers above on everything."""
+    the headers above on everything.
+
+    `/data/build.json` is never cached, and is matched before `/data/*` because the first route
+    that matches wins. After each deploy the workflow reads it back to check the live site names
+    the commit just built, and a cached copy from the night before would pass that check with
+    stale numbers on the pages."""
     rewrites = [
         {"route": r.path, "rewrite": "/" + r.file}
         for r in ROUTES
@@ -48,6 +53,7 @@ def config() -> dict[str, Any]:
     return {
         "routes": [
             *rewrites,
+            {"route": "/data/build.json", "headers": {"Cache-Control": "no-store"}},
             {"route": "/data/*", "headers": {"Cache-Control": "public, max-age=3600"}},
         ],
         "mimeTypes": {".json": "application/json"},

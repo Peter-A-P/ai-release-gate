@@ -9,6 +9,8 @@ name: dashboard
 # Deploys with the Static Web App's deployment token, held as the repository secret
 # AZURE_STATIC_WEB_APPS_API_TOKEN, never an Azure credential. Until that secret exists the site
 # is built and kept as an artifact, so the workflow proves the export before Azure is set up.
+# After a deploy it checks the live site names this commit, so a run is green only when the
+# pages people see are the ones it built.
 
 on:
   schedule:
@@ -67,6 +69,30 @@ jobs:
           action: upload
           app_location: site
           skip_app_build: true
+
+      # In place of an external uptime monitor (PLAN.md B8.1 step 7). GitHub already emails the
+      # owner when a scheduled run fails, so the gap is a deploy that "succeeds" while the site
+      # is down or still shows the night before. This reads back what the site says it was built
+      # from and fails the run unless it is this commit. build.json is served no-store
+      # (service/export.py), and the query string is only belt and braces.
+      - name: Check the live site serves this build
+        if: env.SWA_TOKEN != ''
+        env:
+          SITE: https://gate.peterparker.ca
+          WANT: ${{ github.sha }}
+        run: |
+          for attempt in $(seq 1 20); do
+            got=$(curl -fsS --max-time 20 "$SITE/data/build.json?run=$GITHUB_RUN_ID" \
+              | jq -r 'select(.ok == true) | .commit' || true)
+            if [ "$got" = "$WANT" ]; then
+              echo "$SITE serves $WANT (attempt $attempt)"
+              exit 0
+            fi
+            echo "attempt $attempt: site names '${got:-nothing}', want $WANT; waiting 30s"
+            sleep 30
+          done
+          echo "::error::$SITE did not serve commit $WANT within 10 minutes of the deploy"
+          exit 1
 
       - name: Say why nothing was deployed
         if: env.SWA_TOKEN == ''

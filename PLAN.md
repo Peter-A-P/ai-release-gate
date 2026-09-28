@@ -1130,12 +1130,14 @@ both the injection attacks and half of the PII requests. The injection context i
   calibration figures; red-team results per model. The same figures as JSON under `/data/`.
 - If the site is down, nothing is lost: it holds no state, and the CLI still reproduces every
   number from the repository. `gate serve` runs the same pages locally.
-- Uptime is monitored by a free external ping; the drift job does not depend on the site
-  at all.
+- Uptime is checked by the workflow itself, not an external ping (B8.1 step 7): after each
+  deploy it reads `/data/build.json` back from the live site and fails unless it names the
+  commit just built, and GitHub emails the owner when a scheduled run fails. The drift job does
+  not depend on the site at all.
 
 ### B8.1 Decision 2026-09-27: static hosting on Azure Static Web Apps, not the VPS
 
-Decided with Peter on 2026-09-27. **Built 2026-09-27, not yet deployed**; status at the end of
+Decided with Peter on 2026-09-27. **Built 2026-09-27, live 2026-09-28**; status at the end of
 this section. The brief below is kept as written.
 
 **What was found.** The dashboard needs no server. `service/app.py` has six fixed HTML pages
@@ -1247,6 +1249,29 @@ keeps the site as an artifact until it is set. Left: step 6 (the Azure resource,
 `AZURE_STATIC_WEB_APPS_API_TOKEN`, the CNAME and domain validation), step 7 (the uptime ping)
 and step 9 (the OpenTelemetry decision).
 
+**Status, 2026-09-28. Live at https://gate.peterparker.ca; steps 1 to 8 done, step 9 open.**
+- Step 6: Peter created the Static Web App, set the token and added the Cloudflare CNAME, DNS
+  only. The domain validated once the CNAME existed; Azure cannot write into a Cloudflare zone,
+  so the record comes first and the validation second.
+- Checked on the live site the same day: the certificate is issued for the name (valid to
+  2027-03-28), and plain HTTP redirects to HTTPS. All five headers arrive as written in
+  `service/export.py`. The six pages and five JSON documents all answer 200 with the right
+  types at their clean URLs, an unknown path is 404, and `/data/build.json` names the commit on
+  `main`.
+- The deployed-policy check step 3 asks for, done by reading the served pages rather than a
+  console. None of them has a script, an image, a stylesheet link, a font or a `url()`. The one
+  chart, on `/drift`, is inline SVG styled inline, which `style-src 'unsafe-inline'` allows.
+  The only outside references are links to the repository, which a policy does not block. So
+  there is nothing on them the policy could refuse.
+- Step 7 changed: **no external uptime monitor.** A ping says the host answers, which it would
+  also do while serving the night before's pages after a failed deploy. It would also be one
+  more account to keep. Instead the workflow reads `/data/build.json` back after each deploy.
+  It fails unless the site names the commit just built, retrying for ten minutes while the
+  upload propagates, and GitHub emails the owner on a failed scheduled run. That file is served
+  `no-store`, so a cached copy cannot pass the check. What this does not catch is the site
+  going down between nightly runs; for a record that changes once a night, a day's delay in
+  noticing is accepted.
+
 ## B9. Reuse by projects 04, 05, 06 and 10
 
 `gate` ships as a package with a documented adapter: a project provides an eval spec and
@@ -1264,7 +1289,7 @@ suite, which is the first real test of the reuse claim.
 | 3 | Labelling finished; judge calibration for two judges; bias checks; correction implemented | `docs/judge-calibration.md` with kappa, alpha, sensitivity, specificity. **Statistics done 2026-09-20**, ahead of the labels they will run on: kappa, alpha, sensitivity, specificity, Rogan-Gladen with propagated uncertainty, test-retest, order bias and the verbosity check, each tested against a table worked out by hand. **Done 2026-09-23**: both judges calibrated, refused for faithfulness and usable for completeness (B4); the intra-rater re-read of 100 is stage 7's |
 | 4 | GitHub Action; demo repository; first gated pull requests. Kept light, because holidays land on it | Three PRs with gate comments, one blocked. **Built 2026-09-23, not yet run on a pull request**: `gate check` answers each side live, grades with a licensed judge and takes the judge's error out of the difference; the composite action in `action/`; the demo repository's files in `examples/regulated-qa-demo/`; [`docs/gate-action.md`](docs/gate-action.md). The live suite's margin is ten points, not three, reasoned in [`docs/gate-statistics.md`](docs/gate-statistics.md). **Demo repository created 2026-09-25**, [Peter-A-P/regulated-qa-demo](https://github.com/Peter-A-P/regulated-qa-demo), public, the action pinned to `562b25d`, with three pull-request branches pushed: a rewording that should pass, a request for the document's own figures that should pass, and one-sentence answers that should be blocked. **First three pull requests gated 2026-09-27**, US$1.03: #1 and #2 passed as expected; **#3, one-sentence answers, passed where it was expected to be blocked**, because the completeness judge scores the base prompt 100% and the one-sentence prompt 99%, so the suite has no headroom to show a brevity regression ([`docs/gate-action.md`](docs/gate-action.md)). The done-when's "one blocked" is therefore not met. Left: decide whether the suite gets items a short answer fails, or the demo a regression the suite can see. The gate's zero-width intervals when every item agrees were fixed in 75737ef, reasoned in `docs/gate-statistics.md`; #1 and #2 are merged |
 | 5 | Red-team suites and Presidio grader; refusal classifier calibrated | Four suites reporting with intervals. **Done 2026-09-25**: 700 items frozen at `3d0526feb9f4763b` (planted-value matching in place of Presidio, B7), run on four models for US$2.27, all four reporting with Jeffreys intervals in [`docs/redteam.md`](docs/redteam.md). The classifier's hand labels on these answers were declined on 2026-09-25, so it is not calibrated on them; the jailbreak rates are upper bounds and say so |
-| 6 | Static site on Azure Static Web Apps (B8.1): export, publish workflow, Static Web App; service and dashboard; drift record ingested; `gate.peterparker.ca` live; OpenTelemetry | Dashboard shows the Part A record and the demo repo's gate history. **Service built 2026-09-26, static export and workflow 2026-09-27, not deployed**: `service/`, FastAPI over a DuckDB read model built in memory from the committed files, six server-rendered pages and JSON, every figure computed by the library function the reports use and held to them by `tests/test_service.py`; `gate serve` locally; `gate export` writes the same responses as files, held to the service byte for byte; `.github/workflows/dashboard.yml` publishes them. `deploy/` keeps the container stack as the fallback, run once on 2026-09-27 ([`deploy/README.md`](deploy/README.md)). Left: the Static Web App, its deployment token, DNS and uptime ping, which only Peter can do, and the OpenTelemetry decision (B8.1 step 9) |
+| 6 | Static site on Azure Static Web Apps (B8.1): export, publish workflow, Static Web App; service and dashboard; drift record ingested; `gate.peterparker.ca` live; OpenTelemetry | Dashboard shows the Part A record and the demo repo's gate history. **Service built 2026-09-26, static export and workflow 2026-09-27, live at https://gate.peterparker.ca 2026-09-28**: `service/`, FastAPI over a DuckDB read model built in memory from the committed files, six server-rendered pages and JSON, every figure computed by the library function the reports use and held to them by `tests/test_service.py`; `gate serve` locally; `gate export` writes the same responses as files, held to the service byte for byte; `.github/workflows/dashboard.yml` publishes them and checks the live site names the commit it built. `deploy/` keeps the container stack as the fallback, run once on 2026-09-27 ([`deploy/README.md`](deploy/README.md)). Left: the OpenTelemetry decision (B8.1 step 9) |
 | 7 | Eval reports and model cards generated from the ledger; cost and latency lines; A/A study at full size; intra-rater re-labelling of 100 gold items | False-block rate published; reports render for every run |
 | 8 | Adapter for downstream projects; `docs/rejected.md`; write-up "your LLM eval has no error bars"; README to Rule A shape; v0.1.0; repository public | Definition of done all checked |
 
@@ -1334,7 +1359,7 @@ Mirrors the portfolio's definition:
 - [ ] GitHub Action gating a real repository, with a PR history showing passes and blocks
 - [x] Red-team suites (PII, injection, jailbreak, over-refusal) passing and reported. **2026-09-25**, run `redteam-2026-09`, four models, every rate with an interval ([`docs/redteam.md`](docs/redteam.md))
 - [ ] Append-only ledger; every report references content hashes. **Ledger up 2026-09-19** (`gate/runs/ledger.jsonl`: spec hash, suite hash, grader hash, both sides, content-addressed id); reports from it are stage 7
-- [ ] Live dashboard at gate.peterparker.ca, stable, showing the drift record. **Service built 2026-09-26** (`gate serve`); not deployed
+- [ ] Live dashboard at gate.peterparker.ca, stable, showing the drift record. **Live 2026-09-28** (B8.1); left unticked until it has shown itself stable, meaning the October run published by the nightly build with its post-deploy check green
 - [ ] Adapter documented; project 04 measured with it in Feb 2027
 - [ ] Write-up published
 - [x] One rejected approach documented with evidence. **2026-09-18**, [`docs/rejected.md`](docs/rejected.md): k = 1, no repeats, rejected on the two September runs. The whole-project line is satisfied by it; the three Part B candidates in B13 are still expected to be written up as Part B produces them

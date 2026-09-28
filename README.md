@@ -234,7 +234,8 @@ public. Sources, decisions and what each number does not claim: [docs/redteam.md
 
 Everything above can also be browsed: `uv sync --all-extras && uv run gate serve` builds a
 read-only dashboard from the committed files, with every figure computed by the same code as
-the reports. Its public home will be gate.peterparker.ca ([deploy/README.md](deploy/README.md)).
+the reports. The same pages are published, rebuilt nightly, at
+[gate.peterparker.ca](https://gate.peterparker.ca) ([deploy/README.md](deploy/README.md)).
 
 Full design in [PLAN.md](PLAN.md).
 

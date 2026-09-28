@@ -240,6 +240,13 @@ def test_the_hosting_config_serves_every_page_at_its_clean_url(site: Path) -> No
     assert cfg["globalHeaders"]["Content-Security-Policy"] == CSP
     assert "script-src" not in CSP and "default-src 'none'" in CSP
     assert cfg["mimeTypes"][".json"] == "application/json"
+    # The workflow's post-deploy check reads build.json, so it must never come from a cache, and
+    # its rule must come before the /data/* one, since the first matching route wins.
+    paths = [r["route"] for r in cfg["routes"]]
+    assert paths.index("/data/build.json") < paths.index("/data/*")
+    assert cfg["routes"][paths.index("/data/build.json")]["headers"] == {
+        "Cache-Control": "no-store"
+    }
     # Azure Static Web Apps reserves /api/ for Functions, so nothing is published under it.
     assert not (site / "api").exists()
     assert not [r for r in ROUTES if r.path.startswith("/api/")]
