@@ -205,6 +205,21 @@ jobs:
           fi
           if [ -n "${{ inputs.baseline }}" ]; then ARGS="$ARGS --baseline ${{ inputs.baseline }}"; fi
           uv run drift collect $ARGS || echo "month is not complete; the record is still committed"
+      # The month's vendor calls as OpenTelemetry traces (PLAN.md B8.1 step 9), rebuilt from the
+      # ledgers just folded in: one trace per arm, one span per call, no content. Kept as an
+      # artifact, not committed: the ledgers are the record and `drift traces` rebuilds the same
+      # bytes from them at any time. Load into any collector with its otlp_json_file receiver.
+      - name: Export the traces
+        if: always()
+        run: uv run drift traces --month ${{ needs.plan.outputs.month }} || echo "no ledgers to trace"
+      - name: Keep the traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces-${{ needs.plan.outputs.month }}
+          path: traces/${{ needs.plan.outputs.month }}.otlp.jsonl
+          if-no-files-found: warn
+          retention-days: 90
       - name: Commit the record
         run: |
           git config user.name "Peter Parker"

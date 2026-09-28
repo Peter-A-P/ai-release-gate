@@ -1,4 +1,4 @@
-"""Command line: drift run | collect | replay | report | sample | longcontext
+"""Command line: drift run | collect | traces | replay | report | sample | longcontext
 | rulec judge | rulec repeats
 | paraphrase parents | paraphrase check | items validate | items summary | items secondpass
 | suite freeze | suite verify | panel show | panel providers | panel candidates.
@@ -233,6 +233,24 @@ def collect(
     Exit 1 when any arm is missing or not complete; the records are kept either way."""
     if not _collect(month, write_readme_table=readme, baseline=baseline):
         raise typer.Exit(1)
+
+
+@app.command()
+def traces(
+    month: Annotated[str, typer.Option()],
+    out: Annotated[Path | None, typer.Option(help="default: traces/<month>.otlp.jsonl")] = None,
+) -> None:
+    """Write a month's vendor calls as OpenTelemetry traces (OTLP/JSON), rebuilt from its
+    ledgers. One trace per arm, one span per call, no content. No vendor is called."""
+    from drift.traces import month_traces, write_traces
+
+    target = out or ROOT / "traces" / f"{month}.otlp.jsonl"
+    try:
+        n_traces, n_spans = write_traces(month_traces(RUNS, month), target)
+    except FileNotFoundError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(2) from e
+    typer.echo(f"{n_traces} traces, {n_spans} spans: {target}")
 
 
 @app.command()

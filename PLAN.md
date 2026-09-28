@@ -720,7 +720,7 @@ headings follow the verdict.
 - [x] Panel recorded with dated identifiers and arms. **Chosen and dated 2026-09-12** from the vendors' own model lists and, where a list does not publish an alias, from a live call showing what it resolves to
 - [x] Every grader tested against adversarial fixtures. All seven, 18 test functions; the cases that matter came from real answers, including the ones that made `exact` and the refusal classifier wrong
 - [x] First official run committed with raw responses and a rendered report, by 2026-09-30. **2026-09-13**, `drift-2026-09`, 16,800 calls for US$19.53 against an expected US$20.35; records, the eight raw stores, the ledgers and `drift/reports/2026-09.md` all committed in 9169df3
-- [ ] Oct 1 run committed; noise floor and detectable effect published in the October report
+- [ ] Oct 1 run committed; noise floor and detectable effect published in the October report. **Rehearsed 2026-09-28**, the first run nobody dispatches. A one-item dry run, `2026-09-dry7`, went through the plan, run and collect jobs on all eight arms: 56 calls, 0 errors, US$0.14. It committed and pushed its own record, and left the README alone as a dry run must. A clean base install (`uv sync --frozen`, no extras) also regraded September with 0 disagreements, and rewrote its report and the README table byte for byte, which exercises the table write for the first time outside a run
 - [x] Workflow scheduled for the 1st of each month, with manual rerun path documented. `drift.yml` cron `0 6 1 * *` plus `workflow_dispatch`. The first run was brought forward to **2026-09-13** and dispatched by hand; a dispatch with no inputs is byte-for-byte the `schedule` code path, so it rehearses the unattended October cron as well as producing a month
 - [x] Regrade-from-store reproduces the published numbers. **Checked 2026-09-14**: `drift replay --month 2026-09` regraded 15,993 stored outputs across all eight arms with 0 disagreeing with the run-time grade, and the report it regenerated is byte-for-byte the committed one
 - [ ] README results table updates from the job. Closer, and still not proven. On 2026-09-13 the Actions minutes ran out before `collect` was given a runner. On 2026-09-16 the job ran on a runner and folded, reported, committed and pushed the record by itself in 1m26s, so everything around the table is now exercised end to end. The table itself was not written, because that run passed `readme: false` on purpose: `write_readme` replaces everything between the markers, so a second run inside one month would have substituted its rows for September's. The one untested line is the write itself, and the October cron exercises it
@@ -884,9 +884,9 @@ Part A is read in place. **Amended 2026-09-19:** the ledger of decisions is
 `gate/runs/ledger.jsonl`, one content-addressed record per line, for the same reason Part A's
 record is JSON lines: append-only in the plainest sense, diffs in git, opens with nothing.
 DuckDB arrives with the service (stage 6) as a read model built from that file and from
-`drift/runs`, never as the thing written to. Tracing: every vendor call and every grader call emits an
-OpenTelemetry span; the collector runs in the compose stack and traces are retained for
-30 days. Frontend: server-rendered pages with a small charting library, no build step, so
+`drift/runs`, never as the thing written to. Tracing: every vendor call is an OpenTelemetry
+span rebuilt from its ledger row by `drift traces`, with no collector to run (B8.1 step 9).
+Programmatic grading makes no call, so it has no span. Frontend: server-rendered pages with a small charting library, no build step, so
 the dashboard stays cheap to maintain.
 
 ## B4. Judge calibration
@@ -1236,6 +1236,31 @@ about an hour's work.
    say) or dropped from the technical line, and write the decision here. Do not bundle it into
    this change.
 
+   **Decided with Peter on 2026-09-28: recorded from the runs, as files, with no collector.**
+   - **What it is.** `drift traces --month X` writes OTLP/JSON (`drift/traces.py`). There is
+     one trace per arm, a root span over the arm, and one client span per vendor call. The
+     attributes are the ones boundary's own live span carries. The monthly job keeps the file
+     as a 90-day artifact, and anyone can rebuild it from the committed ledgers.
+   - **Why rebuilt from the ledger, not exported live.** boundary v0.1.0, which the record is
+     pinned to, exports to the console or nowhere, and a live exporter needs a collector that
+     GitHub's runners can reach. The ledger row already holds everything the span would. So a
+     rebuilt trace needs neither, covers every run already committed, and cannot disagree with
+     the record, because it is the record.
+   - **What it cannot show.** Anything the ledger does not hold: no finish reason, no span for
+     grading, and no timing inside a call beyond its start and its latency.
+   - **No content.** Every call span's attributes are checked against boundary's
+     `ALLOWED_ATTRIBUTES`. No prompt, answer, hash of either or raw-store path is exported,
+     and a test holds all of that.
+   - **Checked on 2026-09-28.** September's 16,800 calls came out as 16,808 spans in 8 traces,
+     which an OpenTelemetry Collector (contrib 0.161.0, `otlp_json_file` receiver) read and
+     re-emitted whole. The first attempt put a whole arm on one line, about 3 MB. The receiver
+     drops lines over its 1 MiB default without a word, and that collector received nothing.
+     So a line now holds at most 400 spans, and a test keeps every line of the real month under
+     the limit. Another test parses every request with OpenTelemetry's own protocol
+     definitions, `opentelemetry-proto` in the test-only `otlp-check` extra.
+   - **Not covered yet:** the gate's own calls (`gate check`, the judge, the red-team runs).
+     They go through boundary too, and their ledgers could be read the same way.
+
 **Status, 2026-09-27.** Done: steps 1 to 5 and 8. `gate export` writes the six pages, six JSON
 documents and `staticwebapp.config.json` from `service.app.ROUTES`, the table the service itself
 answers from, so the two cannot differ; tests hold every file to the service byte for byte and
@@ -1249,7 +1274,7 @@ keeps the site as an artifact until it is set. Left: step 6 (the Azure resource,
 `AZURE_STATIC_WEB_APPS_API_TOKEN`, the CNAME and domain validation), step 7 (the uptime ping)
 and step 9 (the OpenTelemetry decision).
 
-**Status, 2026-09-28. Live at https://gate.peterparker.ca; steps 1 to 8 done, step 9 open.**
+**Status, 2026-09-28. Live at https://gate.peterparker.ca; all nine steps done** (step 9 above).
 - Step 6: Peter created the Static Web App, set the token and added the Cloudflare CNAME, DNS
   only. The domain validated once the CNAME existed; Azure cannot write into a Cloudflare zone,
   so the record comes first and the validation second.
@@ -1289,7 +1314,7 @@ suite, which is the first real test of the reuse claim.
 | 3 | Labelling finished; judge calibration for two judges; bias checks; correction implemented | `docs/judge-calibration.md` with kappa, alpha, sensitivity, specificity. **Statistics done 2026-09-20**, ahead of the labels they will run on: kappa, alpha, sensitivity, specificity, Rogan-Gladen with propagated uncertainty, test-retest, order bias and the verbosity check, each tested against a table worked out by hand. **Done 2026-09-23**: both judges calibrated, refused for faithfulness and usable for completeness (B4); the intra-rater re-read of 100 is stage 7's |
 | 4 | GitHub Action; demo repository; first gated pull requests. Kept light, because holidays land on it | Three PRs with gate comments, one blocked. **Built 2026-09-23, not yet run on a pull request**: `gate check` answers each side live, grades with a licensed judge and takes the judge's error out of the difference; the composite action in `action/`; the demo repository's files in `examples/regulated-qa-demo/`; [`docs/gate-action.md`](docs/gate-action.md). The live suite's margin is ten points, not three, reasoned in [`docs/gate-statistics.md`](docs/gate-statistics.md). **Demo repository created 2026-09-25**, [Peter-A-P/regulated-qa-demo](https://github.com/Peter-A-P/regulated-qa-demo), public, the action pinned to `562b25d`, with three pull-request branches pushed: a rewording that should pass, a request for the document's own figures that should pass, and one-sentence answers that should be blocked. **First three pull requests gated 2026-09-27**, US$1.03: #1 and #2 passed as expected; **#3, one-sentence answers, passed where it was expected to be blocked**, because the completeness judge scores the base prompt 100% and the one-sentence prompt 99%, so the suite has no headroom to show a brevity regression ([`docs/gate-action.md`](docs/gate-action.md)). The done-when's "one blocked" is therefore not met. Left: decide whether the suite gets items a short answer fails, or the demo a regression the suite can see. The gate's zero-width intervals when every item agrees were fixed in 75737ef, reasoned in `docs/gate-statistics.md`; #1 and #2 are merged |
 | 5 | Red-team suites and Presidio grader; refusal classifier calibrated | Four suites reporting with intervals. **Done 2026-09-25**: 700 items frozen at `3d0526feb9f4763b` (planted-value matching in place of Presidio, B7), run on four models for US$2.27, all four reporting with Jeffreys intervals in [`docs/redteam.md`](docs/redteam.md). The classifier's hand labels on these answers were declined on 2026-09-25, so it is not calibrated on them; the jailbreak rates are upper bounds and say so |
-| 6 | Static site on Azure Static Web Apps (B8.1): export, publish workflow, Static Web App; service and dashboard; drift record ingested; `gate.peterparker.ca` live; OpenTelemetry | Dashboard shows the Part A record and the demo repo's gate history. **Service built 2026-09-26, static export and workflow 2026-09-27, live at https://gate.peterparker.ca 2026-09-28**: `service/`, FastAPI over a DuckDB read model built in memory from the committed files, six server-rendered pages and JSON, every figure computed by the library function the reports use and held to them by `tests/test_service.py`; `gate serve` locally; `gate export` writes the same responses as files, held to the service byte for byte; `.github/workflows/dashboard.yml` publishes them and checks the live site names the commit it built. `deploy/` keeps the container stack as the fallback, run once on 2026-09-27 ([`deploy/README.md`](deploy/README.md)). Left: the OpenTelemetry decision (B8.1 step 9) |
+| 6 | Static site on Azure Static Web Apps (B8.1): export, publish workflow, Static Web App; service and dashboard; drift record ingested; `gate.peterparker.ca` live; OpenTelemetry | Dashboard shows the Part A record and the demo repo's gate history. **Service built 2026-09-26, static export and workflow 2026-09-27, live at https://gate.peterparker.ca 2026-09-28**: `service/`, FastAPI over a DuckDB read model built in memory from the committed files, six server-rendered pages and JSON, every figure computed by the library function the reports use and held to them by `tests/test_service.py`; `gate serve` locally; `gate export` writes the same responses as files, held to the service byte for byte; `.github/workflows/dashboard.yml` publishes them and checks the live site names the commit it built. `deploy/` keeps the container stack as the fallback, run once on 2026-09-27 ([`deploy/README.md`](deploy/README.md)). OpenTelemetry decided and built 2026-09-28 (B8.1 step 9): `drift traces` writes every vendor call as OTLP/JSON from its ledger, kept by the monthly job as an artifact |
 | 7 | Eval reports and model cards generated from the ledger; cost and latency lines; A/A study at full size; intra-rater re-labelling of 100 gold items | False-block rate published; reports render for every run |
 | 8 | Adapter for downstream projects; `docs/rejected.md`; write-up "your LLM eval has no error bars"; README to Rule A shape; v0.1.0; repository public | Definition of done all checked |
 

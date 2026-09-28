@@ -91,9 +91,9 @@ obtain its certificate, with ports 80 and 443 open.
   prints it.
 - **Not verified: Caddy serving the real domain.** It needs the DNS record and ports 80 and 443
   on the VPS to obtain a certificate, so its first real start is there.
-- **Not built: the OpenTelemetry collector** B8 lists. The spans worth keeping are `boundary`'s,
-  one per vendor call, and every vendor call runs in GitHub Actions, which would reach a
-  collector on the VPS only if it were exposed to the internet. Tracing belongs with that
-  decision, not in this stack by default.
+- **No OpenTelemetry collector here, by decision** (PLAN.md B8.1 step 9, 2026-09-28). Every
+  vendor call runs in GitHub Actions, which would reach a collector on the VPS only if it were
+  exposed to the internet. Instead `drift traces` rebuilds the spans from the ledgers as
+  OTLP/JSON files that any collector reads.
 - **Not done: the VPS itself.** Not needed while the site is static; it is portfolio action 2b,
   for project 04.

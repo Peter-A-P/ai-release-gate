@@ -247,6 +247,7 @@ No vendor key and no spending is needed. The raw responses are in the repository
 uv sync
 uv run drift replay --month 2026-09     # re-grade every stored answer
 uv run drift report --month 2026-09     # rebuild the published report
+uv run drift traces --month 2026-09     # every vendor call as OpenTelemetry traces
 ```
 
 `replay` regrades all 15,993 stored answers and, at the last check, disagreed with the recorded

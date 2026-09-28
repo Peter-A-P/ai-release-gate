@@ -167,6 +167,9 @@ honest release gate for prompt and model changes (phase 2).
   `gate export` writes `service.app.ROUTES`, the table the service answers from; add a page there
   and both get it. The site is static on Azure Static Web Apps (PLAN.md B8.1), JSON under
   `/data/` because the host reserves `/api/`, and `deploy/` is the fallback, not the deployment.
+- **Traces are a view of the ledger** (`drift/traces.py`), never a second record. A call span
+  carries only attributes in boundary's `ALLOWED_ATTRIBUTES`, never content or a hash of it,
+  and `drift traces` stays standard library so the monthly job installs nothing new.
 
 ## What goes in the README
 

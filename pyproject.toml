@@ -49,6 +49,14 @@ service = [
   # memory from the committed JSON lines and never written to. 1.x keeps its SQL stable.
   "duckdb>=1.5,<2",
 ]
+# Only for tests/test_traces.py, which parses every exported span with OpenTelemetry's own
+# protocol definitions. `drift traces` itself is standard library, so the monthly job needs none
+# of this. The 1.x line, matching the opentelemetry-sdk boundary brings in.
+otlp-check = [
+  "opentelemetry-proto>=1.44,<2",
+  # protobuf's stubs, so mypy --strict checks that test too. Its own 7.x line, as protobuf's.
+  "types-protobuf>=7,<8",
+]
 
 [dependency-groups]
 dev = [
