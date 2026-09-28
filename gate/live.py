@@ -289,6 +289,8 @@ class LiveSuite:
     # The judge's verdict per item, for the Rogan-Gladen corrected rate in the report.
     judge_calls: tuple[bool, ...]
     answers: Mapping[str, str]
+    # What the judge replied, per item, unparsed: the record a human reads the verdict from.
+    verdicts: Mapping[str, str] = field(default_factory=dict)
 
 
 def _temperature(arm: Arm) -> float | None:
@@ -319,6 +321,7 @@ def run_gold_suite(
     outcomes: dict[str, bool] = {}
     judge_calls: list[bool] = []
     answers: dict[str, str] = {}
+    verdicts: dict[str, str] = {}
     latencies: list[float] = []
     cost = 0.0
     uncosted = 0
@@ -360,6 +363,7 @@ def run_gold_suite(
         except Exception:
             ungradeable += 1
             continue
+        verdicts[q.id] = verdict.text
         value = parse_verdict(verdict.text)[grader.task]
         if value is None:
             ungradeable += 1
@@ -378,7 +382,42 @@ def run_gold_suite(
         ),
         judge_calls=tuple(judge_calls),
         answers=answers,
+        verdicts=verdicts,
     )
+
+
+ANSWERS_FILE = "answers.jsonl"
+
+
+def write_answers(path: Path, sides: Mapping[str, Mapping[str, LiveSuite]]) -> int:
+    """Every answer both sides gave and what the judge said of it, one JSON line each, in the
+    order a reader compares them: by suite, then question, base before candidate.
+
+    The comment says a faithfulness regression needs a human reading; this is what they read.
+    Written from the results rather than the raw store, because a reply served from the
+    development cache never reaches the raw store, and on a pull request most replies are.
+    Returns the lines written."""
+    rows: list[dict[str, object]] = []
+    for side, suites in sides.items():
+        for key, result in suites.items():
+            for qid, text in result.answers.items():
+                rows.append(
+                    {
+                        "suite": key,
+                        "question_id": qid,
+                        "side": side,
+                        "answer": text,
+                        "judge_reply": result.verdicts.get(qid),
+                        "graded": result.outcomes.outcomes.get(qid),
+                    }
+                )
+    order = {side: i for i, side in enumerate(sides)}
+    rows.sort(key=lambda r: (str(r["suite"]), str(r["question_id"]), order[str(r["side"])]))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="\n") as f:
+        for row in rows:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    return len(rows)
 
 
 def run_side(

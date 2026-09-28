@@ -12,6 +12,12 @@ decides can be reproduced with `gate check` from a checkout.
    with the judge's error taken out of the difference (`docs/gate-statistics.md`).
 3. Posts one comment on the pull request, and edits that same comment on every later push.
 4. Exits non-zero on a block, so branch protection can require the check.
+5. Keeps every answer, as the run's `gate-answers-<run id>` artifact for 30 days (since
+   2026-09-28). `answers.jsonl` pairs both sides' answer to each question with the judge's reply,
+   including replies served from the cache. The call ledger and boundary's raw store, keys
+   redacted, sit beside it. Faithfulness is not gated, so a person reading these is the only
+   check on it. Before this, the answers stayed on the runner, and so did the only way to see
+   why a verdict came out as it did.
 
 ## The rules that make it hard to fool
 

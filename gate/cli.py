@@ -936,7 +936,9 @@ def check(
         live.CONFIG_FILE
     ),
     cache: Annotated[Path | None, typer.Option(help="development cache (JSON lines)")] = None,
-    work: Annotated[Path, typer.Option(help="scratch for the call ledger")] = Path(".gate-work"),
+    work: Annotated[Path, typer.Option(help="the call ledger, raw store and answers.jsonl")] = Path(
+        ".gate-work"
+    ),
     comment: Annotated[Path | None, typer.Option(help="write the PR comment here")] = None,
     record: Annotated[Path | None, typer.Option(help="append the decision to this ledger")] = None,
     run_url: Annotated[str, typer.Option(help="link to this run, for the comment")] = "",
@@ -1004,6 +1006,9 @@ def check(
             cache=store,
             spend=spend,
         )
+    answers = work / live.ANSWERS_FILE
+    n = live.write_answers(answers, {"base": base_live, "candidate": cand_live})
+    typer.echo(f"{n} answers, both sides, with the judge's replies: {answers}", err=True)
     d = decide(spec, base_side, cand_side, judges={k: lic.counts for k, lic in licences.items()})
     judged = []
     for key, lic in licences.items():

@@ -8,6 +8,7 @@ judge's error taken out of the difference, the cache, and the exit codes.
 
 from __future__ import annotations
 
+import json
 import textwrap
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -129,6 +130,29 @@ def test_an_unchanged_prompt_passes_and_costs_nothing_the_second_time(
     assert code == 0
     assert len(vendor.requests) == first, "a byte-identical request is never paid for twice"
     assert "made 0 vendor calls" in out
+
+
+def test_every_answer_is_kept_for_a_human_to_read_cached_or_not(
+    tmp_path: Path, vendor: FakeVendor
+) -> None:
+    base = repo(tmp_path / "base", "Be careful and complete.")
+    cand = repo(tmp_path / "cand", "Be quick.")
+    cache = tmp_path / "cache.jsonl"
+    run(base, cand, tmp_path, FLAG, "--cache", str(cache))
+    # The second run is served wholly from the cache, which never reaches the raw store.
+    code, out = run(base, cand, tmp_path, FLAG, "--cache", str(cache))
+    assert code == 1 and "made 0 vendor calls" in out
+    rows = [
+        json.loads(line)
+        for line in (tmp_path / "w" / live.ANSWERS_FILE).read_text(encoding="utf-8").splitlines()
+    ]
+    assert len(rows) == 200
+    assert [r["side"] for r in rows[:2]] == ["base", "candidate"]
+    assert rows[0]["question_id"] == rows[1]["question_id"]
+    assert {r["answer"] for r in rows if r["side"] == "base"} == {"GOOD answer"}
+    bad = [r for r in rows if r["answer"] == "BAD answer"]
+    assert bad and all(r["side"] == "candidate" and r["graded"] is False for r in bad)
+    assert all(r["judge_reply"].startswith("FAITHFUL:") for r in rows)
 
 
 def test_a_pull_request_cannot_loosen_its_own_margin(tmp_path: Path, vendor: FakeVendor) -> None:

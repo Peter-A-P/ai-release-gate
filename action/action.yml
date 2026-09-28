@@ -95,6 +95,19 @@ runs:
           gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F "body=@$body" > /dev/null
         fi
 
+    # Every answer and every judge verdict, with the call ledger. The comment says a faithfulness
+    # regression needs a human reading, and without this there is nothing to read: the replies
+    # stayed on the runner. The raw store is boundary's, with every key header redacted, the same
+    # store Part A commits for each drift run. `drift traces` reads the ledger the same way.
+    - name: Keep the answers
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: gate-answers-${{ github.run_id }}
+        path: ${{ runner.temp }}/gate-work
+        if-no-files-found: warn
+        retention-days: 30
+
     - name: Verdict
       shell: bash
       run: exit "${{ steps.gate.outputs.code }}"
