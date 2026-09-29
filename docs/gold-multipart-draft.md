@@ -9,6 +9,11 @@ yet.
 with an id, and 21 are held back as spares. Every expected point is a
 phrase from the passage, checked there.
 
+**To review, run `uv run gate gold review-draft`.** It shows one question at a time,
+each point inside its sentence of the passage, and takes one key: y keep, n drop,
+c change. It saves as you go, resumes where you stopped, and offers spares for any
+page that loses a question. This file is the same list, for reading.
+
 What to look for:
 
 - Does each question read like something a person would ask?

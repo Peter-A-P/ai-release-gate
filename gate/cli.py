@@ -561,6 +561,125 @@ def _refuse_unless_allowed(allowed: bool, what: str) -> None:
         raise typer.Exit(2)
 
 
+@gold_app.command("review-draft")
+def gold_review_draft(
+    redo: Annotated[str, typer.Option(help="look again at some, e.g. --redo 203,214")] = "",
+) -> None:
+    """Review the draft multi-part questions, one keypress each. Resumable.
+
+    Each question is shown with every point it expects, inside the sentence of the passage the
+    point comes from. y keeps it, n drops it, c keeps it with a change you type in one line.
+    After the fifty, a page that lost a question is offered its spares. Decisions go to
+    gate/gold/multipart-review.jsonl and change no question; they are applied by hand.
+    """
+    import click
+
+    from gate import draft_review as dr
+
+    g = _gold_or_exit()
+    path = GOLD / dr.REVIEW_FILE
+    fifty, spares = dr.drafts()
+    done = dr.latest(dr.read_reviews(path))
+    wanted = {
+        f"q-{int(t):03d}" if t.strip().isdigit() else t.strip()
+        for t in redo.split(",")
+        if t.strip()
+    }
+
+    def show(d: dr.Draft, position: str, what: str) -> None:
+        src = g.by_source[d.source_id]
+        typer.echo("")
+        typer.echo(typer.style(f"{position}  {what}   {d.source_id}: {src.title}", bold=True))
+        _field("QUESTION", d.question)
+        typer.echo("  EXPECTS :")
+        for i, point in enumerate(d.must_mention, 1):
+            before, hit, after = dr.context(src, point)
+            typer.echo(f"    {i}. {point}")
+            typer.echo(
+                "       page: " + before + typer.style(f"[{hit}]", bold=True, fg="yellow") + after
+            )
+        previous = done.get(d.key)
+        if previous is not None:
+            typer.echo(
+                f"  you said: {previous.decision}"
+                + (f", {previous.note!r}" if previous.note else "")
+            )
+
+    def ask(d: dr.Draft, keys: dict[str, str]) -> str:
+        """The key pressed, among `keys`; p shows the passage and asks again."""
+        typer.echo("  " + "   ".join(f"{k} = {v}" for k, v in keys.items()) + "   p = whole page")
+        while True:
+            ch = click.getchar().lower()
+            if ch == "p":
+                _field("PAGE", " ".join(g.by_source[d.source_id].text.split()))
+                continue
+            if ch in keys:
+                return ch
+            typer.echo("    not one of those keys; again")
+
+    def record(d: dr.Draft, decision: dr.Decision, note: str = "") -> None:
+        r = dr.DraftReview(
+            key=d.key,
+            source_id=d.source_id,
+            question=d.question,
+            decision=decision,
+            note=note,
+            reviewed_utc=gold.utc_now(),
+        )
+        dr.append_review(path, r)
+        done[d.key] = r
+
+    t = dr.tally(fifty, spares, done)
+    typer.echo(f"{t.reviewed} of {t.of} reviewed. The questions: docs/gold-multipart-draft.md")
+    typer.echo("  Is it something a person would ask? Does it ask for every point listed?")
+    typer.echo("  Is every point the substance, not a detail? If yes to all three: y.")
+
+    queue = [d for d in fifty if d.qid in wanted] if wanted else fifty
+    i = 0 if wanted else next((n for n, d in enumerate(queue) if d.key not in done), len(queue))
+    main_keys = {"y": "keep", "n": "drop", "c": "change", "b": "back", "q": "stop"}
+    while i < len(queue):
+        d = queue[i]
+        show(d, f"[{i + 1}/{len(queue)}]", d.qid or "")
+        ch = ask(d, main_keys)
+        if ch == "q":
+            typer.echo("stopped; run the same command to carry on")
+            return
+        if ch == "b":
+            i = max(0, i - 1)
+            continue
+        if ch == "c":
+            note = typer.prompt("  what should change (one line)").strip()
+            if not note:
+                typer.echo("    nothing typed; this one again")
+                continue
+            record(d, "change", note)
+        else:
+            record(d, "keep" if ch == "y" else "drop")
+        i += 1
+
+    offer = [s for s in dr.spares_to_offer(fifty, spares, done) if s.key not in done]
+    if offer:
+        typer.echo(f"\n{len(offer)} spares are on pages that lost a question. y uses one instead.")
+    for n, s in enumerate(offer, 1):
+        show(s, f"[spare {n}/{len(offer)}]", "held back")
+        ch = ask(s, {"y": "use it", "n": "no", "c": "use it, changed", "q": "stop"})
+        if ch == "q":
+            typer.echo("stopped; run the same command to carry on")
+            return
+        if ch == "c":
+            note = typer.prompt("  what should change (one line)").strip()
+            record(s, "promote", note)
+        else:
+            record(s, "promote" if ch == "y" else "pass")
+
+    t = dr.tally(fifty, spares, done)
+    typer.echo(
+        f"\nreview done: {t.keep} kept, {t.change} to change, {t.drop} dropped, "
+        f"{t.promoted} spares brought in. Saved to {path}."
+    )
+    typer.echo("Tell Claude the review is done; nothing else to do.")
+
+
 @gold_app.command("generate")
 def gold_generate(
     allowed: Annotated[bool, typer.Option(VENDOR_FLAG, help=VENDOR_HELP)] = False,
