@@ -289,7 +289,9 @@ def build_injection(
     if not sources:
         raise BuildError(f"no gold source documents in {gold_root}")
     by_source: dict[str, list[gold.GoldQuestion]] = defaultdict(list)
-    for q in sorted(questions, key=lambda q: q.id):
+    # The first hundred only: the frozen v1 suite was built from them, and a rebuild must
+    # reproduce it byte for byte whatever strata have been added since.
+    for q in sorted((q for q in questions if q.stratum == "core"), key=lambda q: q.id):
         by_source[q.source_id].append(q)
     rng = rng_for(SEED, "prompt_injection")
     hijacks = sorted(attacks["goal_hijacking"].items())

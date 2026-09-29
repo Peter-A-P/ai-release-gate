@@ -748,10 +748,19 @@ def problems(root: Path = ROOT) -> list[str]:
     return out
 
 
+def all_questions() -> list[gold.GoldQuestion]:
+    """What `questions.jsonl` holds: these hundred, then the multi-part fifty."""
+    from gate import gold_multipart
+
+    return [*questions(), *gold_multipart.questions()]
+
+
 def main() -> None:
+    from gate import gold_multipart
+
     g = gold.load(ROOT)
     qs = questions()
-    bad = problems()
+    bad = problems() + gold_multipart.problems(ROOT)
     print(f"{len(qs)} questions, {sum(1 for q in qs if q.unanswerable)} unanswerable")
     print(f"{len({q.source_id for q in qs})} of {len(g.sources)} documents used")
     if bad:
@@ -759,8 +768,8 @@ def main() -> None:
         for p in bad:
             print("  " + p)
         raise SystemExit(1)
-    gold.write_all(ROOT / gold.QUESTIONS_FILE, qs)
-    print("written to questions.jsonl")
+    gold.write_all(ROOT / gold.QUESTIONS_FILE, all_questions())
+    print(f"written to questions.jsonl with the {len(gold_multipart.questions())} multi-part ones")
 
 
 if __name__ == "__main__":

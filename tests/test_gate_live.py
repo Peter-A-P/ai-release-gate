@@ -249,7 +249,7 @@ def test_an_unparseable_verdict_is_absent_not_wrong() -> None:
         spend=live.Spend(),
     )
     assert result.outcomes.outcomes == {}
-    assert result.outcomes.ungradeable_items == len(g.questions)
+    assert result.outcomes.ungradeable_items == len(g.questions_in("core"))
 
 
 def test_the_cache_key_is_everything_the_vendor_is_sent() -> None:
@@ -311,3 +311,39 @@ def test_the_demo_repository_config_loads_and_its_judge_is_licensed() -> None:
     assert suite.grader is not None
     lic = live.license_judge(suite.grader, load_panel(cli.JUDGE_PANEL).arms, cli.GOLD)
     assert lic.calibration.usable and lic.grader.task == "complete"
+    # Licensed on the core stratum's labels alone, which is exactly what it was licensed on
+    # before the multi-part answers existed.
+    assert round(lic.calibration.kappa.point, 3) == 0.914
+
+
+def test_a_multipart_suite_asks_only_its_fifty_and_a_judge_without_labels_there_is_refused(
+    vendor: FakeVendor,
+) -> None:
+    from drift.panel import load_panel
+    from gate.spec import SuiteSpec
+
+    g = gold.load(cli.GOLD)
+    suite = SuiteSpec.model_validate(
+        {
+            "key": "mp",
+            "source": {"kind": "gold_questions", "stratum": "multipart"},
+            "grader": {"judge": "google-judge-mid", "task": "complete", "max_tokens": 1024},
+        }
+    )
+    assert suite.grader is not None
+    judges = load_panel(cli.JUDGE_PANEL).arms
+    core_lic = live.license_judge(suite.grader, judges, cli.GOLD)
+    result = live.run_gold_suite(
+        suite,
+        g,
+        system_prompt="Be careful and complete.",
+        subject=core_lic.arm,
+        licence=core_lic,
+        chat=vendor,
+        cache=live.Cache(None),
+        spend=live.Spend(),
+    )
+    assert set(result.answers) == {q.id for q in g.questions_in("multipart")}
+    # No multi-part answer has a verdict or a label yet, so nothing licenses a judge there.
+    with pytest.raises(live.ConfigError, match="never been calibrated"):
+        live.license_judge(suite.grader, judges, cli.GOLD, stratum="multipart")

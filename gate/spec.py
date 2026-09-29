@@ -31,6 +31,10 @@ class Source(BaseModel):
     kind: SourceKind = "drift_block"
     block: str = ""
     held_out: bool = False
+    # For gold_questions: which stratum of the gold set is asked (`gate.gold.Stratum`). The
+    # default is the first hundred, so every spec written before the multi-part stratum existed
+    # asks what it always asked, and keeps its hash.
+    stratum: Literal["core", "multipart"] = "core"
 
     @model_validator(mode="after")
     def _block_for_drift(self) -> Source:
@@ -38,6 +42,8 @@ class Source(BaseModel):
             raise ValueError("a drift_block source names its block")
         if self.kind != "drift_block" and (self.block or self.held_out):
             raise ValueError(f"a {self.kind} source takes no block")
+        if self.kind != "gold_questions" and self.stratum != "core":
+            raise ValueError(f"a {self.kind} source takes no stratum")
         return self
 
 
@@ -162,10 +168,13 @@ class EvalSpec(BaseModel):
         # Fields added after specs were first hashed are left out while they hold their
         # default, so an existing spec keeps the hash its ledger records were written under
         # and the same comparison stays the same record id. Added in stage 4: a suite's
-        # `grader`, and a source's `block` becoming optional.
+        # `grader`, and a source's `block` becoming optional. Added 2026-09-29: a source's
+        # `stratum`.
         for suite in data["suites"]:
             if suite.get("grader") is None:
                 suite.pop("grader", None)
+            if suite["source"].get("stratum") == "core":
+                suite["source"].pop("stratum")
         return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
     def sha256(self) -> str:

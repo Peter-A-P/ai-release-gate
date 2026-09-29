@@ -11,6 +11,7 @@ from tests.test_gate_gold import question, source
 from tests.test_gate_judge_runner import FakeReply
 
 SPECS = Path(__file__).resolve().parent.parent / "gate" / "specs"
+GOLD = Path(__file__).resolve().parent.parent / "gate" / "gold"
 
 
 def arm(key: str, provider: str = "anthropic", model: str = "m", **kw: object) -> Arm:
@@ -181,3 +182,37 @@ def test_answers_already_paid_for_survive_a_failure_midway() -> None:
             generate.plan([question()], sources, ARMS), caller, run_id="g1", on_instance=kept.append
         )
     assert [i.id for i in kept] == ["i-0001"], "the answer before the failure is kept"
+
+
+def test_the_real_plan_keeps_every_existing_id_and_adds_the_multipart_answers() -> None:
+    """The 300 i- answers labelled before 2026-09-29 keep their ids, and the fifty multi-part
+    questions add i-0301 to i-0450, one of each three written under the one-sentence prompt,
+    round the panel so each model writes a third of them."""
+    g = gold.load(GOLD)
+    arms = load_panel(SPECS / "gold-answers.yaml").arms
+    jobs = list(generate.plan(g.questions, g.by_source, arms))
+    stored = {i.id: i for i in g.instances if i.id.startswith("i-")}
+    assert len(stored) == 300
+    for j in jobs[:300]:
+        i = stored[j.instance_id]
+        assert (i.question_id, i.arm_key) == (j.question.id, j.arm.key)
+        assert j.variant == "standard" and j.system == generate.ANSWER_SYSTEM
+    new = jobs[300:]
+    assert [j.instance_id for j in new] == [f"i-{n:04d}" for n in range(301, 451)]
+    assert {j.question.stratum for j in new} == {"multipart"}
+    by_q: dict[str, list[generate.Job]] = {}
+    for j in new:
+        by_q.setdefault(j.question.id, []).append(j)
+    assert all(sum(j.variant == "one-sentence" for j in js) == 1 for js in by_q.values())
+    brief = [j.arm.key for j in new if j.variant == "one-sentence"]
+    assert sorted(brief.count(a.key) for a in arms) == [16, 17, 17]
+    assert all(j.system == generate.ONE_SENTENCE_SYSTEM for j in new if j.variant == "one-sentence")
+    assert generate.ONE_SENTENCE_SYSTEM.startswith(generate.ANSWER_SYSTEM)
+
+
+def test_an_answer_records_which_prompt_wrote_it() -> None:
+    q = question(201, stratum="multipart")
+    jobs = list(generate.plan([q], {"fcac-001": source()}, ARMS))
+    made = generate.generate(jobs, lambda j: FakeReply(j.system), run_id="t")
+    assert [i.variant for i in made] == ["one-sentence", "standard"]
+    assert made[0].output == generate.ONE_SENTENCE_SYSTEM

@@ -85,3 +85,33 @@ def test_delta_per_suite_and_the_study_variants() -> None:
     assert all(su.min_items == 1 for su in every.suites)
     assert s.suite("a").min_items is None, "the original is untouched"
     assert every.sha256() != s.sha256()
+
+
+def test_a_suite_names_its_stratum_and_the_default_keeps_old_hashes() -> None:
+    """The demo's spec hashed to b797ab35ca9872a0 before strata existed, and every gate comment
+    and ledger record names it; asking the core stratum out loud is the same spec."""
+    from gate import live
+
+    root = Path(__file__).resolve().parent.parent / "examples" / "regulated-qa-demo"
+    spec, _, _ = live.load_repo_config(root)
+    assert spec.sha256()[:16] == "b797ab35ca9872a0"
+    said = spec.model_copy(
+        update={
+            "suites": tuple(
+                s.model_copy(update={"source": Source(kind="gold_questions", stratum="core")})
+                for s in spec.suites
+            )
+        }
+    )
+    assert said.sha256() == spec.sha256()
+    multipart = spec.model_copy(
+        update={
+            "suites": tuple(
+                s.model_copy(update={"source": Source(kind="gold_questions", stratum="multipart")})
+                for s in spec.suites
+            )
+        }
+    )
+    assert multipart.sha256() != spec.sha256()
+    with pytest.raises(ValidationError, match="takes no stratum"):
+        Source(kind="drift_block", block="closed_form_reasoning", stratum="multipart")

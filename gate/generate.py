@@ -21,12 +21,30 @@ from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 
 from drift.panel import Arm
-from gate.gold import AnswerInstance, GoldQuestion, GoldSet, SourceDoc, sha256_of, utc_now
+from gate.gold import (
+    AnswerInstance,
+    GoldQuestion,
+    GoldSet,
+    SourceDoc,
+    Variant,
+    sha256_of,
+    utc_now,
+)
 from gate.judge.runner import Reply
 
 # Fixed for the life of the gold set. Changing it means regenerating every instance and
 # relabelling, because the answers would come from a different distribution.
 ANSWER_SYSTEM = "Answer the customer's question using the document provided. Be brief and direct."
+
+# For one of the three answers to each multi-part question (2026-09-29): the same prompt with
+# the limit demo #3 put on the gate, in #3's own words. The multi-part stratum exists to tell a
+# complete answer from one that dropped a part, and the three models asked normally rarely drop
+# one, which would leave the calibration with almost no negative class; the first 300 had the
+# same problem, and the distractor stratum was the fix. This supplies the short answers the
+# suite is meant to catch, in the form they arrive in. Neither the labeller nor the judge is
+# told which prompt wrote an answer.
+ONE_SENTENCE_SYSTEM = ANSWER_SYSTEM + " Reply in one short sentence of no more than fifteen words."
+SYSTEMS: dict[Variant, str] = {"standard": ANSWER_SYSTEM, "one-sentence": ONE_SENTENCE_SYSTEM}
 
 ANSWER_TEMPLATE = """\
 DOCUMENT ({title})
@@ -57,10 +75,15 @@ class Job:
     question: GoldQuestion
     source: SourceDoc
     arm: Arm
+    variant: Variant = "standard"
 
     @property
     def prompt(self) -> str:
         return answer_prompt(self.source, self.question)
+
+    @property
+    def system(self) -> str:
+        return SYSTEMS[self.variant]
 
 
 def plan(
@@ -72,13 +95,23 @@ def plan(
 
     The id is assigned by position, question-major, so `i-0001` is always the first question
     answered by the first model whatever order the calls are actually made in. A gold set whose
-    ids move when a run is repeated is a gold set whose labels cannot be trusted.
+    ids move when a run is repeated is a gold set whose labels cannot be trusted. The multi-part
+    questions are numbered from q-201, after every core one, so adding them moved no id.
+
+    Each multi-part question has one answer written under `ONE_SENTENCE_SYSTEM`, from the
+    first model for the first question, the second for the second, and so on round the panel,
+    so every model writes a third of the short answers.
     """
     n = 0
+    multipart = 0
     for question in sorted(questions, key=lambda q: q.id):
-        for arm in arms:
+        brief = multipart % len(arms) if question.stratum == "multipart" else None
+        for position, arm in enumerate(arms):
             n += 1
-            yield Job(f"i-{n:04d}", question, sources[question.source_id], arm)
+            variant: Variant = "one-sentence" if position == brief else "standard"
+            yield Job(f"i-{n:04d}", question, sources[question.source_id], arm, variant)
+        if question.stratum == "multipart":
+            multipart += 1
 
 
 AnswerCaller = Callable[[Job], Reply]
@@ -118,6 +151,7 @@ def generate(
             generated_utc=utc_now(),
             run_id=run_id,
             cost_usd=reply.cost_usd,
+            variant=job.variant,
         )
         out.append(instance)
         if on_instance is not None:

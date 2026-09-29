@@ -49,6 +49,10 @@ on:
         description: "for what=probe-models: comma separated provider/model identifiers"
         required: false
         default: ""
+      run_id:
+        description: "for what=answers: the run id stamped on new answers (multipart-1 for the multi-part stratum)"
+        required: false
+        default: "gold-1"
       limit:
         description: "stop after this many vendor calls; 0 for no limit. Start small."
         required: false
@@ -118,6 +122,7 @@ jobs:
         run: |
           uv run gate gold generate \
             --i-am-allowed-to-call-vendors \
+            --run-id "${{ inputs.run_id }}" \
             --limit "${{ inputs.limit }}"
 
       - name: Generate the distractor stratum

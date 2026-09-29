@@ -1,4 +1,4 @@
-"""A DRAFT stratum of multi-part questions, for a suite a short answer fails. Not in use yet.
+"""The multi-part stratum of the gold set: fifty questions a short answer can fail.
 
 Why it exists. On the demo repository, #3 cut every answer to one sentence of at most 15 words
 and passed at 99% against 100%, because the gold set's 100 questions are at their ceiling: 66 of
@@ -22,9 +22,14 @@ for part of.
 a question. Every held-back one is the second or third on its document, so every document keeps
 at least one. Ids start at q-201 so they can never collide with the first set.
 
-Nothing reads this file yet. After review it becomes part of `questions.jsonl`, tagged as its own
-stratum, and the live suite that gates the demo is kept to the first 100 unless a spec asks for
-it by name. Adding it must not change what an existing spec gates on.
+Reviewed by Peter on 2026-09-29 with `gate gold review-draft`, decisions in
+`gate/gold/multipart-review.jsonl`. All fifty were kept. Ten were changed as his notes asked and
+approved on a second look. In `questions.jsonl` since then, as stratum `multipart`, written
+there by `python -m gate.gold_questions` together with the first hundred. Nothing measured on
+the first hundred moves:
+- the demo's suite asks only `core` questions unless a spec names `multipart`;
+- a judge is licensed on its suite's stratum alone;
+- the intra-rater sample and the distractor draw come from `core`.
 
 Check with `uv run python -m gate.gold_multipart`, and rewrite the review document,
 `docs/gold-multipart-draft.md`, by adding `--write-doc`.
@@ -746,7 +751,13 @@ def questions() -> list[gold.GoldQuestion]:
     if len(kept) != len(Q) - len(HELD_BACK):
         raise ValueError("a held-back question does not match any written question")
     return [
-        gold.GoldQuestion(id=f"q-{n:03d}", source_id=source_id, question=text, must_mention=must)
+        gold.GoldQuestion(
+            id=f"q-{n:03d}",
+            source_id=source_id,
+            question=text,
+            must_mention=must,
+            stratum="multipart",
+        )
         for n, (source_id, text, must) in enumerate(kept, start=FIRST_ID)
     ]
 

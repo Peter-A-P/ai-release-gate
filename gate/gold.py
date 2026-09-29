@@ -38,7 +38,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
 
 # The two judgements. Named rather than positional everywhere, because "the first one" is how
 # a faithfulness number ends up reported as a completeness number.
@@ -54,6 +54,9 @@ LABELS_FILE = "labels.jsonl"
 
 # How many of the 300 are read a second time (PLAN.md B4). Fixed here rather than passed in,
 # so the intra-rater sample is the same hundred every time the command is run.
+Stratum = Literal["core", "multipart"]
+Variant = Literal["standard", "one-sentence"]
+
 INTRA_RATER_SAMPLE = 100
 INTRA_RATER_SEED = 0
 
@@ -115,6 +118,21 @@ class GoldQuestion(BaseModel):
     # model gives is "the document does not say". Every gold set needs some of these or a
     # judge that never catches an invented fact still scores well.
     unanswerable: bool = False
+    # Which set the question belongs to. `core` is the first hundred, which the demo's suite
+    # gates on and the published calibration was measured on. `multipart` is the fifty added
+    # 2026-09-29 (gate/gold_multipart.py), which ask for two or three things so that a short
+    # answer can fail. A suite, a calibration and the intra-rater sample each name the stratum
+    # they use, so adding one changes nothing that was measured on the other.
+    stratum: Stratum = "core"
+
+    @model_serializer(mode="wrap")
+    def _omit_core(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        # The default is left out of the file, so the first hundred's lines are byte for byte
+        # what they were before the field existed.
+        data: dict[str, object] = handler(self)
+        if data.get("stratum") == "core":
+            data.pop("stratum")
+        return data
 
 
 class AnswerInstance(BaseModel):
@@ -139,6 +157,18 @@ class AnswerInstance(BaseModel):
     run_id: str
     ledger_id: int | None = None
     cost_usd: float | None = None
+    # Which system prompt wrote it. `standard` is `gate.generate.ANSWER_SYSTEM`, used for every
+    # answer before 2026-09-29. `one-sentence` adds demo #3's limit and is used for one of the
+    # three answers to each multi-part question, so the stratum holds the short answers it
+    # exists to catch. Never shown to the labeller or the judge.
+    variant: Variant = "standard"
+
+    @model_serializer(mode="wrap")
+    def _omit_standard(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data: dict[str, object] = handler(self)
+        if data.get("variant") == "standard":
+            data.pop("variant")
+        return data
 
     @property
     def truncated(self) -> bool:
@@ -257,6 +287,16 @@ class GoldSet(BaseModel):
     @property
     def by_question(self) -> dict[str, GoldQuestion]:
         return {q.id: q for q in self.questions}
+
+    def questions_in(self, stratum: Stratum) -> tuple[GoldQuestion, ...]:
+        return tuple(q for q in self.questions if q.stratum == stratum)
+
+    def instance_ids_in(self, stratum: Stratum) -> list[str]:
+        """Answers to the stratum's questions, sorted. The intra-rater sample is drawn from
+        `core`'s, which is exactly the 480 read in the first pass: drawing from every answer
+        would have moved the sample the day the multi-part answers arrived."""
+        qs = {q.id for q in self.questions_in(stratum)}
+        return sorted(i.id for i in self.instances if i.question_id in qs)
 
     @property
     def by_instance(self) -> dict[str, AnswerInstance]:

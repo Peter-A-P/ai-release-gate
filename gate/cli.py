@@ -332,7 +332,7 @@ def gold_label(
         queue = sorted(instances)
     else:
         first = gold.latest_labels(existing, pass_no=1)
-        queue = [i for i in gold.intra_rater_sample(sorted(instances)) if i in first]
+        queue = [i for i in gold.intra_rater_sample(g.instance_ids_in("core")) if i in first]
         if not queue:
             typer.echo("nothing to re-read: the first pass has not labelled the sample yet")
             raise typer.Exit(0)
@@ -757,7 +757,7 @@ def gold_generate(
             return gateway.chat(
                 ChatRequest(
                     model=arm.explicit,
-                    system=generate.ANSWER_SYSTEM,
+                    system=job.system,
                     messages=[{"role": "user", "content": job.prompt}],
                     max_tokens=generate.MAX_TOKENS,
                     temperature=None if "temperature" in arm.omit else generate.TEMPERATURE,
@@ -1084,7 +1084,9 @@ def check(
     try:
         for s in spec.suites:
             if s.grader is not None:
-                licences[s.key] = live.license_judge(s.grader, judges, GOLD)
+                licences[s.key] = live.license_judge(
+                    s.grader, judges, GOLD, stratum=s.source.stratum
+                )
     except live.ConfigError as e:
         typer.echo(f"judge refused: {e}", err=True)
         raise typer.Exit(2) from e

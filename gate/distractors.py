@@ -187,7 +187,10 @@ def questions_for(gold: GoldSet, *, n: int = DISTRACTOR_QUESTIONS) -> list[GoldQ
     nothing the first 300 did not already test. The sample is seeded and then re-sorted, so the
     same sixty are chosen every time and their order does not depend on the draw.
     """
-    answerable = [q for q in sorted(gold.questions, key=lambda q: q.id) if not q.unanswerable]
+    # The first hundred only. The d- stratum was drawn from them on 2026-09-22, and drawing from
+    # a longer list would pick a different sixty and disown every d- instance already labelled.
+    core = gold.questions_in("core")
+    answerable = [q for q in sorted(core, key=lambda q: q.id) if not q.unanswerable]
     if len(answerable) <= n:
         return answerable
     rng = random.Random(DISTRACTOR_SEED)

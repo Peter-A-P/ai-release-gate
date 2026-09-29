@@ -38,6 +38,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from drift.panel import Arm
 from gate import generate, gold
+from gate.gold import Stratum
 from gate.judge import calibration as calib
 from gate.judge.rubric import SYSTEM as JUDGE_SYSTEM
 from gate.judge.rubric import judge_prompt, parse_verdict, rubric_hash
@@ -239,8 +240,15 @@ class Licence:
         return (c.true_positive, c.false_negative, c.false_positive, c.true_negative)
 
 
-def license_judge(grader: Grader, judges: Sequence[Arm], gold_root: Path) -> Licence:
+def license_judge(
+    grader: Grader, judges: Sequence[Arm], gold_root: Path, *, stratum: Stratum = "core"
+) -> Licence:
     """Calibrate the named judge from the stored record and clear it for the task, or refuse.
+
+    On the labels of the suite's own stratum only. A judge's agreement on one-fact questions
+    says little about how it grades an answer that drops one of three parts, and the reverse:
+    the demo's suite stays licensed on exactly the 480 labels it was licensed on, and the
+    multi-part suite has to earn its own.
 
     Every refusal is a condition under which the stored kappa does not describe the judge that
     would be run: a different rubric, a different budget, a task it failed on, no record.
@@ -249,10 +257,19 @@ def license_judge(grader: Grader, judges: Sequence[Arm], gold_root: Path) -> Lic
     if grader.judge not in arms:
         raise ConfigError(f"no judge {grader.judge!r}; the panel has {', '.join(sorted(arms))}")
     g = gold.load(gold_root)
-    labels = gold.usable_labels(
-        gold.latest_labels(gold.read_labels(gold_root / gold.LABELS_FILE)), g.by_instance
-    )
-    mine = [v for v in read_verdicts(gold_root / "verdicts.jsonl") if v.judge_key == grader.judge]
+    ids = set(g.instance_ids_in(stratum))
+    labels = {
+        k: v
+        for k, v in gold.usable_labels(
+            gold.latest_labels(gold.read_labels(gold_root / gold.LABELS_FILE)), g.by_instance
+        ).items()
+        if k in ids
+    }
+    mine = [
+        v
+        for v in read_verdicts(gold_root / "verdicts.jsonl")
+        if v.judge_key == grader.judge and v.instance_id in ids
+    ]
     if not mine:
         raise ConfigError(f"judge {grader.judge!r} has never been calibrated")
     hashes = {v.rubric_hash for v in mine}
@@ -328,7 +345,7 @@ def run_gold_suite(
     ungradeable = 0
     answer_calls = 0
     sources = goldset.by_source
-    for q in sorted(goldset.questions, key=lambda x: x.id):
+    for q in sorted(goldset.questions_in(suite.source.stratum), key=lambda x: x.id):
         source = sources[q.source_id]
         ask = Request(
             model=subject.explicit,

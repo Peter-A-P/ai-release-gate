@@ -145,6 +145,30 @@ def test_the_intra_rater_sample_is_the_same_hundred_every_time() -> None:
     )
 
 
+def test_the_second_pass_sample_did_not_move_when_the_multipart_stratum_arrived() -> None:
+    """Peter's re-read of 2026-10-06 is of the hundred chosen from the 480 first-pass answers.
+    Drawn from every answer, it would have moved the day 150 more arrived; it is drawn from the
+    core stratum's, and this is that hundred, pinned."""
+    import hashlib
+
+    g = gold.load(GOLD)
+    sample = gold.intra_rater_sample(g.instance_ids_in("core"))
+    assert len(g.instance_ids_in("core")) == 480
+    assert hashlib.sha256(",".join(sample).encode()).hexdigest()[:16] == "4934e7d7ef72219e"
+
+
+def test_a_new_field_at_its_default_leaves_every_existing_line_as_it_was(tmp_path: Path) -> None:
+    for name, read in (
+        (gold.QUESTIONS_FILE, gold.read_questions),
+        (gold.INSTANCES_FILE, gold.read_instances),
+    ):
+        records = read(GOLD / name)
+        gold.write_all(tmp_path / name, records)
+        assert (tmp_path / name).read_bytes() == (GOLD / name).read_bytes()
+        assert '"stratum":"core"' not in (tmp_path / name).read_text(encoding="utf-8")
+        assert '"variant":"standard"' not in (tmp_path / name).read_text(encoding="utf-8")
+
+
 def test_round_trip_through_files(tmp_path: Path) -> None:
     gold.write_all(tmp_path / gold.SOURCES_FILE, [source()])
     gold.write_all(tmp_path / gold.QUESTIONS_FILE, [question()])
@@ -249,7 +273,7 @@ def test_the_committed_questions_are_what_the_source_produces() -> None:
     from gate import gold_questions
 
     committed = gold.read_questions(GOLD / gold.QUESTIONS_FILE)
-    assert committed == gold_questions.questions()
+    assert committed == gold_questions.all_questions()
 
 
 def test_every_question_fits_the_passage_it_names() -> None:
@@ -261,7 +285,7 @@ def test_every_question_fits_the_passage_it_names() -> None:
     assert gold_questions.problems(GOLD) == []
 
 
-def test_the_drafted_multipart_questions_fit_their_passages_and_stay_out_of_the_set() -> None:
+def test_the_multipart_questions_fit_their_passages_and_never_collide_with_the_core() -> None:
     """The draft stratum (gate/gold_multipart.py): every expected point, held-back questions
     included, is in its passage; every question asks for at least three; the ids cannot collide
     with the first hundred; and none of it is in questions.jsonl until it has been reviewed."""
@@ -273,17 +297,20 @@ def test_the_drafted_multipart_questions_fit_their_passages_and_stay_out_of_the_
     assert all(len(q.must_mention) >= 3 and not q.unanswerable for q in drafted)
     committed = gold.load(GOLD)
     assert {q.source_id for q in drafted} == set(committed.by_source)
-    assert not {q.id for q in drafted} & {q.id for q in committed.questions}
-    assert not {q.question for q in drafted} & {q.question for q in committed.questions}
-    assert len(committed.questions) == 100, "the draft is not in the gold set yet"
+    core = committed.questions_in("core")
+    assert not {q.id for q in drafted} & {q.id for q in core}
+    assert not {q.question for q in drafted} & {q.question for q in core}
+    assert list(committed.questions_in("multipart")) == drafted, "in the set since 2026-09-29"
     review = gold_multipart.REVIEW_DOC.read_text(encoding="utf-8")
     assert review == gold_multipart.review_markdown(GOLD), "rerun with --write-doc"
 
 
 def test_the_gold_set_is_the_shape_the_plan_asked_for() -> None:
     g = gold.load(GOLD)
-    questions = g.questions
+    questions = g.questions_in("core")
     assert len(questions) == 100, "PLAN.md B4: 100 questions"
+    assert len(g.questions_in("multipart")) == 50
+    assert len(g.questions) == 150
     assert len({q.id for q in questions}) == 100
     unanswerable = [q for q in questions if q.unanswerable]
     assert 10 <= len(unanswerable) <= 20, (
