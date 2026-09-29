@@ -13,9 +13,9 @@ suites:
   - key: regulated_qa
     # The gold set's 100 consumer questions, each answered from its own FCAC or SEC page.
     source: { kind: gold_questions }
-    # Gemini 3.8 Flash on completeness: kappa 0.914 against 480 hand labels. The gate refuses
-    # any judge, task or budget that calibration did not clear, so this line cannot be edited
-    # into grading faithfulness, where both judges failed.
+    # Gemini 3.8 Flash on completeness: kappa 0.924 against 480 hand labels (rubric v3). The
+    # gate refuses any judge, task or budget that calibration did not clear, so this line cannot
+    # be edited into grading faithfulness, where both judges failed.
     grader: { judge: google-judge-mid, task: complete, max_tokens: 1024 }
 latency: { max_increase_pct: 50 }
 cost: { max_increase_pct: 50 }

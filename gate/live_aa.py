@@ -22,7 +22,9 @@ from dataclasses import dataclass
 from gate.stats import paired_difference
 
 # google-judge-mid on completeness: true positive, false negative, false positive, true negative.
-JUDGE_COUNTS = (317, 0, 18, 145)
+# Under rubric v3 (2026-09-29); under v2 it was (317, 0, 18, 145), and the table moved by at most
+# 2.5 points, all of it downwards (docs/gate-statistics.md).
+JUDGE_COUNTS = (317, 0, 16, 147)
 
 
 @dataclass(frozen=True, slots=True)

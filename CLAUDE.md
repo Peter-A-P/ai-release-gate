@@ -123,9 +123,9 @@ honest release gate for prompt and model changes (phase 2).
 - An unparseable judge verdict is **ungradeable, not a disagreement**, exactly as an errored
   call is absent from the drift record's accuracy rather than counted wrong.
 - **A judge is licensed per stratum, never across them.** `core` is the first hundred and
-  `multipart` the fifty added 2026-09-29. Gemini 3.8 Flash has kappa 0.914 on the first and
-  0.313 on the second, so a licence carried across would have graded a suite with an instrument
-  that sees a quarter of its failures. Every reader of the gold set names the stratum it
+  `multipart` the fifty added 2026-09-29. Under rubric v3, Gemini 3.8 Flash has kappa 0.924 on
+  the first and 0.447 on the second (0.914 and 0.313 under v2), so a licence carried across
+  would have graded a suite with an instrument that misses two thirds of its failures. Every reader of the gold set names the stratum it
   means: `license_judge`, `gate judge calibrate --stratum`, the dashboard, the intra-rater
   sample and the distractor draw. Adding a stratum must leave every figure measured on
   another byte for byte as it was, and tests hold them to that.

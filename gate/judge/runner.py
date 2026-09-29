@@ -122,9 +122,13 @@ def run(
     """Ask the judge about each planned case once, and return what it said.
 
     Resumable through `skip`, which the CLI fills from the verdicts already stored, so a run
-    interrupted halfway does not pay for the first half again. Nothing is retried: a failed
-    call is a stored verdict with no judgement, which is ungradeable and therefore absent from
-    the calibration rather than counted as a disagreement.
+    interrupted halfway does not pay for the first half again. Nothing is retried within a run.
+    A reply that comes back without a verdict in the two-line form is stored as ungradeable, and
+    so absent from the calibration rather than counted as a disagreement. A call the vendor
+    refuses outright (a 5xx, say) raises and stops the run instead, with every earlier verdict
+    already appended. Running again asks that case afresh: on 2026-09-29 Gemini returned 503
+    "model unavailable" 569 readings in, and storing that as ungradeable would have left the
+    case unread for good. (This said, until then, that a failed call was stored; it never was.)
     """
     sources, questions, instances = gold.by_source, gold.by_question, gold.by_instance
     done = skip or set()

@@ -995,6 +995,14 @@ Reports: `docs/judge-calibration-openai-judge-small.md`, `docs/judge-calibration
 | gpt-5.4-mini | 0.066 (-0.010 to 0.154) | 0.790 (0.729 to 0.848) | complete only |
 | gemini-3.8-flash | 0.108 (0.012 to 0.217) | 0.914 (0.875 to 0.950) | complete only |
 
+**Recalibrated 2026-09-29 under rubric v3**, with the same protocol and labels. The v2 reports are
+kept as `*-rubric-v2.md`, and the decisions are unchanged:
+
+| judge | faithful kappa | complete kappa | decision |
+|---|---|---|---|
+| gpt-5.4-mini | 0.040 (-0.024 to 0.121) | 0.743 (0.675 to 0.804) | complete only |
+| gemini-3.8-flash | 0.114 (0.014 to 0.227) | 0.924 (0.886 to 0.958) | complete only |
+
 **Both are refused for faithfulness and usable for completeness.** The faithfulness refusal is
 almost entirely one-directional: the judges call 69 and 59 answers unfaithful that the human
 called faithful, against 4 and 5 the other way, and 43 of those are the same instances for both
@@ -1320,7 +1328,9 @@ suite, which is the first real test of the reuse claim.
   - Both judges read them once each, for US$0.25. The verdicts are withheld from Peter until his labels are in, because the labelling is blind.
   - **Labelled and calibrated 2026-09-29.** By Peter's hand, 99 of the 100 ordinary answers are complete and 25 of the 50 one-sentence answers are, so the suite can see the regression #3 makes.
   - **No judge can grade it.** Gemini 3.8 Flash scores kappa 0.313 (0.106 to 0.511) on this stratum's completeness, against 0.914 on the first hundred's, and is refused: it found 6 of the 25 incomplete short answers. GPT-5.4 mini scores 0.121. The literal phrase check scores 0.077.
-  - The false-block study and #3's re-run need a licensed judge, so both wait. The rubric is not revised. Next: a stronger judge calibrated on the same labels (`docs/gate-action.md`).
+  - **Then the cause, and a fix.** The judge's prompt had never carried two of the rubric's five reasons for "not complete", one of them the "covers only part of what was asked" rule Peter labelled by. Rubric v3 ports them word for word; the human rubric is unchanged and no label is re-read. It was committed before any reading and recalibrated on the same labels for US$3.96.
+  - **v3 results.** The gate's judge scores 0.924 on the first hundred (licensed, up from 0.914) and 0.447 (0.218 to 0.642) on the multi-part stratum (refused, up from 0.313). No judge clears 0.6 there, including two allowed to think (0.404 and 0.391).
+  - So the false-block study and #3's re-run still wait. Next: a larger model, which needs a new price file and so waits until after the October 1 drift run (`docs/gate-action.md`).
 
 Still not met |
 | 5 | Red-team suites and Presidio grader; refusal classifier calibrated | Four suites reporting with intervals. **Done 2026-09-25**: 700 items frozen at `3d0526feb9f4763b` (planted-value matching in place of Presidio, B7), run on four models for US$2.27, all four reporting with Jeffreys intervals in [`docs/redteam.md`](docs/redteam.md). The classifier's hand labels on these answers were declined on 2026-09-25, so it is not calibrated on them; the jailbreak rates are upper bounds and say so |

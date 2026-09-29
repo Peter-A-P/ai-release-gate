@@ -68,7 +68,8 @@ US$0.20. The comment states what each run spent and how many calls the cache sav
 
 ## What it does not do
 
-- It does not grade faithfulness. No judge passed calibration on it (kappa 0.07 and 0.11).
+- It does not grade faithfulness. No judge passed calibration on it (kappa 0.04 and 0.11 under
+  rubric v3; 0.07 and 0.11 under v2).
 - It cannot see a regression smaller than about ten points on a 100-question suite; see "Why
   ten points" in `docs/gate-statistics.md`.
 - The development cache is for pull requests only. Part A's monthly drift run never uses one.
@@ -218,3 +219,30 @@ hundred and on the multi-part fifty, against the same labels.
 - If a judge clears 0.6 on the multi-part stratum, the false-block study and #3's re-run go
   ahead on it.
 - If none does, the finding stands as written above.
+
+**The result under rubric v3, 2026-09-29.** Every judge was recalibrated on the same labels, as
+committed above, for US$3.96. Completeness kappa:
+
+| Judge | First hundred, v2 | First hundred, v3 | Multi-part, v2 | Multi-part, v3 |
+|---|---|---|---|---|
+| Gemini 3.8 Flash (the gate's) | 0.914 | **0.924** (0.886 to 0.958), licensed | 0.313 | **0.447** (0.218 to 0.642), refused |
+| GPT-5.4 mini | 0.790 | 0.743 (0.675 to 0.804), licensed | 0.121 | 0.214 (0.025 to 0.416), refused |
+| Gemini 3.8 Flash, thinking high | | | 0.313 | 0.404 (0.180 to 0.608), refused |
+| GPT-5.4 mini, reasoning high | | | 0.324 | 0.391 (0.161 to 0.580), refused |
+
+- **The fix was real.** Every judge moved towards Peter's reading on the multi-part answers.
+  The gate's judge now catches 9 of the 25 incomplete short answers, up from 6.
+- **It was not enough.** No judge clears 0.6 on the multi-part stratum, so, as committed, the
+  finding stands:
+  - the suite can see a brevity regression that no judge can grade;
+  - the false-block study and #3's re-run on it still wait for a licensed judge.
+- **The demo keeps its judge**, at 0.924 on the first hundred, so the v3 wording cost the
+  existing gate nothing.
+- **Faithfulness** is still refused everywhere: 0.114 and 0.040 on the first hundred.
+
+The four v3 reports on the first hundred and the multi-part fifty are
+`docs/judge-calibration-*.md`, and v2's are `*-rubric-v2.md`. Both sets rebuild byte for byte
+from the record.
+
+What is left to try is a stronger model, one that needs a new dated price file. That file would
+then also be the monthly drift run's price list, so it waits until after the October 1 run.

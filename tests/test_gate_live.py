@@ -99,15 +99,6 @@ def run(base: Path, cand: Path, tmp: Path, *extra: str) -> tuple[int, str]:
 FLAG = cli.VENDOR_FLAG
 
 
-@pytest.fixture(autouse=True)
-def _licensed_under_rubric_v2(monkeypatch: pytest.MonkeyPatch) -> None:
-    """TEMPORARY, 2026-09-29. These tests exercise the gate's flow against the real calibration
-    record, and the record's only licence is under rubric v2: rubric v3 was committed before any
-    judge had read under it. Remove this once the v3 readings are in, and the figures below
-    become v3's."""
-    monkeypatch.setattr(live, "rubric_hash", lambda: "77b302b24013dbf3")
-
-
 def test_a_regression_is_blocked_and_the_comment_says_why(
     tmp_path: Path, vendor: FakeVendor
 ) -> None:
@@ -120,7 +111,7 @@ def test_a_regression_is_blocked_and_the_comment_says_why(
     assert text.startswith(PR_MARKER), "the Action finds its own comment by this marker"
     assert "## Gate: BLOCK" in text
     assert "cannot rule out a 10% drop" in text
-    assert "sensitivity + specificity - 1 = 0.89" in text, "the correction is stated, not hidden"
+    assert "sensitivity + specificity - 1 = 0.90" in text, "the correction is stated, not hidden"
     assert "Baseline, corrected" in text
     assert "Faithfulness is not gated" in text
 
@@ -176,7 +167,7 @@ def test_a_pull_request_cannot_loosen_its_own_margin(tmp_path: Path, vendor: Fak
 def test_a_refused_judge_is_refused_before_a_single_call(
     tmp_path: Path, vendor: FakeVendor
 ) -> None:
-    """Both judges failed calibration on faithfulness (kappa 0.07 and 0.11)."""
+    """Both judges failed calibration on faithfulness (kappa 0.04 and 0.11 under rubric v3)."""
     base = repo(tmp_path / "base", "p", task="faithful")
     cand = repo(tmp_path / "cand", "p", task="faithful")
     code, out = run(base, cand, tmp_path, FLAG)
@@ -320,9 +311,8 @@ def test_the_demo_repository_config_loads_and_its_judge_is_licensed() -> None:
     assert suite.grader is not None
     lic = live.license_judge(suite.grader, load_panel(cli.JUDGE_PANEL).arms, cli.GOLD)
     assert lic.calibration.usable and lic.grader.task == "complete"
-    # Licensed on the core stratum's labels alone, which is exactly what it was licensed on
-    # before the multi-part answers existed.
-    assert round(lic.calibration.kappa.point, 3) == 0.914
+    # Licensed on the core stratum's labels alone, under rubric v3: 0.924 (0.914 under v2).
+    assert round(lic.calibration.kappa.point, 3) == 0.924
 
 
 def test_a_multipart_suite_asks_only_its_fifty_and_its_judge_is_licensed_on_it_alone(
@@ -354,6 +344,6 @@ def test_a_multipart_suite_asks_only_its_fifty_and_its_judge_is_licensed_on_it_a
     )
     assert set(result.answers) == {q.id for q in g.questions_in("multipart")}
     # Calibrated on the multi-part stratum's own 150 labels on 2026-09-29, the same judge that
-    # clears 0.914 on the first hundred is refused here: kappa 0.313.
-    with pytest.raises(live.ConfigError, match=r"refused for complete: kappa 0\.313"):
+    # clears 0.924 on the first hundred is refused here: kappa 0.447 under rubric v3.
+    with pytest.raises(live.ConfigError, match=r"refused for complete: kappa 0\.447"):
         live.license_judge(suite.grader, judges, cli.GOLD, stratum="multipart")

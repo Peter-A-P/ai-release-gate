@@ -343,3 +343,15 @@ def test_every_published_calibration_rebuilds_from_the_record_one_stratum_at_a_t
             assert result.exit_code == 0, result.output
             published = docs / f"judge-calibration-{judge}{suffix}-rubric-v2.md"
             assert out.read_bytes() == published.read_bytes(), published.name
+    # And under the current rubric, v3: every judge on the strata it was read on.
+    current = [
+        (j, st) for j in ("google-judge-mid", "openai-judge-small") for st in ("core", "multipart")
+    ] + [(j, "multipart") for j in ("google-judge-mid-thinking", "openai-judge-small-thinking")]
+    for judge, stratum in current:
+        suffix = "" if stratum == "core" else "-multipart"
+        out = tmp_path / f"v3-{judge}{suffix}.md"
+        args = ["judge", "calibrate", "--judge-key", judge, "--stratum", stratum]
+        result = CliRunner().invoke(cli.app, [*args, "--out", str(out)])
+        assert result.exit_code == 0, result.output
+        published = docs / f"judge-calibration-{judge}{suffix}.md"
+        assert out.read_bytes() == published.read_bytes(), published.name

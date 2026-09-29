@@ -226,7 +226,7 @@ def render_pr_comment(
             )
         out += [
             "",
-            "Faithfulness is not gated: no judge passed calibration on it (kappa 0.07 and 0.11",
+            "Faithfulness is not gated: no judge passed calibration on it (kappa 0.04 and 0.11",
             "against a floor of 0.6), and this gate does not grade with an instrument that has",
             "not been shown to work. A faithfulness regression needs a human reading.",
         ]

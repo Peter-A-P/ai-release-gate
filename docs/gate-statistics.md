@@ -224,9 +224,9 @@ zero, and the gate gets more lenient in exact proportion to how bad its judge is
 
 So `paired_difference` divides by that factor, and resamples *se* and *sp* from the calibration
 counts in every bootstrap draw, so the interval carries the calibration's own sampling error as
-well as the items'. For Gemini 3.8 Flash on completeness the factor is 0.89 (317 of 317 human
-passes agreed, 145 of 163 human failures): a true ten-point drop looks like 8.9, and is decided
-as ten. The power screen asks for the items needed to see the shrunk difference, not the full
+well as the items'. For Gemini 3.8 Flash on completeness the factor is 0.90 under rubric v3
+(317 of 317 human passes agreed, 147 of 163 human failures; 0.89 and 145 under v2): a true
+ten-point drop looks like 9.0, and is decided as ten. The power screen asks for the items needed to see the shrunk difference, not the full
 one. The assumption, stated wherever the figure appears, is that the judge errs the same way on
 both sides; a calibration over three answering models of different capability is the evidence
 for it, and it is an assumption rather than a measurement.
@@ -251,9 +251,12 @@ drawn from the same per-item propensities, so every block is a false one.
 
 | items differing between two runs | 3 pts | 5 pts | 8 pts | 10 pts |
 |---|---:|---:|---:|---:|
-| 3.9% | 70.8% | 39.8% | 7.0% | 2.2% |
-| 6.7% | 80.0% | 60.8% | 20.0% | 9.5% |
-| 11.6% | 86.0% | 72.2% | 42.5% | 26.5% |
+| 3.9% | 71.8% | 39.2% | 6.5% | 2.0% |
+| 6.7% | 79.2% | 61.0% | 18.8% | 8.8% |
+| 11.6% | 86.0% | 72.5% | 40.2% | 24.0% |
+
+Under rubric v3's judge counts (2026-09-29). Under v2's the ten-point column read 2.2%, 9.5% and
+26.5%. The judge is slightly better, so no conclusion below changes.
 
 At the gate's default three points an unchanged prompt is blocked about seven times in ten. Ten
 points is the smallest round margin that keeps the false-block rate near or under 5%, **and
