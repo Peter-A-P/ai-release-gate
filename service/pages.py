@@ -119,8 +119,8 @@ def table(headers: Sequence[str], rows: Iterable[Sequence[str]], *, wrap: int | 
     return f'<div class="scroll"><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>'
 
 
-def est(x: Estimate) -> str:
-    return e(x.compact())
+def est(x: Estimate, *, pct: bool = True) -> str:
+    return e(x.compact(pct))
 
 
 # ---------------------------------------------------------------------------- overview
@@ -476,8 +476,8 @@ def _judge_table(judges: dict[str, calib.Calibration]) -> str:
                     f"<code>{e(key)}</code>",
                     e(t.task),
                     status,
-                    est(t.kappa),
-                    est(t.alpha),
+                    est(t.kappa, pct=False),
+                    est(t.alpha, pct=False),
                     est(t.sensitivity),
                     est(t.specificity),
                     f"{t.raw_agreement:.1%}",

@@ -106,6 +106,9 @@ def test_judge_figures_are_the_published_calibration(client: TestClient) -> None
     mp_doc = ROOT / "docs" / "judge-calibration-google-judge-mid-multipart.md"
     assert "| Cohen's kappa | 0.447 (0.218 to 0.642) |" in mp_doc.read_text(encoding="utf-8")
     assert "On the multi-part questions" in client.get("/judge").text
+    # A kappa is not a share: printed as the report prints it, never as a percentage.
+    page = client.get("/judge").text
+    assert "0.924 (0.886 to 0.958)" in page and "92.4%" not in page
 
 
 def test_red_team_figures_are_the_reports(client: TestClient) -> None:

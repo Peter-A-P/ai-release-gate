@@ -40,7 +40,7 @@ class Estimate:
             return f"{point} ({self.lo:.1%} to {self.hi:.1%}, {self._units()})"
         return f"{point} ({self.lo:.3g} to {self.hi:.3g}, {self._units()})"
 
-    def compact(self) -> str:
+    def compact(self, pct: bool = True) -> str:
         """The same interval, short enough for a seven-column table to stay readable.
 
         The README table repeats a column's `n` on every row, where it is the same number
@@ -50,6 +50,12 @@ class Estimate:
         """
         if self.n == 0:
             return "n/a"
+        if not pct:
+            # For a statistic that is not a share, kappa and alpha, printed as the calibration
+            # reports print it. The dashboard showed kappa 0.924 as "92.4%" until 2026-09-29.
+            if self.interval_undefined:
+                return f"{self.point:.3f} (interval undefined: one cluster)"
+            return f"{self.point:.3f} ({self.lo:.3f} to {self.hi:.3f})"
         if self.interval_undefined:
             return f"{self.point:.1%} (interval undefined: one cluster)"
         return f"{self.point:.1%} ({self.lo * 100:.1f} to {self.hi * 100:.1f})"
