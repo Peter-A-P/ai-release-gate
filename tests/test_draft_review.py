@@ -97,10 +97,26 @@ def test_a_page_that_lost_a_question_is_offered_its_spare(
     assert "review done: 49 kept, 0 to change, 1 dropped, 1 spares brought in" in out
 
 
+def test_a_question_whose_points_alone_were_edited_comes_back_too() -> None:
+    fifty, spares = dr.drafts()
+    d = fifty[0]
+    old = dr.DraftReview(
+        key=dr.question_key(d.source_id, d.question, d.must_mention[:-1]),
+        source_id=d.source_id,
+        question=d.question,
+        decision="change",
+        note="drop the last point",
+        reviewed_utc="2026-09-29T00:00:00Z",
+    )
+    assert dr.tally(fifty, spares, dr.latest([old])).reviewed == 0
+
+
 def test_an_edited_question_comes_back_to_the_queue() -> None:
     fifty, spares = dr.drafts()
     stale = dr.DraftReview(
-        key=dr.question_key(fifty[0].source_id, fifty[0].question + " (edited)"),
+        key=dr.question_key(
+            fifty[0].source_id, fifty[0].question + " (edited)", fifty[0].must_mention
+        ),
         source_id=fifty[0].source_id,
         question=fifty[0].question + " (edited)",
         decision="keep",
@@ -117,4 +133,5 @@ def test_each_point_is_shown_in_the_fullest_sentence_holding_it() -> None:
     for d in dr.drafts()[0]:
         for point in d.must_mention:
             _, hit, _ = dr.context(g.by_source[d.source_id], point)
-            assert " ".join(hit.split()).casefold() == " ".join(point.split()).casefold()
+            phrase = gold.point_parts(point)[1]
+            assert " ".join(hit.split()).casefold() == " ".join(phrase.split()).casefold()

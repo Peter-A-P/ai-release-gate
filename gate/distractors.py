@@ -37,7 +37,7 @@ from collections.abc import Iterator, Sequence
 
 from drift.panel import Arm
 from gate.generate import Job
-from gate.gold import GoldQuestion, GoldSet, SourceDoc, normalised
+from gate.gold import GoldQuestion, GoldSet, SourceDoc, answer_in, normalised
 
 # How many of the answerable questions get a distractor. 60 of the 88 available, three models
 # each, so 180 instances. Sized against the labelling rather than the money: the calls cost
@@ -127,13 +127,12 @@ def candidates(question: GoldQuestion, sources: dict[str, SourceDoc]) -> list[So
     drawn from it would be faithful. Same normalisation as `check_question`, so the rule that
     admits a document here is the rule that validated the question in the first place.
     """
-    banned = [normalised(point) for point in question.must_mention]
     out = []
     for source in sorted(sources.values(), key=lambda d: d.id):
         if source.id == question.source_id:
             continue
         haystack = normalised(source.text)
-        if any(point in haystack for point in banned):
+        if any(answer_in(point, haystack) for point in question.must_mention):
             continue
         out.append(source)
     return out

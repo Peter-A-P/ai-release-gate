@@ -201,6 +201,21 @@ def test_an_unanswerable_question_whose_answer_is_in_the_source_is_caught() -> N
     assert problems and "it is answerable" in problems[0]
 
 
+def test_a_point_that_names_its_subject_needs_both_halves_in_the_passage() -> None:
+    doc = source(
+        text="If you're an additional cardholder, keep in mind:\nyou're not responsible " * 20
+    )
+    ok = question(must_mention=("additional cardholder: not responsible",))
+    assert gold.check_question(ok, doc) == []
+    wrong_subject = question(must_mention=("guarantor: not responsible",))
+    assert gold.check_question(wrong_subject, doc) == [
+        "expects 'guarantor: not responsible', which is not in fcac-001"
+    ]
+    assert gold.point_parts("no colon here") == ("", "no colon here")
+    # For a distractor, the answer is there whatever the subject says.
+    assert gold.answer_in("guarantor: not responsible", gold.normalised(doc.text))
+
+
 def test_the_match_is_whitespace_insensitive_and_case_insensitive() -> None:
     src = source(text="A refund\n  takes 15 BUSINESS days.")
     assert gold.check_question(question(1, must_mention=("15 business days",)), src) == []

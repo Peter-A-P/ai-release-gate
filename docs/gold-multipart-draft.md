@@ -25,7 +25,7 @@ What to look for:
 
 ## fcac-020: Cashing cheques and hold periods
 
-**q-201**. I'm depositing a cheque at an ATM tonight. When can I use the first $100 of it, and what is the longest the bank can hold the rest?
+**q-201**. I'm depositing a cheque at an ATM tonight. How much of it can I use before the rest clears, from when, and what is the longest the bank can hold the rest?
 
 - first $100
 - on the business day after the day of the deposit
@@ -85,6 +85,7 @@ What to look for:
 
 **q-206**. Where can I cash my Government of Canada cheque, will it cost me anything, and what single piece of ID would be enough?
 
+- any branch of a bank in Canada
 - for free
 - even if you're not a customer
 - signature and photograph
@@ -156,9 +157,9 @@ What to look for:
 
 **q-212**. Who is responsible for the balance: an additional cardholder, a co-borrower, or a guarantor?
 
-- not responsible for paying back any money owing
-- equally responsible for the balance
-- doesn't have access to the credit card account but is responsible for the balance
+- additional cardholder: not responsible for paying back any money owing
+- Co-borrowers have access to the credit card account and are equally responsible for the balance
+- A guarantor doesn't have access to the credit card account but is responsible for the balance
 
 *held back*. As the primary cardholder, what can I do about other people on my card, and what am I responsible for?
 
@@ -231,7 +232,7 @@ What to look for:
 **q-217**. I want to buy a $1.6 million home. What is the minimum down payment, could I still need mortgage loan insurance, and who would that insurance protect?
 
 - 20% of the purchase price
-- even if you have a 20% down payment
+- Your lender may require that you get mortgage loan insurance, even if you have a 20% down payment
 - protects the mortgage lender
 
 *held back*. I'm self-employed. Could that change the down payment I need, and where is that money normally expected to come from?
@@ -390,8 +391,8 @@ What to look for:
 
 **q-231**. How do common and preferred stock differ on voting, on dividends, and if the company goes bankrupt?
 
-- vote at shareholder meetings
-- usually don't have voting rights
+- Common stock entitles owners to vote at shareholder meetings
+- Preferred stockholders usually don't have voting rights
 - receive dividend payments before common stockholders
 - priority over common stockholders
 
@@ -411,9 +412,9 @@ What to look for:
 
 **q-233**. How do investment-grade and high-yield corporate bonds differ in rating, risk and interest?
 
-- higher credit rating, implying less credit risk
-- lower credit rating, implying higher credit risk
-- higher interest rates in return for the increased risk
+- Investment-grade: higher credit rating, implying less credit risk
+- High-yield: lower credit rating, implying higher credit risk
+- High-yield: higher interest rates in return for the increased risk
 
 ## sec-013: The role of the SEC
 
@@ -445,8 +446,8 @@ What to look for:
 
 - when they initially offer stocks or bonds
 - periodically
-- red flag
-- Scams often involve unregistered companies
+- If a company is not registered with the SEC, it could be a red flag
+- not registered with the SEC: Scams often involve unregistered companies
 
 ## sec-017: Affinity fraud
 
@@ -454,14 +455,14 @@ What to look for:
 
 - research the person's background
 - Never make an investment based solely on the recommendation
-- avoid putting things in writing
+- Fraudsters often avoid putting things in writing
 - Don't be pressured or rushed
 
 ## sec-018: Ponzi schemes
 
 **q-239**. Why do Ponzi schemes collapse, and which red flags about registration and payouts should I watch for?
 
-- constant flow of new money
+- require a constant flow of new money to survive
 - Unregistered investments
 - Unlicensed sellers
 - Difficulty receiving payments
@@ -498,7 +499,7 @@ What to look for:
 
 - single lump-sum payment or series of payments
 - beginning immediately or at some future date
-- surrender charges, taxes, and tax penalties
+- may subject you to surrender charges, taxes, and tax penalties
 
 *held back*. What happens if the insurance company behind my annuity gets into trouble, and who are annuities suitable for?
 

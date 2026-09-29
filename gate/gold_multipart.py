@@ -46,8 +46,8 @@ Q: list[tuple[str, str, tuple[str, ...]]] = [
     # ---------------------------------------------------------------- banking
     (
         "fcac-020",
-        "I'm depositing a cheque at an ATM tonight. When can I use the first $100 of it, and "
-        "what is the longest the bank can hold the rest?",
+        "I'm depositing a cheque at an ATM tonight. How much of it can I use before the rest "
+        "clears, from when, and what is the longest the bank can hold the rest?",
         ("first $100", "on the business day after the day of the deposit", "4 to 8 days"),
     ),
     (
@@ -107,7 +107,12 @@ Q: list[tuple[str, str, tuple[str, ...]]] = [
         "fcac-023",
         "Where can I cash my Government of Canada cheque, will it cost me anything, and what "
         "single piece of ID would be enough?",
-        ("for free", "even if you're not a customer", "signature and photograph"),
+        (
+            "any branch of a bank in Canada",
+            "for free",
+            "even if you're not a customer",
+            "signature and photograph",
+        ),
     ),
     (
         "fcac-023",
@@ -192,9 +197,11 @@ Q: list[tuple[str, str, tuple[str, ...]]] = [
         "Who is responsible for the balance: an additional cardholder, a co-borrower, or a "
         "guarantor?",
         (
-            "not responsible for paying back any money owing",
-            "equally responsible for the balance",
-            "doesn't have access to the credit card account but is responsible for the balance",
+            "additional cardholder: not responsible for paying back any money owing",
+            "Co-borrowers have access to the credit card account and are equally responsible for "
+            "the balance",
+            "A guarantor doesn't have access to the credit card account but is responsible for "
+            "the balance",
         ),
     ),
     (
@@ -285,7 +292,8 @@ Q: list[tuple[str, str, tuple[str, ...]]] = [
         "need mortgage loan insurance, and who would that insurance protect?",
         (
             "20% of the purchase price",
-            "even if you have a 20% down payment",
+            "Your lender may require that you get mortgage loan insurance, even if you have a 20% "
+            "down payment",
             "protects the mortgage lender",
         ),
     ),
@@ -483,8 +491,8 @@ Q: list[tuple[str, str, tuple[str, ...]]] = [
         "How do common and preferred stock differ on voting, on dividends, and if the company "
         "goes bankrupt?",
         (
-            "vote at shareholder meetings",
-            "usually don't have voting rights",
+            "Common stock entitles owners to vote at shareholder meetings",
+            "Preferred stockholders usually don't have voting rights",
             "receive dividend payments before common stockholders",
             "priority over common stockholders",
         ),
@@ -508,9 +516,9 @@ Q: list[tuple[str, str, tuple[str, ...]]] = [
         "How do investment-grade and high-yield corporate bonds differ in rating, risk and "
         "interest?",
         (
-            "higher credit rating, implying less credit risk",
-            "lower credit rating, implying higher credit risk",
-            "higher interest rates in return for the increased risk",
+            "Investment-grade: higher credit rating, implying less credit risk",
+            "High-yield: lower credit rating, implying higher credit risk",
+            "High-yield: higher interest rates in return for the increased risk",
         ),
     ),
     (
@@ -552,8 +560,8 @@ Q: list[tuple[str, str, tuple[str, ...]]] = [
         (
             "when they initially offer stocks or bonds",
             "periodically",
-            "red flag",
-            "Scams often involve unregistered companies",
+            "If a company is not registered with the SEC, it could be a red flag",
+            "not registered with the SEC: Scams often involve unregistered companies",
         ),
     ),
     (
@@ -562,7 +570,7 @@ Q: list[tuple[str, str, tuple[str, ...]]] = [
         (
             "research the person's background",
             "Never make an investment based solely on the recommendation",
-            "avoid putting things in writing",
+            "Fraudsters often avoid putting things in writing",
             "Don't be pressured or rushed",
         ),
     ),
@@ -571,7 +579,7 @@ Q: list[tuple[str, str, tuple[str, ...]]] = [
         "Why do Ponzi schemes collapse, and which red flags about registration and payouts "
         "should I watch for?",
         (
-            "constant flow of new money",
+            "require a constant flow of new money to survive",
             "Unregistered investments",
             "Unlicensed sellers",
             "Difficulty receiving payments",
@@ -616,7 +624,7 @@ Q: list[tuple[str, str, tuple[str, ...]]] = [
         (
             "single lump-sum payment or series of payments",
             "beginning immediately or at some future date",
-            "surrender charges, taxes, and tax penalties",
+            "may subject you to surrender charges, taxes, and tax penalties",
         ),
     ),
     (

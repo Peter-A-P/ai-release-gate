@@ -297,7 +297,7 @@ class GoldSet(BaseModel):
                 else:
                     haystack = normalised(sources[i.source_id].text)
                     for point in q.must_mention:
-                        if normalised(point) in haystack:
+                        if answer_in(point, haystack):
                             out.append(
                                 f"{i.id}: served {i.source_id} contains {point!r}, "
                                 "so it can answer the question and is not a distractor"
@@ -333,6 +333,31 @@ def normalised(text: str) -> str:
     return " ".join(text.split()).casefold()
 
 
+def point_parts(point: str) -> tuple[str, str]:
+    """(who, phrase) for a point written `who: phrase`, else ("", point).
+
+    Some points only mean something with their subject: "not responsible for paying back any
+    money owing" is true of an additional cardholder and false of a co-borrower, and the
+    passage says the two in different lines. So a point may name its subject before a colon,
+    and then both halves must be in the passage, each checked exactly as a whole point is.
+    Added 2026-09-29 from Peter's review of the multi-part draft; no point of the first hundred
+    contains a colon, so none of them reads differently.
+    """
+    who, sep, phrase = point.partition(": ")
+    return (who, phrase) if sep and who and phrase else ("", point)
+
+
+def point_in(point: str, haystack: str) -> bool:
+    """Every part of the point is in `haystack`, which is already `normalised`."""
+    return all(normalised(part) in haystack for part in point_parts(point) if part)
+
+
+def answer_in(point: str, haystack: str) -> bool:
+    """The point's phrase, without its subject, is in `haystack`. For deciding that a document
+    could answer the question, where a subject missing does not make the answer absent."""
+    return normalised(point_parts(point)[1]) in haystack
+
+
 def check_question(question: GoldQuestion, source: SourceDoc) -> list[str]:
     """A question is well written when its `must_mention` points can be checked against the
     document it names. Two failures worth catching before a single call is paid for:
@@ -351,8 +376,8 @@ def check_question(question: GoldQuestion, source: SourceDoc) -> list[str]:
     problems: list[str] = []
     haystack = normalised(source.text)
     for point in question.must_mention:
-        present = normalised(point) in haystack
-        if question.unanswerable and present:
+        present = point_in(point, haystack)
+        if question.unanswerable and answer_in(point, haystack):
             problems.append(
                 f"marked unanswerable, but {point!r} is in {source.id}; it is answerable"
             )

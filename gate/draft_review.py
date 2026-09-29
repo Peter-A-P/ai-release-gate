@@ -9,7 +9,7 @@ can be answered without opening the page. The decisions go to
 wins. That lets `b` (back) correct a slip without erasing anything, the same rule the gold
 labels follow.
 
-A decision carries the hash of the question it was about. If the question is edited afterwards,
+A decision carries the hash of the question and its points. If either is edited afterwards,
 the old decision no longer matches and the question comes back to the queue. That is the same
 rule as a label carrying the hash of the answer it read.
 
@@ -47,8 +47,12 @@ class DraftReview(BaseModel):
     reviewed_utc: str
 
 
-def question_key(source_id: str, question: str) -> str:
-    return hashlib.sha256(f"{source_id}\n{question}".encode()).hexdigest()[:16]
+def question_key(source_id: str, question: str, must_mention: Sequence[str]) -> str:
+    """What was reviewed: the page, the question and its points. Editing any of them makes a
+    new key, so the question comes back to the queue by itself. Until 2026-09-29 the points were
+    left out, and ten questions changed only in their points would have stayed marked done."""
+    text = "\n".join([source_id, question, *must_mention])
+    return hashlib.sha256(text.encode()).hexdigest()[:16]
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,7 +73,7 @@ def drafts() -> tuple[list[Draft], list[Draft]]:
     spares: list[Draft] = []
     for source_id, text, must in gold_multipart.Q:
         qid = kept.get((source_id, text))
-        d = Draft(question_key(source_id, text), qid, source_id, text, tuple(must))
+        d = Draft(question_key(source_id, text, must), qid, source_id, text, tuple(must))
         (fifty if qid else spares).append(d)
     return fifty, spares
 
@@ -113,7 +117,8 @@ def context(source: gold.SourceDoc, point: str, *, width: int = 110) -> tuple[st
     """The passage line holding `point`, as (before, the point, after), cut to about `width`
     characters on each side. Context for a reviewer, not evidence for a label: the whole
     passage is one key away."""
-    pat = _pattern(point)
+    # A `who: phrase` point is shown at its phrase; the subject is on the line above it.
+    pat = _pattern(gold.point_parts(point)[1])
     # The longest line holding the point: a heading repeats a phrase with nothing around it,
     # and the sentence under it is the context a reviewer needs.
     lines = sorted((ln for ln in source.text.splitlines() if pat.search(ln)), key=len, reverse=True)
@@ -128,7 +133,11 @@ def context(source: gold.SourceDoc, point: str, *, width: int = 110) -> tuple[st
             after = after[:width].rsplit(" ", 1)[0] + "..."
         return before, hit, after
     # check_question guarantees the point is in the passage, but it may cross a line break.
-    return "", point, "  (spans two lines of the passage; press p to read it whole)"
+    return (
+        "",
+        gold.point_parts(point)[1],
+        "  (spans two lines of the passage; press p to read it whole)",
+    )
 
 
 @dataclass(frozen=True, slots=True)
