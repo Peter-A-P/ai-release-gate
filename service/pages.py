@@ -506,7 +506,11 @@ def judge_page(model: ReadModel) -> str:
         "<p>An LLM judge is used only where it has been shown to agree with a human. Each judge "
         "below was compared with 480 answers labelled by hand, blind to the model and to the "
         "judge. Below a kappa of 0.6 on a task the gate refuses to use that judge for it.</p>",
-        _judge_table(model.judges),
+        _judge_table(model.judges)
+        if model.judges
+        else "<p><strong>No judge has been calibrated under the current rubric yet.</strong> "
+        "A calibration holds only for the rubric it was measured under, and until one is "
+        "measured under this one the gate licenses no judge.</p>",
         '<p class="note">Raw agreement can look excellent on a lopsided set: when the human said '
         "yes 98% of the time, a judge that always says yes agrees 98%. The last column is raw "
         "agreement minus that, which is why a judge with 87% agreement can be refused.</p>",

@@ -491,6 +491,9 @@ def judge_calibrate(
     stratum: Annotated[
         str, typer.Option(help="core (the first hundred, the default) or multipart")
     ] = "core",
+    rubric: Annotated[
+        str, typer.Option(help="the rubric hash to read verdicts under; the current by default")
+    ] = "",
     seed: int = 0,
 ) -> None:
     """Kappa, alpha, sensitivity, specificity, self-agreement and order bias, from the record.
@@ -517,10 +520,19 @@ def judge_calibrate(
         typer.echo("--stratum is core or multipart", err=True)
         raise typer.Exit(2)
     ids = set(g.instance_ids_in("core" if stratum == "core" else "multipart"))
-    mine = [v for v in verdicts if v.judge_key == judge_key and v.instance_id in ids]
+    from gate.judge.rubric import rubric_hash
+
+    want = rubric or rubric_hash()
+    mine = [
+        v
+        for v in verdicts
+        if v.judge_key == judge_key and v.instance_id in ids and v.rubric_hash == want
+    ]
     if not mine:
         typer.echo(
-            f"no verdicts for {judge_key!r} on {stratum}; stored: {', '.join(keys)}", err=True
+            f"no verdicts for {judge_key!r} on {stratum} under rubric {want}; "
+            f"stored judges: {', '.join(keys)}",
+            err=True,
         )
         raise typer.Exit(2)
 

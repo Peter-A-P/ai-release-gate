@@ -26,6 +26,7 @@ from gate.judge.rubric import (
     JudgeVerdict,
     Position,
     judge_prompt,
+    rubric_hash,
     verdict_from_text,
 )
 
@@ -93,8 +94,18 @@ def plan(
             yield instance.id, 0, "answer_first"
 
 
-def already_done(verdicts: Iterable[JudgeVerdict], judge_key: str) -> set[tuple[str, int, str]]:
-    return {(v.instance_id, v.repeat, v.position) for v in verdicts if v.judge_key == judge_key}
+def already_done(
+    verdicts: Iterable[JudgeVerdict], judge_key: str, rubric: str | None = None
+) -> set[tuple[str, int, str]]:
+    """What this judge has read under `rubric` (the current one by default). A reading under an
+    older rubric is not a reading under this one: until 2026-09-29 this ignored the rubric, and
+    a run under v3 would have skipped all 1,500 readings made under v2."""
+    want = rubric or rubric_hash()
+    return {
+        (v.instance_id, v.repeat, v.position)
+        for v in verdicts
+        if v.judge_key == judge_key and v.rubric_hash == want
+    }
 
 
 def run(

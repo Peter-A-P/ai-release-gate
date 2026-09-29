@@ -265,17 +265,20 @@ def license_judge(
         ).items()
         if k in ids
     }
-    mine = [
+    ever = [
         v
         for v in read_verdicts(gold_root / "verdicts.jsonl")
         if v.judge_key == grader.judge and v.instance_id in ids
     ]
-    if not mine:
+    if not ever:
         raise ConfigError(f"judge {grader.judge!r} has never been calibrated")
-    hashes = {v.rubric_hash for v in mine}
-    if hashes != {rubric_hash()}:
+    # Only readings under the rubric the judge will grade with. Older ones stay in the record
+    # and in their reports, and license nothing.
+    mine = [v for v in ever if v.rubric_hash == rubric_hash()]
+    if not mine:
+        hashes = sorted({v.rubric_hash for v in ever})
         raise ConfigError(
-            f"judge {grader.judge!r} was calibrated under rubric {sorted(hashes)}, not the "
+            f"judge {grader.judge!r} was calibrated under rubric {hashes}, not the "
             f"current {rubric_hash()}; recalibrate before it grades anything"
         )
     budgets = {v.max_tokens for v in mine if v.max_tokens is not None}

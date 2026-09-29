@@ -90,20 +90,31 @@ def test_the_read_model_never_loads_answer_text(model: readmodel.ReadModel) -> N
     assert "output" not in columns and "normalised" not in columns
 
 
-def test_judge_figures_are_the_published_calibration(client: TestClient) -> None:
+def test_judge_figures_are_the_published_calibration(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # TEMPORARY, 2026-09-29, with the fixture in tests/test_gate_live.py: until the rubric v3
+    # readings are in, the page says no judge is calibrated under the current rubric, and the
+    # figures below are v2's. Remove once v3's are published.
+    assert "No judge has been calibrated under the current rubric yet" in client.get("/judge").text
+    monkeypatch.setattr(readmodel, "rubric_hash", lambda: "77b302b24013dbf3")
+    v2 = readmodel.build(ROOT)
+    client = TestClient(service_app.create_app(ROOT, builder=lambda _root: v2))
     judges = client.get("/api/judge").json()
     google = judges["google-judge-mid"]
     assert round(google["complete"]["kappa"]["point"], 3) == 0.914
     assert google["complete"]["usable"] is True
     assert round(google["faithful"]["kappa"]["point"], 3) == 0.108
     assert google["faithful"]["usable"] is False
-    doc = (ROOT / "docs" / "judge-calibration-google-judge-mid.md").read_text(encoding="utf-8")
+    doc = (ROOT / "docs" / "judge-calibration-google-judge-mid-rubric-v2.md").read_text(
+        encoding="utf-8"
+    )
     assert "| Cohen's kappa | 0.914 (0.875 to 0.950) |" in doc
     # The multi-part stratum is its own figure, on its own page section and data file, and the
     # published one above does not absorb it.
     mp = client.get("/data/judge-multipart.json").json()["google-judge-mid"]["complete"]
     assert round(mp["kappa"]["point"], 3) == 0.313 and mp["usable"] is False
-    mp_doc = ROOT / "docs" / "judge-calibration-google-judge-mid-multipart.md"
+    mp_doc = ROOT / "docs" / "judge-calibration-google-judge-mid-multipart-rubric-v2.md"
     assert "| Cohen's kappa | 0.313 (0.106 to 0.511) |" in mp_doc.read_text(encoding="utf-8")
     assert "On the multi-part questions" in client.get("/judge").text
 

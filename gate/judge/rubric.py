@@ -34,7 +34,14 @@ from gate.gold import TASKS, AnswerInstance, GoldQuestion, SourceDoc, Task
 # 2 (2026-09-22): the completeness rule for a refusal matched to the human rubric, which keys
 # it off whether the question was written unanswerable; arithmetic on figures the question
 # gives made explicit. No verdict had been stored under 1.
-RUBRIC_VERSION = "2"
+# 3 (2026-09-29): two of the human rubric's five reasons to say an answer is not complete had
+# never been in the prompt: an answer so vague a reader still does not know, and one that
+# covers only part of what was asked when the missing part is the substance. Invisible on the
+# first hundred, which mostly ask for one thing; decisive on the multi-part fifty, where the
+# judge passed 19 of the 25 short answers Peter marked incomplete. Ported word for word, and
+# committed before any verdict was read under it. The human rubric did not change, so no label
+# is re-read. Every verdict under 2 stays in the record, and so do its reports (*-rubric-v2.md).
+RUBRIC_VERSION = "3"
 
 # Shown under the question when it was written unanswerable. The labelling pass prints the
 # same line, and a test holds the two to one string.
@@ -59,6 +66,9 @@ FAITHFUL means every factual claim in the answer is supported by the source docu
 COMPLETE means the answer addresses the question that was asked.
   - An answer that covers the substance of the question is complete even if it is brief.
   - An answer that refuses, or that answers a different question, is not complete.
+  - An answer so vague that a reader still does not know the answer is not complete.
+  - An answer that covers only part of what was asked is not complete when the missing part
+    is the substance rather than a detail.
   - An answer that says the document does not cover the question is COMPLETE only when the
     question is marked below as not answerable from this document. Otherwise the question
     has a real answer, and saying the document does not cover it leaves it unanswered: not

@@ -180,6 +180,38 @@ def test_the_prompt_and_the_document_agree_on_the_rules_that_matter() -> None:
     assert "refuses" in doc
 
 
+def test_every_reason_the_rubric_gives_for_incomplete_is_in_the_prompt() -> None:
+    """The spot check above passed for a week while two of the rubric's five reasons to say
+    "not complete" were missing from the prompt, found on 2026-09-29 when the multi-part stratum
+    made them decisive. So this maps every "Say no" bullet of Judgement 2 to its line in the
+    prompt, and counts the bullets: a reason added to the rubric without a counterpart fails."""
+    text = RUBRIC_DOC.read_text(encoding="utf-8")
+    section = text.split("## Judgement 2: COMPLETE", 1)[1].split("Say **no** when:", 1)[1]
+    section = section.split("\n\n", 2)[1]  # the bullet list after the heading line
+    bullets = [" ".join(b.split()).lower() for b in section.split("\n- ") if b.strip()]
+    rules = " ".join(RULES.split()).lower()
+    counterpart = {
+        "the answer addresses a different question.": "answers a different question",
+        "the answer refuses, or says only that it cannot help.": "an answer that refuses",
+        "the answer is so vague that a reader still does not know the answer.": (
+            "so vague that a reader still does not know the answer is not complete"
+        ),
+        "the question is answerable from the source and the answer says it is not.": (
+            "saying the document does not cover it leaves it unanswered"
+        ),
+        "the answer covers only part of what was asked, and the missing part is the substance "
+        "rather than a detail.": (
+            "covers only part of what was asked is not complete when the missing part is the "
+            "substance rather than a detail"
+        ),
+    }
+    assert [b.removeprefix("- ") for b in bullets] == list(counterpart), (
+        "the rubric's reasons changed; map the new one to the prompt"
+    )
+    for reason, line in counterpart.items():
+        assert line in rules, f"the prompt lost: {reason}"
+
+
 def test_the_judge_and_the_human_apply_one_completeness_rule_to_a_refusal() -> None:
     """The drift this exists for was found on 2026-09-22, after 480 labels and before any judge
     call. The prompt said a refusal is complete "when the document indeed does not" cover the

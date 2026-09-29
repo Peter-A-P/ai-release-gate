@@ -26,6 +26,7 @@ from gate import gold
 from gate import ledger as gate_ledger
 from gate.judge import calibration as calib
 from gate.judge import runner as judge_runner
+from gate.judge.rubric import rubric_hash
 from gate.redteam import report as rt_report
 from gate.redteam import run as rt_run
 from gate.redteam import suite as rt_suite
@@ -127,10 +128,12 @@ def _judges(root: Path, seed: int, stratum: gold.Stratum = "core") -> dict[str, 
         ).items()
         if k in ids
     }
+    # Under the current rubric only, the one a judge is licensed under.
+    current = rubric_hash()
     verdicts = [
         v
         for v in judge_runner.read_verdicts(gold_root / judge_runner.VERDICTS_FILE)
-        if v.instance_id in ids
+        if v.instance_id in ids and v.rubric_hash == current
     ]
     if not labels:
         return {}

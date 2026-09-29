@@ -99,6 +99,15 @@ def run(base: Path, cand: Path, tmp: Path, *extra: str) -> tuple[int, str]:
 FLAG = cli.VENDOR_FLAG
 
 
+@pytest.fixture(autouse=True)
+def _licensed_under_rubric_v2(monkeypatch: pytest.MonkeyPatch) -> None:
+    """TEMPORARY, 2026-09-29. These tests exercise the gate's flow against the real calibration
+    record, and the record's only licence is under rubric v2: rubric v3 was committed before any
+    judge had read under it. Remove this once the v3 readings are in, and the figures below
+    become v3's."""
+    monkeypatch.setattr(live, "rubric_hash", lambda: "77b302b24013dbf3")
+
+
 def test_a_regression_is_blocked_and_the_comment_says_why(
     tmp_path: Path, vendor: FakeVendor
 ) -> None:

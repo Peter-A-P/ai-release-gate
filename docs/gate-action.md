@@ -185,3 +185,36 @@ Not done, deliberately:
 
 The next honest step is a stronger judge, calibrated against the same 150 labels, and licensed
 for this stratum only if it clears the floor.
+
+### Rubric v3: the judge was never told two of the rubric's rules (found 2026-09-29)
+
+Reading the judge's prompt beside `docs/judge-rubric.md` after the refusal above showed the real
+cause. The rubric gives five reasons to say an answer is not complete. The prompt carried three,
+and was missing:
+- "The answer is so vague that a reader still does not know the answer."
+- "The answer covers only part of what was asked, and the missing part is the substance rather
+  than a detail."
+
+The second is the rule Peter labelled the short answers by, and the judge was never given it.
+All it was told was that a brief answer can be complete. So the two were applying different
+standards, and kappa 0.313 measured the gap between the standards, not the judge. This is the
+same failure as rubric v2 on 2026-09-22, in another clause. The spot-check test passed both
+times because it never looked at these lines. Two judges allowed to think changed nothing
+(0.313 and 0.324), which fits: thinking harder about the wrong standard is still the wrong
+standard.
+
+**The fix, fixed in advance.**
+- Rubric v3 ports the two missing reasons into the prompt, word for word. It adds nothing else
+  and reinterprets nothing. The human rubric is unchanged, so no label is re-read.
+- A new test maps each of the rubric's five reasons to its line in the prompt, and fails when a
+  reason is added without one.
+- This was committed and pushed before any judge read anything under v3.
+- The v2 readings and their four reports stay in the record, as `*-rubric-v2.md`.
+
+**Published whatever it shows.** Under v3 every judge is recalibrated from scratch, on the first
+hundred and on the multi-part fifty, against the same labels.
+- If the demo's judge falls below 0.6 on the first hundred, the demo's gate loses its licence,
+  and that is reported as the result.
+- If a judge clears 0.6 on the multi-part stratum, the false-block study and #3's re-run go
+  ahead on it.
+- If none does, the finding stands as written above.

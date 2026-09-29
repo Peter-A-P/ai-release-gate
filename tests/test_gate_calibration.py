@@ -27,6 +27,8 @@ from gate.judge.calibration import (
 from gate.judge.rubric import JudgeVerdict, parse_verdict, rubric_hash
 from tests.test_gate_gold import label
 
+RUBRIC_V2 = "77b302b24013dbf3"
+
 
 def verdict(
     instance_id: str,
@@ -313,7 +315,8 @@ def test_every_published_calibration_rebuilds_from_the_record_one_stratum_at_a_t
     tmp_path: Path,
 ) -> None:
     """The core reports were published on 480 labels and must not absorb the multi-part 150;
-    the multi-part reports are their own documents. All four regenerate byte for byte."""
+    the multi-part reports are their own documents. Each regenerates byte for byte under the
+    rubric it was measured under: v2's are kept as *-rubric-v2.md now that v3 is current."""
     from typer.testing import CliRunner
 
     import gate.cli as cli
@@ -331,10 +334,12 @@ def test_every_published_calibration_rebuilds_from_the_record_one_stratum_at_a_t
                     judge,
                     "--stratum",
                     stratum,
+                    "--rubric",
+                    RUBRIC_V2,
                     "--out",
                     str(out),
                 ],
             )
             assert result.exit_code == 0, result.output
-            published = docs / f"judge-calibration-{judge}{suffix}.md"
+            published = docs / f"judge-calibration-{judge}{suffix}-rubric-v2.md"
             assert out.read_bytes() == published.read_bytes(), published.name
