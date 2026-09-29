@@ -99,6 +99,13 @@ def test_judge_figures_are_the_published_calibration(client: TestClient) -> None
     assert google["faithful"]["usable"] is False
     doc = (ROOT / "docs" / "judge-calibration-google-judge-mid.md").read_text(encoding="utf-8")
     assert "| Cohen's kappa | 0.914 (0.875 to 0.950) |" in doc
+    # The multi-part stratum is its own figure, on its own page section and data file, and the
+    # published one above does not absorb it.
+    mp = client.get("/data/judge-multipart.json").json()["google-judge-mid"]["complete"]
+    assert round(mp["kappa"]["point"], 3) == 0.313 and mp["usable"] is False
+    mp_doc = ROOT / "docs" / "judge-calibration-google-judge-mid-multipart.md"
+    assert "| Cohen's kappa | 0.313 (0.106 to 0.511) |" in mp_doc.read_text(encoding="utf-8")
+    assert "On the multi-part questions" in client.get("/judge").text
 
 
 def test_red_team_figures_are_the_reports(client: TestClient) -> None:

@@ -316,7 +316,7 @@ def test_the_demo_repository_config_loads_and_its_judge_is_licensed() -> None:
     assert round(lic.calibration.kappa.point, 3) == 0.914
 
 
-def test_a_multipart_suite_asks_only_its_fifty_and_a_judge_without_labels_there_is_refused(
+def test_a_multipart_suite_asks_only_its_fifty_and_its_judge_is_licensed_on_it_alone(
     vendor: FakeVendor,
 ) -> None:
     from drift.panel import load_panel
@@ -344,6 +344,7 @@ def test_a_multipart_suite_asks_only_its_fifty_and_a_judge_without_labels_there_
         spend=live.Spend(),
     )
     assert set(result.answers) == {q.id for q in g.questions_in("multipart")}
-    # No multi-part answer has a verdict or a label yet, so nothing licenses a judge there.
-    with pytest.raises(live.ConfigError, match="never been calibrated"):
+    # Calibrated on the multi-part stratum's own 150 labels on 2026-09-29, the same judge that
+    # clears 0.914 on the first hundred is refused here: kappa 0.313.
+    with pytest.raises(live.ConfigError, match=r"refused for complete: kappa 0\.313"):
         live.license_judge(suite.grader, judges, cli.GOLD, stratum="multipart")

@@ -1318,7 +1318,9 @@ suite, which is the first real test of the reuse claim.
   - Peter reviewed them with `gate gold review-draft`: all 50 kept, ten changed on his notes. They are in `questions.jsonl` as stratum `multipart`, and nothing measured on the first hundred moved (commit 7670a68).
   - 150 answers were generated, i-0301 to i-0450, for US$0.22. One of each three was written under #3's one-sentence limit, round the panel.
   - Both judges read them once each, for US$0.25. The verdicts are withheld from Peter until his labels are in, because the labelling is blind.
-  - Left: Peter labels the 150; then recalibration on this stratum alone, the false-block study on the new suite, and #3 re-run on it.
+  - **Labelled and calibrated 2026-09-29.** By Peter's hand, 99 of the 100 ordinary answers are complete and 25 of the 50 one-sentence answers are, so the suite can see the regression #3 makes.
+  - **No judge can grade it.** Gemini 3.8 Flash scores kappa 0.313 (0.106 to 0.511) on this stratum's completeness, against 0.914 on the first hundred's, and is refused: it found 6 of the 25 incomplete short answers. GPT-5.4 mini scores 0.121. The literal phrase check scores 0.077.
+  - The false-block study and #3's re-run need a licensed judge, so both wait. The rubric is not revised. Next: a stronger judge calibrated on the same labels (`docs/gate-action.md`).
 
 Still not met |
 | 5 | Red-team suites and Presidio grader; refusal classifier calibrated | Four suites reporting with intervals. **Done 2026-09-25**: 700 items frozen at `3d0526feb9f4763b` (planted-value matching in place of Presidio, B7), run on four models for US$2.27, all four reporting with Jeffreys intervals in [`docs/redteam.md`](docs/redteam.md). The classifier's hand labels on these answers were declined on 2026-09-25, so it is not calibrated on them; the jailbreak rates are upper bounds and say so |
@@ -1368,6 +1370,10 @@ Well inside the line. Actual invoices go next to the estimate in the portfolio's
 
 1. **Uncalibrated judge percentages.** Report the raw judge pass rate next to the
    corrected one on the same runs; the expected gap of several points is the argument.
+   **A second form of it, measured 2026-09-29: a calibration carried to another kind of
+   question.** The same judge, the same rubric: kappa 0.914 on one-fact questions, 0.313 on
+   multi-part ones, where it passes three quarters of the incomplete answers. Licensing per
+   stratum is what refuses it (`docs/gate-action.md`).
 2. **Gating on the point estimate.** Run the A/A study with a "block if candidate is
    lower" rule; expected false-block rate near 50%, against under 5% for the interval
    rule. **Measured 2026-09-19: 75.8% (70.3 to 81.2) over 256 A/A pairs, against 7.0%

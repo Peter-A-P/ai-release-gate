@@ -138,3 +138,50 @@ until it came out as expected, the same error as tuning a rubric. #6 stays open,
 merged, as the record. A block that means something comes from the suite that brevity can fail
 (`gate/gold_multipart.py`, a draft under review), with #3 re-run on it. Until then the block path
 is exercised only by the tests, end to end on a fake vendor (`tests/test_gate_live.py`).
+
+## The multi-part stratum: the suite can see brevity, the judge cannot (2026-09-29)
+
+#3 passed because the 100 questions left no room: a one-sentence answer states the one fact most
+of them ask for. So 50 questions were written that each ask for two or three things
+(`gate/gold_multipart.py`), and Peter reviewed them. Three models answered each one, 150 answers:
+two under the gold set's ordinary prompt, and one under #3's one-sentence limit. Peter labelled
+all 150 blind, and both judges read them.
+
+**By Peter's reading, the suite does what it was built for:**
+
+| Multi-part answers | Complete, by hand |
+|---|---|
+| 100 under the ordinary prompt | 99 (99%) |
+| 50 under the one-sentence limit | 25 (50%) |
+
+That is a drop of about 49 points, from exactly the change #3 made. A ten-point margin would
+block it with room to spare, if the suite could be graded.
+
+**It cannot, with either judge.** The gate's judge, Gemini 3.8 Flash, has a kappa of 0.914 on the
+first hundred's completeness. Here it is 0.313 (0.106 to 0.511): refused, below the 0.6 floor.
+It found 6 of the 25 short answers Peter marked incomplete, a specificity of 23.1% (7.7 to
+38.5), and called nearly everything else complete. GPT-5.4 mini is worse, at 0.121. Both are in
+`docs/judge-calibration-*-multipart.md`, beside the first hundred's reports, which are unchanged.
+The judge's reading on this stratum is no licence to grade it, so `gate check` refuses a suite
+on it. That refusal is the rule working, not a fault.
+
+A literal check, "complete when every expected phrase is in the answer", fails the other way
+round. It catches all 26 incomplete answers but calls 100 of the 124 complete ones incomplete,
+because a paraphrase is not the phrase (kappa 0.077). That is the second time the rubric's
+"`must_mention` is a checklist, not a scoring rule" has been the right call (#6 was the first).
+
+What this says about the gate: **a judge calibrated on one kind of question is not calibrated on
+another.** 0.914 on questions that ask for one fact said nothing about questions that ask for
+three. Had the licence been carried across, the gate would have run the new suite, taken the
+judge's near-100% for both sides, and passed #3 again. It would then have looked like a measured
+result, one built on an instrument that sees a quarter of the failures. Licensing per stratum is
+what stopped that.
+
+Not done, deliberately:
+- **The rubric was not changed.** The judge disagreeing with Peter is the finding, not a prompt
+  to reword the standard until it agrees.
+- **No false-block study or re-run of #3 on the new suite.** Both need a licensed judge, and
+  there is none.
+
+The next honest step is a stronger judge, calibrated against the same 150 labels, and licensed
+for this stratum only if it clears the floor.

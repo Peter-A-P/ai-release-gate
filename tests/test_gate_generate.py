@@ -192,7 +192,10 @@ def test_the_real_plan_keeps_every_existing_id_and_adds_the_multipart_answers() 
     arms = load_panel(SPECS / "gold-answers.yaml").arms
     jobs = list(generate.plan(g.questions, g.by_source, arms))
     stored = {i.id: i for i in g.instances if i.id.startswith("i-")}
-    assert len(stored) == 300
+    assert len(stored) == 450
+    for j in jobs:
+        i = stored[j.instance_id]
+        assert (i.question_id, i.arm_key, i.variant) == (j.question.id, j.arm.key, j.variant)
     for j in jobs[:300]:
         i = stored[j.instance_id]
         assert (i.question_id, i.arm_key) == (j.question.id, j.arm.key)

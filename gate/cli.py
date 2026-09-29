@@ -488,9 +488,16 @@ def judge_calibrate(
     judge_key: Annotated[str, typer.Option(help="which judge's verdicts to read")] = "",
     out: Annotated[Path | None, typer.Option(help="write docs/judge-calibration.md here")] = None,
     write_doc: Annotated[bool, typer.Option(help="write docs/judge-calibration.md")] = False,
+    stratum: Annotated[
+        str, typer.Option(help="core (the first hundred, the default) or multipart")
+    ] = "core",
     seed: int = 0,
 ) -> None:
     """Kappa, alpha, sensitivity, specificity, self-agreement and order bias, from the record.
+
+    On one stratum of the gold set at a time, the one a suite would be licensed on. The default
+    is the first hundred, so the published reports rebuild as they were before the multi-part
+    stratum existed.
 
     Offline. Reads the stored verdicts and the human labels and computes everything B4 asks
     for; a judge run once can be re-analysed as often as you like for nothing.
@@ -506,14 +513,24 @@ def judge_calibrate(
             typer.echo(f"--judge-key is one of: {', '.join(keys)}", err=True)
             raise typer.Exit(2)
         judge_key = keys[0]
-    mine = [v for v in verdicts if v.judge_key == judge_key]
+    if stratum not in ("core", "multipart"):
+        typer.echo("--stratum is core or multipart", err=True)
+        raise typer.Exit(2)
+    ids = set(g.instance_ids_in("core" if stratum == "core" else "multipart"))
+    mine = [v for v in verdicts if v.judge_key == judge_key and v.instance_id in ids]
     if not mine:
-        typer.echo(f"no verdicts for {judge_key!r}; stored judges: {', '.join(keys)}", err=True)
+        typer.echo(
+            f"no verdicts for {judge_key!r} on {stratum}; stored: {', '.join(keys)}", err=True
+        )
         raise typer.Exit(2)
 
-    labels = gold.usable_labels(
-        gold.latest_labels(gold.read_labels(GOLD / gold.LABELS_FILE), pass_no=1), g.by_instance
-    )
+    labels = {
+        k: v
+        for k, v in gold.usable_labels(
+            gold.latest_labels(gold.read_labels(GOLD / gold.LABELS_FILE), pass_no=1), g.by_instance
+        ).items()
+        if k in ids
+    }
     if not labels:
         typer.echo("no usable human labels yet; `gate gold label` comes first", err=True)
         raise typer.Exit(2)
@@ -521,7 +538,9 @@ def judge_calibrate(
     c = calib.calibrate(labels, mine, judge_key=judge_key, lengths=lengths, seed=seed)
     typer.echo(judge_report.render_summary(c))
     if write_doc or out is not None:
-        text = judge_report.render(c, gold_instances=len(g.instances), labelled=len(labels))
+        text = judge_report.render(
+            c, gold_instances=len(ids), labelled=len(labels), stratum=stratum
+        )
         target = out if out is not None else DOCS / "judge-calibration.md"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8", newline="\n")

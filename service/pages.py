@@ -11,6 +11,7 @@ from html import escape
 
 from drift.analysis.metrics import ArmMetrics, drift_declared, month_over_month
 from drift.analysis.stats import Estimate
+from gate.judge import calibration as calib
 from gate.redteam.suite import FAILURE, SUITES
 from service.readmodel import ReadModel, Run
 
@@ -461,15 +462,9 @@ def _difference(d: float | None, lo: float | None, hi: float | None) -> str:
 # ---------------------------------------------------------------------------- judge
 
 
-def judge_page(model: ReadModel) -> str:
-    parts = [
-        "<h1>Judge calibration</h1>",
-        "<p>An LLM judge is used only where it has been shown to agree with a human. Each judge "
-        "below was compared with 480 answers labelled by hand, blind to the model and to the "
-        "judge. Below a kappa of 0.6 on a task the gate refuses to use that judge for it.</p>",
-    ]
+def _judge_table(judges: dict[str, calib.Calibration]) -> str:
     rows = []
-    for key, c in sorted(model.judges.items()):
+    for key, c in sorted(judges.items()):
         for t in c.tasks:
             status = (
                 '<span class="pass">licensed</span>'
@@ -489,27 +484,42 @@ def judge_page(model: ReadModel) -> str:
                     f"{t.informative:+.1%}",
                 ]
             )
-    parts.append(
-        table(
-            [
-                "Judge",
-                "Task",
-                "Status",
-                "Cohen's kappa",
-                "Krippendorff's alpha",
-                "Sensitivity",
-                "Specificity",
-                "Raw agreement",
-                "Above saying the majority",
-            ],
-            rows,
-        )
+    return table(
+        [
+            "Judge",
+            "Task",
+            "Status",
+            "Cohen's kappa",
+            "Krippendorff's alpha",
+            "Sensitivity",
+            "Specificity",
+            "Raw agreement",
+            "Above saying the majority",
+        ],
+        rows,
     )
-    parts.append(
+
+
+def judge_page(model: ReadModel) -> str:
+    parts = [
+        "<h1>Judge calibration</h1>",
+        "<p>An LLM judge is used only where it has been shown to agree with a human. Each judge "
+        "below was compared with 480 answers labelled by hand, blind to the model and to the "
+        "judge. Below a kappa of 0.6 on a task the gate refuses to use that judge for it.</p>",
+        _judge_table(model.judges),
         '<p class="note">Raw agreement can look excellent on a lopsided set: when the human said '
         "yes 98% of the time, a judge that always says yes agrees 98%. The last column is raw "
-        "agreement minus that, which is why a judge with 87% agreement can be refused.</p>"
-    )
+        "agreement minus that, which is why a judge with 87% agreement can be refused.</p>",
+    ]
+    if model.judges_multipart:
+        parts += [
+            "<h2>On the multi-part questions</h2>",
+            "<p>Fifty questions that each ask for two or three things, so that a short answer "
+            "can fail; 150 answers, one of each three written under a one-sentence limit, "
+            "labelled by hand the same way. A judge is licensed on each set separately, because "
+            "agreement on one kind of question says nothing about another.</p>",
+            _judge_table(model.judges_multipart),
+        ]
     return "\n".join(parts)
 
 

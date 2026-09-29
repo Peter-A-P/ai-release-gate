@@ -22,6 +22,7 @@ from fastapi import FastAPI
 from fastapi.responses import Response
 
 from drift.analysis.stats import Estimate
+from gate.judge import calibration as calib
 from gate.redteam.suite import SUITES
 from service import pages
 from service.readmodel import Holder, ReadModel, build
@@ -72,7 +73,7 @@ def drift_json(m: ReadModel) -> dict[str, Any]:
     }
 
 
-def judge_json(m: ReadModel) -> dict[str, Any]:
+def _judges_json(judges: dict[str, calib.Calibration]) -> dict[str, Any]:
     return {
         key: {
             t.task: {
@@ -86,8 +87,18 @@ def judge_json(m: ReadModel) -> dict[str, Any]:
             }
             for t in c.tasks
         }
-        for key, c in sorted(m.judges.items())
+        for key, c in sorted(judges.items())
     }
+
+
+def judge_json(m: ReadModel) -> dict[str, Any]:
+    """On the first hundred, as published."""
+    return _judges_json(m.judges)
+
+
+def judge_multipart_json(m: ReadModel) -> dict[str, Any]:
+    """On the multi-part stratum, licensed separately."""
+    return _judges_json(m.judges_multipart)
 
 
 def redteam_json(m: ReadModel) -> dict[str, Any]:
@@ -168,6 +179,9 @@ ROUTES: tuple[Route, ...] = (
     Route("/data/costs.json", "data/costs.json", JSON, _json(costs_json), ("/api/costs",)),
     Route("/data/gate.json", "data/gate.json", JSON, _json(gate_json), ("/api/gate",)),
     Route("/data/judge.json", "data/judge.json", JSON, _json(judge_json), ("/api/judge",)),
+    Route(
+        "/data/judge-multipart.json", "data/judge-multipart.json", JSON, _json(judge_multipart_json)
+    ),
     Route("/data/redteam.json", "data/redteam.json", JSON, _json(redteam_json), ("/api/redteam",)),
     Route("/data/build.json", "data/build.json", JSON, _json(build_json), ("/healthz",)),
 )

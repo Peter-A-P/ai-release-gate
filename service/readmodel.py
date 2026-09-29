@@ -69,7 +69,9 @@ class ReadModel:
     built_utc: str
     runs: list[Run]
     decisions: list[gate_ledger.GateRecord]
-    judges: dict[str, calib.Calibration]
+    judges: dict[str, calib.Calibration]  # on the first hundred, as published
+    # On the multi-part stratum alone, licensed separately (gate.live.license_judge).
+    judges_multipart: dict[str, calib.Calibration]
     redteam: dict[str, rt_report.Scored]  # run id -> scored
     redteam_suite_hash: str | None
     # The open-weights arm whose weights cannot change, read from drift/panel.yaml as the
@@ -108,17 +110,30 @@ def official_runs(runs_root: Path) -> list[str]:
     return [name for _, name in sorted(found)]
 
 
-def _judges(root: Path, seed: int) -> dict[str, calib.Calibration]:
-    """Every judge's calibration, computed exactly as `gate judge calibrate` computes it."""
+def _judges(root: Path, seed: int, stratum: gold.Stratum = "core") -> dict[str, calib.Calibration]:
+    """Every judge's calibration on one stratum, computed exactly as `gate judge calibrate
+    --stratum` computes it. Over every label at once it would be neither published figure: the
+    page read 0.844 for a judge published at 0.914 the day the multi-part labels arrived."""
     gold_root = root / "gate" / "gold"
     if not (gold_root / gold.LABELS_FILE).is_file():
         return {}
     g = gold.load(gold_root)
-    labels = gold.usable_labels(
-        gold.latest_labels(gold.read_labels(gold_root / gold.LABELS_FILE), pass_no=1),
-        g.by_instance,
-    )
-    verdicts = judge_runner.read_verdicts(gold_root / judge_runner.VERDICTS_FILE)
+    ids = set(g.instance_ids_in(stratum))
+    labels = {
+        k: v
+        for k, v in gold.usable_labels(
+            gold.latest_labels(gold.read_labels(gold_root / gold.LABELS_FILE), pass_no=1),
+            g.by_instance,
+        ).items()
+        if k in ids
+    }
+    verdicts = [
+        v
+        for v in judge_runner.read_verdicts(gold_root / judge_runner.VERDICTS_FILE)
+        if v.instance_id in ids
+    ]
+    if not labels:
+        return {}
     lengths = {i.id: len(i.output) for i in g.instances}
     out: dict[str, calib.Calibration] = {}
     for key in sorted({v.judge_key for v in verdicts}):
@@ -175,6 +190,7 @@ def build(root: Path, *, runs: Sequence[str] | None = None, seed: int = 0) -> Re
         runs=built,
         decisions=list(gate_ledger.read(root / "gate" / "runs" / gate_ledger.LEDGER_FILE)),
         judges=_judges(root, seed),
+        judges_multipart=_judges(root, seed, "multipart"),
         redteam=redteam,
         redteam_suite_hash=rt_hash,
         control_key=control.key if control is not None else None,

@@ -8,6 +8,7 @@ nobody can rely on to condemn a judge.
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 from drift.analysis.stats import Estimate
 from gate.judge.calibration import (
@@ -306,3 +307,34 @@ def test_a_judge_that_never_misses_is_still_reported_with_an_interval() -> None:
     assert cal.sensitivity.point == 1.0
     assert cal.sensitivity.lo < 0.995, "an interval with no width is a bare number"
     assert cal.specificity.lo < cal.specificity.point < cal.specificity.hi
+
+
+def test_every_published_calibration_rebuilds_from_the_record_one_stratum_at_a_time(
+    tmp_path: Path,
+) -> None:
+    """The core reports were published on 480 labels and must not absorb the multi-part 150;
+    the multi-part reports are their own documents. All four regenerate byte for byte."""
+    from typer.testing import CliRunner
+
+    import gate.cli as cli
+
+    docs = Path(__file__).resolve().parent.parent / "docs"
+    for judge in ("google-judge-mid", "openai-judge-small"):
+        for stratum, suffix in (("core", ""), ("multipart", "-multipart")):
+            out = tmp_path / f"{judge}{suffix}.md"
+            result = CliRunner().invoke(
+                cli.app,
+                [
+                    "judge",
+                    "calibrate",
+                    "--judge-key",
+                    judge,
+                    "--stratum",
+                    stratum,
+                    "--out",
+                    str(out),
+                ],
+            )
+            assert result.exit_code == 0, result.output
+            published = docs / f"judge-calibration-{judge}{suffix}.md"
+            assert out.read_bytes() == published.read_bytes(), published.name
