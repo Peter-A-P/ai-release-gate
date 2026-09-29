@@ -49,6 +49,10 @@ on:
         description: "for what=probe-models: comma separated provider/model identifiers"
         required: false
         default: ""
+      stratum:
+        description: "for what=judge: only this stratum's answers (core or multipart); empty for all"
+        required: false
+        default: ""
       run_id:
         description: "for what=answers: the run id stamped on new answers (multipart-1 for the multi-part stratum)"
         required: false
@@ -151,6 +155,7 @@ jobs:
           ARGS="$ARGS --repeats ${{ inputs.repeats }} --limit ${{ inputs.limit }}"
           ARGS="$ARGS --max-tokens ${{ inputs.max_tokens }}"
           if [ "${{ inputs.swap }}" = "true" ]; then ARGS="$ARGS --swap"; fi
+          if [ -n "${{ inputs.stratum }}" ]; then ARGS="$ARGS --stratum ${{ inputs.stratum }}"; fi
           uv run gate judge run $ARGS
 
       - name: Say what is there now

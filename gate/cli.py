@@ -830,6 +830,9 @@ def judge_run(
     max_tokens: Annotated[
         int, typer.Option(help="output budget; a thinking model needs room to think first")
     ] = 64,
+    stratum: Annotated[
+        str, typer.Option(help="only this stratum's answers (core or multipart); all by default")
+    ] = "",
 ) -> None:
     """Ask a judge about every gold instance and store what it said. Resumable.
 
@@ -863,8 +866,15 @@ def judge_run(
         max_tokens=max_tokens,
     )
     path = GOLD / judge_runner.VERDICTS_FILE
+    if stratum not in ("", "core", "multipart"):
+        typer.echo("--stratum is core or multipart", err=True)
+        raise typer.Exit(2)
+    # A judge tried on one stratum need not pay to read the other: a licence is per stratum.
+    wanted = (
+        None if not stratum else g.instance_ids_in("core" if stratum == "core" else "multipart")
+    )
     skip = judge_runner.already_done(judge_runner.read_verdicts(path), judge_key)
-    planned = len(list(judge_runner.plan(g, repeats=repeats, swap=swap)))
+    planned = len(list(judge_runner.plan(g, repeats=repeats, swap=swap, instance_ids=wanted)))
     typer.echo(f"{planned} readings planned, {len(skip)} already stored.")
 
     made = 0
@@ -900,6 +910,7 @@ def judge_run(
                 caller,  # type: ignore[arg-type]
                 repeats=repeats,
                 swap=swap,
+                instance_ids=wanted,
                 skip=skip,
                 on_verdict=lambda v: judge_runner.append_verdict(path, v),
             )

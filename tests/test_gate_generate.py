@@ -125,7 +125,14 @@ def test_the_shipped_panels_load_and_refuse_to_run_until_confirmed() -> None:
     answers = load_panel(SPECS / "gold-answers.yaml")
     judges = load_panel(SPECS / "gold-judges.yaml")
     assert len(answers.arms) == 3, "three models of different sizes (B4)"
-    assert len(judges.arms) == 2, "a small judge and a mid-tier one (B4)"
+    assert [a.key for a in judges.arms][:2] == ["openai-judge-small", "google-judge-mid"], (
+        "a small judge and a mid-tier one (B4)"
+    )
+    # And, since 2026-09-29, the same two allowed to think, each its own judge.
+    assert [a.key for a in judges.arms][2:] == [
+        "openai-judge-small-thinking",
+        "google-judge-mid-thinking",
+    ]
     assert answers.ready and judges.ready, (
         "a panel is ready only once every identifier is filled in and `chosen` is dated; both "
         "were confirmed against the vendors' own model lists on 2026-09-20, run 35529080046"

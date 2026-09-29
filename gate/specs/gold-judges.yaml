@@ -45,3 +45,27 @@ arms:
       generationConfig:
         thinkingConfig:
           thinkingLevel: low
+
+  # Added 2026-09-29, after both judges above were refused on the multi-part stratum (kappa
+  # 0.313 and 0.121 on completeness; docs/gate-action.md). The hypothesis these test is the
+  # cheapest one: the same two models, allowed to think. They are separate judges with their
+  # own keys, because a judge is its model, its settings and its budget together, and a
+  # calibration measured under one says nothing about another. Same vendors, same dated
+  # identifiers, already priced; a larger model would need a new price file, which would become
+  # the October drift run's too.
+  - key: openai-judge-small-thinking
+    provider: openai
+    model: gpt-5.4-mini-2026-03-17
+    arm: snapshot
+    family: judge-small
+    extra:
+      reasoning_effort: high
+  - key: google-judge-mid-thinking
+    provider: google
+    model: gemini-3.8-flash
+    arm: snapshot
+    family: judge-mid
+    extra:
+      generationConfig:
+        thinkingConfig:
+          thinkingLevel: high
