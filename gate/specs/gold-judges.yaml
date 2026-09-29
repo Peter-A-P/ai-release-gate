@@ -60,6 +60,11 @@ arms:
     family: judge-small
     extra:
       reasoning_effort: high
+    # With reasoning on, the gpt-5.4 family returns 400 "'temperature' does not support 0.0
+    # with this model. Only the default (1) value is supported" (run 36629946625). So this judge
+    # samples at the vendor's default rather than reading deterministically, which is a real
+    # difference from openai-judge-small and one more reason it is a separate judge.
+    omit: [temperature]
   - key: google-judge-mid-thinking
     provider: google
     model: gemini-3.8-flash
