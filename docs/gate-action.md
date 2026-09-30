@@ -246,3 +246,27 @@ from the record.
 
 What is left to try is a stronger model, one that needs a new dated price file. That file would
 then also be the monthly drift run's price list, so it waits until after the October 1 run.
+
+### A larger judge, committed before it is run (2026-09-30)
+
+Two judges were added to `gate/specs/gold-judges.yaml` before any call was made to either:
+
+| Judge | Identifier | Settings |
+|---|---|---|
+| `openai-judge-large` | `gpt-5.4-2026-03-05` | reasoning none, temperature 0, as GPT-5.4 mini |
+| `google-judge-large` | `gemini-3.1-pro-preview` | thinking low, as Gemini 3.8 Flash |
+
+- **The hypothesis** is the next cheapest one after thinking: a larger model. Size is the only
+  change, and each judge keeps its smaller sibling's settings.
+- **The bar is unchanged.** Each is calibrated from scratch on the same 150 multi-part labels,
+  under rubric v3, and needs kappa 0.6 on the stratum or it is refused. Both results are
+  published, whatever they are, as every judge's has been.
+- **A caveat on the Google judge.** Google offers no stable Pro model and no dated one, so it is
+  a preview identifier and can change under its name. If it is licensed, that licence is weaker
+  than the others and is quoted with that caveat.
+- **If one is licensed**, it grades the false-block study on the multi-part suite and the re-run
+  of #3 there. **If neither is**, the finding above stands as the project's result on multi-part
+  completeness, and what comes next is decided and written here then.
+- **Prices.** They are in `drift/config/prices/2026-10-01.yaml`, which carries every earlier rate
+  unchanged, and a test holds it to that. The file lands only after the October drift run has
+  committed.
