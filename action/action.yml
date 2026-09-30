@@ -71,6 +71,10 @@ runs:
           --work "$RUNNER_TEMP/gate-work" \
           --comment "$RUNNER_TEMP/gate-comment.md" \
           --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+          --record "$RUNNER_TEMP/gate-work/decision.jsonl" \
+          --repository "$GITHUB_REPOSITORY" \
+          --pull-request "${{ github.event.pull_request.number }}" \
+          --head-sha "${{ github.event.pull_request.head.sha }}" \
           --i-am-allowed-to-call-vendors
         echo "code=$?" >> "$GITHUB_OUTPUT"
 
@@ -95,9 +99,12 @@ runs:
           gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F "body=@$body" > /dev/null
         fi
 
-    # Every answer and every judge verdict, with the call ledger. The comment says a faithfulness
-    # regression needs a human reading, and without this there is nothing to read: the replies
-    # stayed on the runner. The raw store is boundary's, with every key header redacted, the same
+    # Every answer and every judge verdict, with the call ledger, and the decision as a ledger
+    # record (decision.jsonl). The comment says a faithfulness regression needs a human reading,
+    # and without this there is nothing to read: the replies stayed on the runner. The record is
+    # how the decision reaches the gate's committed ledger: the `ledger` workflow in
+    # ai-release-gate imports it from here, so the artifact is kept for the longest GitHub allows
+    # rather than 30 days, and a decision survives a harvest that misses a night or two. The raw store is boundary's, with every key header redacted, the same
     # store Part A commits for each drift run. `drift traces` reads the ledger the same way.
     - name: Keep the answers
       if: always()
@@ -106,7 +113,7 @@ runs:
         name: gate-answers-${{ github.run_id }}
         path: ${{ runner.temp }}/gate-work
         if-no-files-found: warn
-        retention-days: 30
+        retention-days: 90
 
     - name: Verdict
       shell: bash

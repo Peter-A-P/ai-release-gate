@@ -58,6 +58,29 @@ jobs:
         with: { gate-ref: <commit> }
 ```
 
+### Where the decision goes
+
+The comment is the verdict a reviewer reads; it is edited in place, so it holds only the latest
+one. Every decision is also written as a ledger record, `decision.jsonl` in the run's
+`gate-answers-<run id>` artifact, kept 90 days. The record holds:
+
+- both sides (model, settings and prompt hash), the spec, the graders and each judge's licence;
+- each suite's paired difference with its interval, and its verdict and reasons;
+- the occasion: repository, pull request, commit, run, and each side's accuracy with its
+  interval, calls, cost and latency.
+
+The occasion sits outside the record's id, so a re-run that decides the same thing is the same
+decision on another occasion. The `ledger` workflow here reads those artifacts nightly and
+appends each new record to `gate/runs/ledger.jsonl` with `gate ledger import`. That command
+refuses a record whose id does not match its content. The workflow then rebuilds, from the
+ledger alone:
+
+- `gate/reports/decisions.md`, every decision newest first;
+- `gate/reports/model-cards/`, one card per model and prompt the gate has measured.
+
+Runs before 2026-09-30 wrote no record. Their decisions (#1 to #8 on the demo) are in the pull
+requests' comments only, and they are not reconstructed.
+
 ## Cost
 
 Each side is 100 answers and 100 judgements. At the prices measured on the gold set, about

@@ -20,7 +20,7 @@ from typer.testing import CliRunner
 import gate.cli as cli
 from gate import gold, live
 from gate.judge.rubric import SYSTEM as JUDGE_SYSTEM
-from gate.judge.rubric import judge_prompt
+from gate.judge.rubric import judge_prompt, rubric_hash
 from gate.report import PR_MARKER
 
 CONFIG = """\
@@ -347,3 +347,35 @@ def test_a_multipart_suite_asks_only_its_fifty_and_its_judge_is_licensed_on_it_a
     # clears 0.924 on the first hundred is refused here: kappa 0.447 under rubric v3.
     with pytest.raises(live.ConfigError, match=r"refused for complete: kappa 0\.447"):
         live.license_judge(suite.grader, judges, cli.GOLD, stratum="multipart")
+
+
+def test_the_decision_is_recorded_with_its_occasion_as_the_action_asks(
+    tmp_path: Path, vendor: FakeVendor
+) -> None:
+    """The flags exactly as action/action.yml passes them, including the empty pull-request
+    number a non-PR event would give: a bookkeeping flag must never be what stops the gate."""
+    from gate import cards, ledger
+
+    base = repo(tmp_path / "base", "Be careful and complete.")
+    cand = repo(tmp_path / "cand", "Be quick.")
+    rec = tmp_path / "w" / "decision.jsonl"
+    common = (FLAG, "--record", str(rec), "--repository", "o/r", "--head-sha", "abc123")
+    url = ("--run-url", "https://github.com/o/r/actions/runs/7")
+    code, out = run(base, cand, tmp_path, *common, *url, "--pull-request", "12")
+    assert code == 1, out
+    code, out = run(base, cand, tmp_path, *common, "--pull-request", "")
+    assert code == 1, out
+    first, second = list(ledger.read(rec))
+    assert first.record_id == second.record_id, "the same decision on two occasions"
+    assert first.occasion is not None and second.occasion is not None
+    assert first.occasion.pull_request == 12 and second.occasion.pull_request is None
+    assert first.occasion.repository == "o/r" and first.occasion.head_sha == "abc123"
+    assert set(first.occasion.sides) == {"baseline", "candidate"}
+    cand_suite = first.occasion.sides["candidate"][0]
+    assert cand_suite.items == 100 and cand_suite.lo is not None and cand_suite.hi is not None
+    assert cand_suite.latency_p50_ms == 1000.0 and cand_suite.calls == 100
+    assert first.judges is not None and first.judges[0].task == "complete"
+    assert first.judges[0].rubric == rubric_hash()
+    assert not first.passed
+    assert ledger.GateRecord.content_id(first.content()) == first.record_id
+    assert "[o/r#12](https://github.com/o/r/pull/12)" in cards.render_decisions([first, second])

@@ -146,6 +146,19 @@ honest release gate for prompt and model changes (phase 2).
 - **Adding a spec field must not move an existing spec's hash.** Ledger records are
   content-addressed on it; `EvalSpec.canonical` drops new fields at their default.
 
+## Part B stage 7, reports and model cards (`gate/cards.py`)
+
+- **A pull request's decision reaches the ledger as the record it wrote, never rebuilt.** `gate
+  check --record` writes it on the gated repository's runner; the nightly `ledger` workflow imports
+  it with `gate ledger import`, which refuses a record whose id is not the hash of its content.
+- **The occasion is outside the id, the judges inside.** Where, when and at what cost a decision
+  was made describe the occasion; the licence it was graded under is part of the decision.
+  New record fields are left out of the line when absent, so every committed line stays byte for
+  byte and re-hashes to its id; a test holds the committed ledger to that.
+- **Reports and model cards are the ledger rendered, and nothing else.** No vendor call, no
+  answer text, no statistic recomputed. A field an old record lacks is shown as absent, never
+  filled in.
+
 ## Part B stage 5, the red-team suites (`gate/redteam/`)
 
 - **The suite is frozen** at `gate/redteam/suite/v1/SUITE_HASH`, like Part A's. `gate redteam

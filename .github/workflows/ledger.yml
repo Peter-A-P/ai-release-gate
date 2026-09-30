@@ -1,0 +1,84 @@
+name: ledger
+
+# Brings the gate's pull-request decisions into the committed ledger (PLAN.md B10 stage 7).
+#
+# `gate check` runs in the gated repository's CI, not here, so its decision is written on that
+# runner and kept in the run's `gate-answers-<run id>` artifact as decision.jsonl (action/). This
+# workflow reads those artifacts, appends each record not already in gate/runs/ledger.jsonl with
+# `gate ledger import` (which refuses a record whose id does not match its content), rebuilds
+# the reports and model cards from the ledger, and commits. It calls no vendor and spends
+# nothing.
+#
+# Nightly at 07:10 UTC, half an hour before the dashboard's build, so a decision made yesterday
+# is on the site this morning. Artifacts are kept for 90 days, so a missed night loses nothing.
+# Runs before 2026-09-30 wrote no decision.jsonl; those decisions are in their pull requests'
+# comments only, and the report does not reconstruct them.
+
+on:
+  schedule:
+    - cron: "10 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: ledger
+  cancel-in-progress: false
+
+env:
+  UV_PYTHON: "3.13"
+  # The repositories whose pull requests this gate decides. Public, so their artifacts can be
+  # read with this workflow's own token.
+  GATED: "Peter-A-P/regulated-qa-demo"
+
+jobs:
+  harvest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - run: uv sync --frozen --all-extras
+      - name: Fetch the decisions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/harvest"
+          for repo in $GATED; do
+            # Oldest first, so the ledger is appended in the order the decisions were made.
+            gh api "repos/$repo/actions/artifacts?per_page=100" --paginate \
+              --jq '.artifacts[] | select(.name | startswith("gate-answers-")) | select(.expired | not) | "\(.id) \(.name)"' \
+              | sort -n | while read -r id name; do
+                dir="$RUNNER_TEMP/harvest/$(printf '%012d' "$id")"
+                mkdir -p "$dir"
+                if ! gh api "repos/$repo/actions/artifacts/$id/zip" > "$dir/a.zip"; then
+                  echo "::warning::could not download $repo $name"
+                  continue
+                fi
+                unzip -o -q "$dir/a.zip" decision.jsonl -d "$dir" 2>/dev/null \
+                  || echo "$repo $name has no decision.jsonl (a run from before 2026-09-30)"
+              done
+          done
+          find "$RUNNER_TEMP/harvest" -name decision.jsonl | sort > "$RUNNER_TEMP/files.txt"
+          echo "$(wc -l < "$RUNNER_TEMP/files.txt") decision files"
+      - name: Import them
+        run: |
+          if [ -s "$RUNNER_TEMP/files.txt" ]; then
+            xargs uv run gate ledger import < "$RUNNER_TEMP/files.txt"
+          fi
+      - name: Rebuild the reports and model cards
+        run: |
+          uv run gate report decisions --write > /dev/null
+          uv run gate report model-cards
+      - name: Commit
+        run: |
+          git config user.name "Peter Parker"
+          git config user.email "peter.alexander.parker@outlook.com"
+          git add gate/runs/ledger.jsonl gate/reports
+          git commit -m "Ledger: gate decisions from pull requests" || { echo "nothing new"; exit 0; }
+          git pull --rebase origin main
+          git push

@@ -237,6 +237,11 @@ read-only dashboard from the committed files, with every figure computed by the 
 the reports. The same pages are published, rebuilt nightly, at
 [gate.peterparker.ca](https://gate.peterparker.ca) ([deploy/README.md](deploy/README.md)).
 
+Every decision the gate makes on a pull request is kept in its ledger and rendered, with
+each side's interval, cost and latency, in [gate/reports/decisions.md](gate/reports/decisions.md),
+with a model card per model and prompt in [gate/reports/model-cards/](gate/reports/model-cards/)
+([docs/gate-action.md](docs/gate-action.md)).
+
 Full design in [PLAN.md](PLAN.md).
 
 ## Reproduce every number yourself

@@ -24,7 +24,7 @@ import typer
 
 from drift.panel import Arm, Panel, load_panel
 from drift.runner.records import arms_recorded, read_records, records_path
-from gate import __version__, aa, distractors, generate, gold, ledger, live, report
+from gate import __version__, aa, cards, distractors, generate, gold, ledger, live, report
 from gate import sources as gold_sources
 from gate.decision import decide
 from gate.judge import calibration as calib
@@ -52,6 +52,7 @@ RUNS = ROOT / "drift" / "runs"
 SPECS = ROOT / "gate" / "specs"
 DEFAULT_SPEC = SPECS / "drift-blocks.yaml"
 LEDGER = ROOT / "gate" / "runs" / ledger.LEDGER_FILE
+REPORTS = ROOT / "gate" / "reports"
 GOLD = ROOT / "gate" / "gold"
 DOCS = ROOT / "docs"
 SOURCE_LIST = SPECS / "gold-sources.yaml"
@@ -1103,6 +1104,11 @@ def check(
     comment: Annotated[Path | None, typer.Option(help="write the PR comment here")] = None,
     record: Annotated[Path | None, typer.Option(help="append the decision to this ledger")] = None,
     run_url: Annotated[str, typer.Option(help="link to this run, for the comment")] = "",
+    repository: Annotated[str, typer.Option(help="owner/name, for the ledger record")] = "",
+    # A string, not an int: the Action passes the event's number, which is empty on anything but
+    # a pull request, and an int option would stop the gate over its own bookkeeping.
+    pull_request: Annotated[str, typer.Option(help="its number, for the record")] = "",
+    head_sha: Annotated[str, typer.Option(help="the commit gated, for the record")] = "",
     allowed: Annotated[bool, typer.Option(VENDOR_FLAG, help=VENDOR_HELP)] = False,
 ) -> None:
     """Gate a pull request: run the base and the candidate live and decide. Exit 1 on a block.
@@ -1203,8 +1209,40 @@ def check(
         comment.parent.mkdir(parents=True, exist_ok=True)
         comment.write_text(text + "\n", encoding="utf-8", newline="\n")
     if record is not None:
+        from gate.judge.rubric import rubric_hash
+
         rec = ledger.record_for(
-            d, baseline=dict(base_side.source), candidate=dict(cand_side.source)
+            d,
+            baseline=dict(base_side.source),
+            candidate=dict(cand_side.source),
+            judges=[
+                ledger.JudgeLine(
+                    suite=key,
+                    judge=lic.grader.judge,
+                    task=lic.grader.task,
+                    max_tokens=lic.grader.max_tokens,
+                    kappa=lic.calibration.kappa.point,
+                    rubric=rubric_hash(),
+                )
+                for key, lic in licences.items()
+            ],
+            occasion=ledger.Occasion(
+                repository=repository,
+                pull_request=int(pull_request) if pull_request.isdigit() else None,
+                head_sha=head_sha,
+                run_url=run_url,
+                fresh_calls=spend.calls,
+                cache_hits=spend.cache_hits,
+                spent_usd=spend.usd,
+                sides={
+                    "baseline": ledger.side_suites(
+                        base_side, resamples=spec.resamples, seed=spec.seed
+                    ),
+                    "candidate": ledger.side_suites(
+                        cand_side, resamples=spec.resamples, seed=spec.seed
+                    ),
+                },
+            ),
         )
         ledger.append(record, rec)
         typer.echo(f"ledger record {rec.record_id} appended to {record}", err=True)
@@ -1390,6 +1428,60 @@ def redteam_report(
         raise typer.Exit(2)
     text = rt_report.render(run_id, items, answers)
     _write(REDTEAM_REPORTS / f"{run_id}.md" if write else None, text)
+
+
+# ---------------------------------------------------------------------------- the ledger's reports (stage 7)
+
+ledger_app = typer.Typer(help="the ledger of decisions: bring records in from pull requests")
+app.add_typer(ledger_app, name="ledger")
+report_app = typer.Typer(help="reports and model cards, from the ledger alone")
+app.add_typer(report_app, name="report")
+
+
+@ledger_app.command("import")
+def ledger_import(
+    files: Annotated[list[Path], typer.Argument(help="ledger files written by `gate check`")],
+    into: Annotated[Path, typer.Option(help="the ledger to append to")] = LEDGER,
+) -> None:
+    """Append the decisions a pull request's run recorded, skipping any already here. Offline.
+
+    `gate check --record` writes a pull request's decision on the runner, and the Action keeps it
+    in the run's artifact; this is how it reaches the committed ledger. A record is appended as
+    it was written, never rebuilt, and one whose id does not match its content is refused."""
+    records = []
+    for f in files:
+        records += list(ledger.read(f))
+    try:
+        added = ledger.import_records(into, records)
+    except ValueError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(2) from e
+    typer.echo(f"{added} of {len(records)} records appended to {into}")
+
+
+@report_app.command("decisions")
+def report_decisions(
+    write: Annotated[
+        bool, typer.Option("--write", help=f"also write gate/reports/{cards.DECISIONS_FILE}")
+    ] = False,
+) -> None:
+    """Every decision in the ledger, newest first, with its figures and reasons. Offline."""
+    text = cards.render_decisions(list(ledger.read(LEDGER)))
+    _write(REPORTS / cards.DECISIONS_FILE if write else None, text.rstrip("\n"))
+
+
+@report_app.command("model-cards")
+def report_model_cards() -> None:
+    """One model card per model and prompt the gate has measured, written to
+    gate/reports/model-cards/. Offline."""
+    found = cards.subjects(list(ledger.read(LEDGER)))
+    folder = REPORTS / cards.CARDS_DIR
+    folder.mkdir(parents=True, exist_ok=True)
+    for subject, seen in sorted(found.items(), key=lambda kv: kv[0].slug):
+        path = folder / f"{subject.slug}.md"
+        path.write_text(cards.render_model_card(subject, seen), encoding="utf-8", newline="\n")
+        typer.echo(f"{path}")
+    typer.echo(f"{len(found)} model cards", err=True)
 
 
 # ---------------------------------------------------------------------------- the dashboard (stage 6)
