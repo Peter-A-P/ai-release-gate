@@ -125,7 +125,7 @@ standard (`docs/judge-rubric.md`) and is not revised to make a demo come out as 
 Two more things the comments show:
 
 - **Zero-width intervals in the gate's own statistics**: "100.0% (100.0 to 100.0)" and
-  "+0.0% (+0.0 to +0.0)" when every item agrees. Fixed the same day in 75737ef, with the reasoning
+  "+0.0% (+0.0 to +0.0)" when every item agrees. Fixed the same day in f274a45, with the reasoning
   in `docs/gate-statistics.md` ("Unanimous counts"), and the demo moved to it
   ([#4](https://github.com/Peter-A-P/regulated-qa-demo/pull/4)). #3, re-run under it against the
   merged #1 and #2, now reads 100.0% (97.5 to 100.0) against 99.0% (97.0 to 100.0), a difference

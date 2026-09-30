@@ -242,6 +242,9 @@ each side's interval, cost and latency, in [gate/reports/decisions.md](gate/repo
 with a model card per model and prompt in [gate/reports/model-cards/](gate/reports/model-cards/)
 ([docs/gate-action.md](docs/gate-action.md)).
 
+Another project can hand the gate its own graded outcomes and get the same decision and
+record: [docs/gate-adapter.md](docs/gate-adapter.md).
+
 Full design in [PLAN.md](PLAN.md).
 
 ## Reproduce every number yourself

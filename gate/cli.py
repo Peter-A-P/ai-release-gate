@@ -24,7 +24,7 @@ import typer
 
 from drift.panel import Arm, Panel, load_panel
 from drift.runner.records import arms_recorded, read_records, records_path
-from gate import __version__, aa, cards, distractors, generate, gold, ledger, live, report
+from gate import __version__, aa, adapter, cards, distractors, generate, gold, ledger, live, report
 from gate import sources as gold_sources
 from gate.decision import decide
 from gate.judge import calibration as calib
@@ -68,7 +68,10 @@ VENDOR_FLAG = "--i-am-allowed-to-call-vendors"
 VENDOR_HELP = "confirm this machine and network may call vendors; CI passes it"
 
 SpecOpt = Annotated[Path, typer.Option(help="the eval spec (YAML)")]
-SIDE_HELP = "MONTH/ARM, or MONTH/ARM@0,1 to keep only those repeats"
+SIDE_HELP = (
+    "MONTH/ARM, or MONTH/ARM@0,1 to keep only those repeats, or a downstream project's "
+    "side file (*.json, gate/adapter.py)"
+)
 
 
 def _spec(path: Path) -> EvalSpec:
@@ -96,6 +99,18 @@ def _parse_side(text: str) -> tuple[str, str, Collection[int] | None]:
 
 
 def _side(spec: EvalSpec, text: str) -> Side:
+    if adapter.is_side_file(text):
+        try:
+            return adapter.load_side(Path(text), spec)
+        except adapter.AdapterError as e:
+            typer.echo(str(e), err=True)
+            raise typer.Exit(2) from e
+    if any(s.source.kind != "drift_block" for s in spec.suites):
+        typer.echo(
+            f"spec {spec.name!r} is not read from the drift record; {text!r} names a drift arm",
+            err=True,
+        )
+        raise typer.Exit(2)
     month, arm, repeats = _parse_side(text)
     try:
         return part_a_side(RUNS, spec, month=month, arm=arm, repeats=repeats)
@@ -145,8 +160,15 @@ def compare(
     out: Annotated[Path | None, typer.Option(help="also write the report here")] = None,
     record: Annotated[bool, typer.Option(help="append the decision to the ledger")] = True,
     supersedes: Annotated[str | None, typer.Option(help="ledger record this one corrects")] = None,
+    into: Annotated[
+        Path, typer.Option("--ledger", help="the ledger to append to; a downstream project's own")
+    ] = LEDGER,
 ) -> None:
-    """The gate: is the candidate non-inferior to the baseline? Exit 1 on a block."""
+    """The gate: is the candidate non-inferior to the baseline? Exit 1 on a block.
+
+    A side is a drift arm, or a downstream project's side file with a spec whose suites are
+    `outcomes_file` (gate/adapter.py). A downstream project passes --ledger so its decisions go
+    to its own repository, not to this one's."""
     s = _spec(spec)
     base, cand = _side(s, baseline), _side(s, candidate)
     d = decide(s, base, cand)
@@ -155,8 +177,8 @@ def compare(
         rec = ledger.record_for(
             d, baseline=dict(base.source), candidate=dict(cand.source), supersedes=supersedes
         )
-        ledger.append(LEDGER, rec)
-        typer.echo(f"ledger record {rec.record_id} appended to {LEDGER}", err=True)
+        ledger.append(into, rec)
+        typer.echo(f"ledger record {rec.record_id} appended to {into}", err=True)
     if d.blocked:
         raise typer.Exit(1)
 

@@ -159,6 +159,15 @@ honest release gate for prompt and model changes (phase 2).
   answer text, no statistic recomputed. A field an old record lacks is shown as absent, never
   filled in.
 
+## Part B stage 8, the adapter for other projects (`gate/adapter.py`)
+
+- **A downstream side is read exactly as written or refused.** No key guessed at, no grade
+  coerced, no missing suite filled in. The gate trusts the file's grades and grades nothing
+  itself, so the record names each file by the SHA-256 of its bytes.
+- **A downstream project's decisions go to its own ledger** (`gate compare --ledger`), never
+  into `gate/runs/ledger.jsonl`, which holds this repository's decisions and the pull requests
+  it gates.
+
 ## Part B stage 5, the red-team suites (`gate/redteam/`)
 
 - **The suite is frozen** at `gate/redteam/suite/v1/SUITE_HASH`, like Part A's. `gate redteam

@@ -20,7 +20,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 # suite, read from the drift record, with outcomes already stored. `gold_questions` is the
 # regulated Q&A task of the gold set (stage 4): the 100 questions, each with its own source
 # document, answered live by the side under test and graded by a calibrated judge.
-SourceKind = Literal["drift_block", "gold_questions"]
+# `outcomes_file` is a downstream project's own graded outcomes, one JSON file per side
+# (`gate/adapter.py`, PLAN.md B9); `block` names the suite in that file.
+SourceKind = Literal["drift_block", "gold_questions", "outcomes_file"]
 
 _KEY = r"^[a-z][a-z0-9_-]*$"
 
@@ -38,10 +40,12 @@ class Source(BaseModel):
 
     @model_validator(mode="after")
     def _block_for_drift(self) -> Source:
-        if self.kind == "drift_block" and not self.block:
-            raise ValueError("a drift_block source names its block")
-        if self.kind != "drift_block" and (self.block or self.held_out):
+        if self.kind in ("drift_block", "outcomes_file") and not self.block:
+            raise ValueError(f"a {self.kind} source names its block")
+        if self.kind == "gold_questions" and self.block:
             raise ValueError(f"a {self.kind} source takes no block")
+        if self.kind != "drift_block" and self.held_out:
+            raise ValueError(f"a {self.kind} source has no held-out half")
         if self.kind != "gold_questions" and self.stratum != "core":
             raise ValueError(f"a {self.kind} source takes no stratum")
         return self
@@ -92,8 +96,8 @@ class SuiteSpec(BaseModel):
     def _grader_for_live(self) -> SuiteSpec:
         if self.source.kind == "gold_questions" and self.grader is None:
             raise ValueError(f"suite {self.key!r}: gold_questions needs a grader")
-        if self.source.kind == "drift_block" and self.grader is not None:
-            raise ValueError(f"suite {self.key!r}: a drift_block is already graded")
+        if self.source.kind in ("drift_block", "outcomes_file") and self.grader is not None:
+            raise ValueError(f"suite {self.key!r}: a {self.source.kind} is already graded")
         return self
 
 
