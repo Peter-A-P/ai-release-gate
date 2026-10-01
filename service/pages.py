@@ -67,7 +67,7 @@ CSS = """
 }
 * { box-sizing: border-box; }
 html { font-size: 18px; -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans);
+body { overflow-x: clip; margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans);
   font-size: 1rem; line-height: 1.72; border-top: 3px solid var(--accent);
   font-feature-settings: "cv11", "ss01"; }
 main { max-width: var(--column); margin: 0 auto; padding: 0 1.5rem 4rem; }
@@ -106,7 +106,22 @@ p, li { margin: 0 0 0.85rem; }
 .tabs a[aria-current] { border-color: var(--accent); background: var(--accent-soft);
   color: var(--ink); font-weight: 600; }
 
-.hero { padding: 3.25rem 0 2.25rem; border-bottom: 1px solid var(--line); }
+.hero { position: relative; padding: 3.25rem 0 2.25rem; border-bottom: 1px solid var(--line); }
+/* A wash of the accent behind the first screen, full width, fading into the page: the one place
+   colour is used for its own sake, so the opening is not black on white alone. */
+.hero::before { content: ""; position: absolute; z-index: -1; top: 0; bottom: 0; left: 50%;
+  width: 100vw; margin-left: -50vw;
+  background: radial-gradient(60rem 22rem at 85% 0%,
+      color-mix(in srgb, var(--sim) 14%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--accent-soft), var(--paper) 85%); }
+.hero h1 .hl { color: var(--accent); }
+.hero .eyebrow { color: var(--accent-ink); }
+.hero .point { border-top: 3px solid var(--accent); box-shadow: var(--shadow); }
+.hero .point.good { border-top-color: var(--good); }
+.hero .point.violet { border-top-color: var(--sim); }
+.point .point-figure { color: var(--accent-ink); }
+.point.good .point-figure { color: var(--good); }
+.point.violet .point-figure { color: var(--sim); }
 .eyebrow { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem;
   font-weight: 600; color: var(--ink-faint); margin: 0 0 0.6rem; }
 .lead { font-size: 1.05rem; color: var(--ink-soft); }
@@ -567,9 +582,9 @@ def overview(model: ReadModel) -> str:
     # -------------------------------------------------------------- hero
     points: list[str] = []
 
-    def point(figure: str, unit: str, label: str) -> None:
+    def point(figure: str, unit: str, label: str, tone: str = "") -> None:
         points.append(
-            f'<div class="point"><span class="point-figure">{figure}</span>'
+            f'<div class="point {tone}"><span class="point-figure">{figure}</span>'
             f'<span class="point-unit">{unit}</span><span class="point-label">{label}</span></div>'
         )
 
@@ -617,6 +632,7 @@ def overview(model: ReadModel) -> str:
                 + ", ".join(f"<code>{e(k)}</code>" for k in sorted(declared))
                 + ": a move larger than its own noise floor and the control's"
             ),
+            "" if declared else "good",
         )
     if model.aa is not None:
         s = model.aa
@@ -627,6 +643,7 @@ def overview(model: ReadModel) -> str:
             "false alarms from the gate",
             f"{est(fb)}, on {s.n} comparisons where nothing had changed. Blocking whenever "
             f"the score is lower would have raised {est(pr)}",
+            "violet",
         )
     best = max(
         ((t.kappa, k, t.task) for k, c in model.judges.items() for t in c.tasks if t.usable),
@@ -645,12 +662,13 @@ def overview(model: ReadModel) -> str:
                 and not any(t.usable for c in model.judges_multipart.values() for t in c.tasks)
                 else ""
             ),
+            "good",
         )
 
     arms = len(cur.arms) if cur else 0
     parts.append(f"""<header class="hero">
 <p class="eyebrow">Measured results, reproducible from one command</p>
-<h1>Did the AI get worse, or is that just noise? This tells you, with error bars.</h1>
+<h1>Did the AI get worse, or is that <span class="hl">just noise?</span> This tells you, with error bars.</h1>
 <p class="lead">Software teams change code and run their tests. Teams building on AI change a
 prompt, or the vendor quietly updates a model, and the evaluation score moves from 86 to 83.
 Is that a regression? Nobody in the room can say, <strong>because an AI model's score moves by
