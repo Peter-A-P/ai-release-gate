@@ -291,5 +291,28 @@ Two judges were added to `gate/specs/gold-judges.yaml` before any call was made 
   of #3 there. **If neither is**, the finding above stands as the project's result on multi-part
   completeness, and what comes next is decided and written here then.
 - **Prices.** They are in `drift/config/prices/2026-10-01.yaml`, which carries every earlier rate
-  unchanged, and a test holds it to that. The file lands only after the October drift run has
-  committed.
+  unchanged, and a test holds it to that. It was merged on 2026-10-01 only once the October
+  drift run had started on the commit before it. Each of that run's jobs reads the commit it
+  started on, so the run was priced by 2026-09-12.yaml.
+
+**Results, 2026-10-01.** Both were run on the same 150 multi-part answers, under rubric v3, for
+US$1.16 together. Both identifiers were first re-confirmed live (run 36865991918). They were
+judged at their siblings' budgets: 64 tokens for GPT-5.4 and 1024 for Gemini Pro. No verdict
+was unparseable. Completeness:
+
+| Judge | Kappa | Incomplete answers caught, of the 26 Peter marked |
+|---|---|---|
+| GPT-5.4 (`openai-judge-large`) | 0.508 (0.282 to 0.696), refused | 10 |
+| Gemini 3.1 Pro (`google-judge-large`) | 0.313 (0.106 to 0.511), refused | 6 |
+| Gemini 3.8 Flash, for comparison | 0.447 (0.218 to 0.642), refused | 9 |
+
+- **Neither passes.** GPT-5.4 is the closest of the six judges tried, and still misses 16 of
+  the 26. Gemini Pro does worse than the Flash model the gate already uses.
+- **Size was not the fix.** Every judge tried, from the smallest to these two, calls most of
+  the incomplete short answers complete. The finding stands as committed: the suite can see a
+  brevity regression, and no judge tried can grade it.
+- **Faithfulness** stays refused: 0.206 and 0.235.
+
+The reports are `docs/judge-calibration-openai-judge-large-multipart.md` and
+`docs/judge-calibration-google-judge-large-multipart.md`, and both rebuild byte for byte from
+the record.

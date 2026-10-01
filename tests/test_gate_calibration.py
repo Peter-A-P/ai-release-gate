@@ -346,7 +346,15 @@ def test_every_published_calibration_rebuilds_from_the_record_one_stratum_at_a_t
     # And under the current rubric, v3: every judge on the strata it was read on.
     current = [
         (j, st) for j in ("google-judge-mid", "openai-judge-small") for st in ("core", "multipart")
-    ] + [(j, "multipart") for j in ("google-judge-mid-thinking", "openai-judge-small-thinking")]
+    ] + [
+        (j, "multipart")
+        for j in (
+            "google-judge-mid-thinking",
+            "openai-judge-small-thinking",
+            "google-judge-large",
+            "openai-judge-large",
+        )
+    ]
     for judge, stratum in current:
         suffix = "" if stratum == "core" else "-multipart"
         out = tmp_path / f"v3-{judge}{suffix}.md"

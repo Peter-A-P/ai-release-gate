@@ -22,7 +22,8 @@
 #
 # Dated 2026-10-01, the day it takes effect, not the day it was read. `latest_price_list` takes
 # the newest file by name, so a file here is the monthly drift run's price list from the moment
-# it is merged. It was merged only after the 2026-10-01 drift run had committed, so that run was
+# it is merged. It was merged on 2026-10-01 once that day's drift run had started on the commit
+# before it (12418eb). Each of the run's jobs reads the commit it started on, so that run was
 # priced by 2026-09-12.yaml. No drift arm's rate differs between the two in any case.
 #
 # **A known future change.** Google's page shows Gemini 3.8 Flash (and 3.6 and 3.7) at 0.75 in
