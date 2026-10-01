@@ -260,3 +260,34 @@ def test_example_items_validate() -> None:
         assert validate_file(f, grader_names=GRADERS) == []
         for item in read_items(f):
             assert grader(item.grader).check_expected(item.expected) == []
+
+
+def test_every_judge_identifier_has_a_price() -> None:
+    """A judge call with no price entry is written uncosted, which also puts it outside the
+    spend cap. The judges share the drift runner's price list, so a new judge means a new dated
+    price file, and that file becomes the drift run's too."""
+    from boundary.config import latest_price_list, load_config
+
+    root = Path(__file__).resolve().parent.parent
+    judges = load_panel(root / "gate" / "specs" / "gold-judges.yaml")
+    prices = latest_price_list(load_config(root / "drift" / "config" / "boundary.yaml").prices)
+    missing = [a.explicit for a in judges.arms if prices.lookup(a.provider, a.model) is None]
+    assert not missing, f"no price for {missing} in {prices.name}; add a dated price file"
+
+
+def test_the_2026_10_01_price_file_only_adds() -> None:
+    """2026-10-01.yaml was added for two judges, not to reprice anything, and it is the drift
+    run's price list from the day it lands. So every rate in the file before it is carried over
+    exactly, and the only new identifiers are the two judges it says it adds."""
+    from boundary.config import load_price_list
+
+    folder = Path(__file__).resolve().parent.parent / "drift" / "config" / "prices"
+    before = load_price_list(folder / "2026-09-12.yaml").per_million_tokens
+    after = load_price_list(folder / "2026-10-01.yaml").per_million_tokens
+    for provider, models in before.items():
+        for model, entry in models.items():
+            assert after[provider][model] == entry, f"{provider}/{model} was repriced"
+    added = {
+        f"{p}/{m}" for p, models in after.items() for m in models if m not in before.get(p, {})
+    }
+    assert added == {"openai/gpt-5.4-2026-03-05", "google/gemini-3.1-pro-preview"}

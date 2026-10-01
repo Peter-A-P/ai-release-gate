@@ -129,10 +129,12 @@ def test_the_shipped_panels_load_and_refuse_to_run_until_confirmed() -> None:
         "a small judge and a mid-tier one (B4)"
     )
     # And, since 2026-09-29, the same two allowed to think, each its own judge.
-    assert [a.key for a in judges.arms][2:] == [
+    assert [a.key for a in judges.arms][2:4] == [
         "openai-judge-small-thinking",
         "google-judge-mid-thinking",
     ]
+    # And, since 2026-09-30, a larger model from each vendor with the non-thinking settings.
+    assert [a.key for a in judges.arms][4:] == ["openai-judge-large", "google-judge-large"]
     assert answers.ready and judges.ready, (
         "a panel is ready only once every identifier is filled in and `chosen` is dated; both "
         "were confirmed against the vendors' own model lists on 2026-09-20, run 35529080046"

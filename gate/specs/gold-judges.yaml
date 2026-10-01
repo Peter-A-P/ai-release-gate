@@ -74,3 +74,35 @@ arms:
       generationConfig:
         thinkingConfig:
           thinkingLevel: high
+
+  # Added 2026-09-30, after all four judges above were refused on the multi-part stratum under
+  # rubric v3 (docs/gate-action.md): Gemini 3.8 Flash reached 0.447 on completeness and nothing
+  # else reached 0.45. The hypothesis these test is the next cheapest one: a larger model, with
+  # the settings of the non-thinking judges wherever the vendor allows them, so size is the one
+  # thing that changed. Priced in drift/config/prices/2026-10-01.yaml, which says why that file
+  # could land only after the October drift run. Committed before either is run, and published
+  # whatever they read, with the same bar as the others: kappa 0.6 on the stratum or refused.
+  - key: openai-judge-large
+    provider: openai
+    model: gpt-5.4-2026-03-05
+    arm: snapshot
+    family: judge-large
+    # As openai-judge-small: no reasoning, so temperature 0 is accepted and the judge reads
+    # deterministically.
+    extra:
+      reasoning_effort: none
+  - key: google-judge-large
+    provider: google
+    model: gemini-3.1-pro-preview
+    # Not a dated identifier: Google offers none for Pro, and no stable Pro model at all. A
+    # preview can change under its name, so a licence measured here holds only while the model
+    # list and the verdicts agree with this calibration; that is a weaker instrument than the
+    # others and is said so wherever it is quoted.
+    arm: snapshot
+    family: judge-large
+    # Thinking cannot be turned off on the Gemini 3 line; "low" is the least it will do, the
+    # same setting as google-judge-mid.
+    extra:
+      generationConfig:
+        thinkingConfig:
+          thinkingLevel: low

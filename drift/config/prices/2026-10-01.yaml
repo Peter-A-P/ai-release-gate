@@ -1,0 +1,217 @@
+# Price list, USD per million tokens, re-read from each vendor's price page on 2026-09-30.
+# Repricing is a new dated file, never an edit to an older one. This file supersedes
+# 2026-09-12.yaml: every rate in that file is carried here unchanged (a test holds it to that),
+# plus two judge candidates for the multi-part stratum of the gold set.
+#
+# Why these two, added 2026-09-30. Every judge on the panel was refused on the multi-part
+# stratum under rubric v3 (docs/gate-action.md), and the next hypothesis is a larger model. A
+# judge is pinned to a dated identifier where the vendor offers one, and a dated identifier is
+# priced by its own entry: boundary prices by the returned id and then the requested one, and
+# for a dated request both are the dated id, so the gpt-5.4 entry would not cover it and the
+# call would be written uncosted, outside the spend cap.
+#
+#   openai/gpt-5.4-2026-03-05      the dated snapshot of gpt-5.4, listed by OpenAI's models
+#                                  endpoint on 2026-09-20 (run 35529080046). Same rate as
+#                                  gpt-5.4.
+#   google/gemini-3.1-pro-preview  Google offers no stable Pro model and no dated one; this is
+#                                  the only Pro text identifier its models endpoint listed. The
+#                                  rate is the prompts-up-to-200k tier (2.00 in, 12.00 out,
+#                                  thinking billed as output); a judge prompt is a few thousand
+#                                  tokens. No cache rate: the judge never caches, and a cached
+#                                  call with no rate would be written uncosted.
+#
+# Dated 2026-10-01, the day it takes effect, not the day it was read. `latest_price_list` takes
+# the newest file by name, so a file here is the monthly drift run's price list from the moment
+# it is merged. It was merged only after the 2026-10-01 drift run had committed, so that run was
+# priced by 2026-09-12.yaml. No drift arm's rate differs between the two in any case.
+#
+# **A known future change.** Google's page shows Gemini 3.8 Flash (and 3.6 and 3.7) at 0.75 in
+# and 3.75 out "through Dec 31, 2026", and 1.50 and 7.50 from 2027-01-01. Both Google drift
+# arms and the gate's licensed judge are on it. A file dated 2027-01-01 is committed after the
+# December run and before the January one, and not earlier, because the newest file applies at
+# once.
+#
+# The two panel entries added on 2026-09-12 (the OpenAI snapshot and the Google alias) are
+# explained in 2026-09-12.yaml. Its caveat still applies:
+#
+# **A caveat on the alias entry.** Pricing a floating alias by name means that if it moves to a
+# version this file does not list, the returned id misses, the requested id hits, and the call
+# is priced at the old version's rate instead of being written uncosted. The move itself is
+# still visible: `model_returned` is in every ledger row and a resolution change is the single
+# most valuable signal this panel produces. The cost is what would be quietly wrong, and the
+# monthly ledger-against-invoice check is where it would surface. Re-read this file whenever
+# the report shows the alias resolving somewhere new.
+#
+# Rules: a model missing here is written to the ledger as uncosted; a call that used a cache
+# or batch feature with no rate here is uncosted. The library never fills a rate in.
+#
+# Model keys are identifiers. The ledger prices by the identifier the vendor RETURNS and, when
+# that one is not listed, by the identifier that was REQUESTED (OpenAI returns dated ids such
+# as gpt-5-nano-2025-08-07 for a request of gpt-5-nano; the price is the same). Both ids are
+# in the ledger row, so which one priced the call is auditable.
+#
+# Sources:
+#   Anthropic: https://platform.claude.com/docs/en/about-claude/pricing (cache read 0.1x input,
+#              5-minute cache write 1.25x input, batch 50%). The models endpoint on 2026-09-10
+#              lists claude-haiku-4-5-20251001 as the only dated id with a documented alias.
+#   OpenAI:    https://developers.openai.com/api/docs/pricing (cached input shown per model,
+#              batch 50%).
+#   Google:    https://ai.google.dev/gemini-api/docs/pricing (paid tier; context-cache read shown
+#              per model; cache storage is billed per hour, not per token, so no cache_write rate;
+#              batch 50%). gemini-2.5-flash-lite returned 404 "no longer available to new
+#              users" on 2026-09-10; kept here for any ledger row that still names it.
+#   Together:  https://www.together.ai/pricing (serverless; one price for input and output on
+#              Llama 3.3 70B).
+
+version: 1
+date: 2026-10-01
+currency: USD
+source: "Vendor price pages re-read 2026-09-30; every 2026-09-12 rate unchanged; two judge identifiers added; see comments for URLs and rules"
+
+per_million_tokens:
+  anthropic:
+    claude-haiku-4-5-20251001:
+      input: 1.00
+      output: 5.00
+      cache_read: 0.10
+      cache_write: 1.25
+      batch_multiplier: 0.5
+    claude-haiku-4-5:
+      input: 1.00
+      output: 5.00
+      cache_read: 0.10
+      cache_write: 1.25
+      batch_multiplier: 0.5
+    claude-sonnet-5:
+      input: 2.00
+      output: 10.00
+      cache_read: 0.20
+      cache_write: 2.50
+      batch_multiplier: 0.5
+    claude-opus-5:
+      input: 5.00
+      output: 25.00
+      cache_read: 0.50
+      cache_write: 6.25
+      batch_multiplier: 0.5
+    claude-sonnet-4-6:
+      input: 3.00
+      output: 15.00
+      cache_read: 0.30
+      cache_write: 3.75
+      batch_multiplier: 0.5
+
+  openai:
+    gpt-5-mini:
+      input: 0.25
+      output: 2.00
+      cache_read: 0.025
+      batch_multiplier: 0.5
+    gpt-5-nano:
+      input: 0.05
+      output: 0.40
+      cache_read: 0.005
+      batch_multiplier: 0.5
+    gpt-5:
+      input: 1.25
+      output: 10.00
+      cache_read: 0.125
+      batch_multiplier: 0.5
+    gpt-5.4-nano:
+      input: 0.20
+      output: 1.25
+      cache_read: 0.02
+      batch_multiplier: 0.5
+    gpt-5.4-mini:
+      input: 0.75
+      output: 4.50
+      cache_read: 0.075
+      batch_multiplier: 0.5
+    # The snapshot half of the panel's OpenAI pair. Same model, same price as the alias
+    # above; listed so the arm is costed by its own returned id rather than by a fallback.
+    gpt-5.4-mini-2026-03-17:
+      input: 0.75
+      output: 4.50
+      cache_read: 0.075
+      batch_multiplier: 0.5
+    gpt-5.4:
+      input: 2.50
+      output: 15.00
+      cache_read: 0.25
+      batch_multiplier: 0.5
+    # Judge candidate, added 2026-09-30. Same rate as gpt-5.4 above; see the header.
+    gpt-5.4-2026-03-05:
+      input: 2.50
+      output: 15.00
+      cache_read: 0.25
+      batch_multiplier: 0.5
+    gpt-5.5:
+      input: 5.00
+      output: 30.00
+      cache_read: 0.50
+      batch_multiplier: 0.5
+    gpt-4o-mini:
+      input: 0.15
+      output: 0.60
+      cache_read: 0.075
+      batch_multiplier: 0.5
+
+  google:
+    gemini-2.5-flash:
+      input: 0.30
+      output: 2.50
+      cache_read: 0.03
+      batch_multiplier: 0.5
+    gemini-2.5-flash-lite:
+      input: 0.10
+      output: 0.40
+      cache_read: 0.01
+      batch_multiplier: 0.5
+    gemini-3.5-flash:
+      input: 1.50
+      output: 9.00
+      cache_read: 0.15
+      batch_multiplier: 0.5
+    gemini-3.5-flash-lite:
+      input: 0.30
+      output: 2.50
+      cache_read: 0.03
+      batch_multiplier: 0.5
+    gemini-3.6-flash:
+      input: 0.75
+      output: 3.75
+      cache_read: 0.075
+      batch_multiplier: 0.5
+    gemini-3.7-flash:
+      input: 0.75
+      output: 3.75
+      cache_read: 0.075
+      batch_multiplier: 0.5
+    gemini-3.8-flash:
+      input: 0.75
+      output: 3.75
+      cache_read: 0.075
+      batch_multiplier: 0.5
+    # The alias half of the panel's Google pair. A live call on 2026-09-12 resolved
+    # gemini-flash-latest to gemini-3.8-flash, so it is priced at that model's rate. The
+    # returned id takes precedence, so this entry only prices a call whose resolved version is
+    # not listed above; see the caveat in the header.
+    gemini-flash-latest:
+      input: 0.75
+      output: 3.75
+      cache_read: 0.075
+      batch_multiplier: 0.5
+    # Judge candidate, added 2026-09-30: the <=200k prompt tier. Preview, no cache rate; see
+    # the header.
+    gemini-3.1-pro-preview:
+      input: 2.00
+      output: 12.00
+      batch_multiplier: 0.5
+
+  openweights:
+    meta-llama/Llama-3.3-70B-Instruct-Turbo:
+      input: 1.04
+      output: 1.04
+    openai/gpt-oss-120b:
+      input: 0.15
+      output: 0.60
