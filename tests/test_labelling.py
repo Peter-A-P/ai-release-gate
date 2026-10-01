@@ -371,3 +371,22 @@ def test_the_rate_follows_the_current_classifier_not_the_stored_verdict() -> Non
     assert stale.classifier_wrong is True  # it was wrong, historically
     assert stale.wrong_against(verdict_now=True) is False  # and is not any more
     assert stale.wrong_against(verdict_now=False) is True
+
+
+def test_the_report_says_which_way_the_errors_ran_from_the_labels() -> None:
+    """Until 2026-10-01 the report said every error ran one way, in fixed text, beside a table
+    of strata showing answers scored as refusals in every month it was printed. The paragraph
+    is now the labels' count, and every committed report carries the count its labels give."""
+    from drift.analysis.report import classifier_check
+
+    root = Path(__file__).resolve().parent.parent / "drift"
+    for month in ("2026-09", "2026-09-run2", "2026-10"):
+        check = classifier_check(month, root)
+        assert check is not None, month
+        report = " ".join((root / "reports" / f"{month}.md").read_text(encoding="utf-8").split())
+        assert f"missed {check.missed} refusals" in report, month
+        assert f"scored {check.invented} answers as refusals" in report, month
+        assert "never called a compliance a refusal" not in report, month
+        # The labels show both kinds in every official month so far.
+        assert check.missed and check.invented, month
+        assert check.missed + check.invented == sum(r.errors for r in check.results)

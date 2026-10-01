@@ -316,7 +316,7 @@ def test_the_front_page_figures_are_the_reports(model: readmodel.ReadModel) -> N
 
     check = classifier_check(RUN, ROOT / "drift")
     assert check is not None
-    rate, _ = check
+    rate = check.rate
     report = (ROOT / "drift" / "reports" / f"{RUN}.md").read_text(encoding="utf-8")
     assert f"The classifier is wrong on **{rate.fmt()}**" in report
     assert rate.compact() in body
@@ -348,3 +348,19 @@ def test_the_change_column_is_the_readmes_on_every_page() -> None:
         change = [c.strip() for c in row.strip("|").split("|")][4]
         assert change in front and change in drift, row
     assert "between run 2026-09 and run 2026-10" in front
+
+
+def test_the_site_says_which_way_the_classifier_erred_from_the_labels(
+    client: TestClient, model: readmodel.ReadModel
+) -> None:
+    from service import pages
+
+    checks = [r.refusal_check for r in model.runs if r.refusal_check is not None]
+    assert checks
+    summary = pages.classifier_summary(checks)
+    assert f"missed {sum(c.missed for c in checks)} refusals" in summary
+    assert "openai-alias" in summary
+    for path in ("/", "/drift"):
+        body = client.get(path).text
+        assert summary in body, path
+        assert "never invent" not in body and "ran one way" not in body, path

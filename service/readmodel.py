@@ -19,8 +19,12 @@ from typing import Any
 import duckdb
 
 from drift.analysis.metrics import ArmMetrics
-from drift.analysis.report import classifier_check, metrics_for_month, previous_month
-from drift.analysis.stats import Estimate
+from drift.analysis.report import (
+    ClassifierCheck,
+    classifier_check,
+    metrics_for_month,
+    previous_month,
+)
 from drift.panel import load_panel
 from drift.runner.records import (
     RECORDS_FILE,
@@ -72,7 +76,7 @@ class Run:
     meta: RunMeta
     arms: dict[str, ArmMetrics]
     # The refusal classifier's error rate on this run, read by hand; None if nobody has yet.
-    refusal_check: Estimate | None = None
+    refusal_check: ClassifierCheck | None = None
     # The run this one's report is paired against (`baseline_for`); None for the first.
     baseline: str | None = None
 
@@ -250,7 +254,7 @@ def build(
                 label,
                 meta,
                 metrics_for_month(runs_root, label, seed=seed),
-                check[0] if check is not None else None,
+                check,
             )
         )
     built = [

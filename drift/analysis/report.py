@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import textwrap
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -263,10 +265,32 @@ def render(
     return "\n".join(lines)
 
 
-def classifier_check(month: str, labels_root: Path) -> tuple[Estimate, list[StratumResult]] | None:
-    """The refusal classifier's error rate for a month, from the human labels, and the strata it
-    was read in; None when nobody has read that month yet. The report's section and the
-    dashboard both print this, so the figure cannot differ between them."""
+@dataclass(frozen=True, slots=True)
+class ClassifierCheck:
+    """What a month's hand labels say about the refusal classifier."""
+
+    rate: Estimate  # wrong on this share of refusal-block calls
+    results: list[StratumResult]
+    # Each answer the classifier called a refusal and a person read as an answer, as
+    # "arm|item", once each. The errors the other way are missed refusals.
+    false_refusals: list[str]
+
+    @property
+    def missed(self) -> int:
+        """Refusals the classifier scored as compliance."""
+        return sum(r.errors for r in self.results if r.stratum.endswith("/answer"))
+
+    @property
+    def invented(self) -> int:
+        """Answers the classifier scored as refusals."""
+        return sum(r.errors for r in self.results if r.stratum.endswith("/refusal"))
+
+
+def classifier_check(month: str, labels_root: Path) -> ClassifierCheck | None:
+    """The refusal classifier's error rate for a month, from the human labels, the strata it
+    was read in and which way its errors ran; None when nobody has read that month yet. The
+    report's section and the dashboard both print this, so the figure cannot differ between
+    them."""
     from drift.labelling import (
         build_queue,
         error_rate,
@@ -281,7 +305,59 @@ def classifier_check(month: str, labels_root: Path) -> tuple[Estimate, list[Stra
         return None
     queue = build_queue(refusal_records(labels_root / "runs", month), keep=labels.keys())
     results = stratum_results(queue, labels)
-    return error_rate(results), results
+    false_refusals = sorted(
+        {
+            f"{t.arm_key}|{t.item_id}"
+            for t in queue
+            if t.verdict
+            and t.key in labels
+            and labels[t.key].output_sha256 == t.output_sha256
+            and labels[t.key].wrong_against(t.verdict)
+        }
+    )
+    return ClassifierCheck(error_rate(results), results, false_refusals)
+
+
+def _directions(check: ClassifierCheck) -> list[str]:
+    """Which way the classifier's errors ran this month, from the labels. Until 2026-10-01 this
+    paragraph was fixed text saying every error ran one way, beside a table of strata that
+    showed answers read as refusals in every month it was printed."""
+    out = [
+        f"**Which way the errors run.** The classifier missed {check.missed} "
+        f"refusal{'s' if check.missed != 1 else ''} and scored "
+        f"{'them' if check.missed != 1 else 'it'} as compliance, and scored {check.invented} "
+        f"answer{'s' if check.invented != 1 else ''} as "
+        f"refusal{'s' if check.invented != 1 else ''} that a person read as "
+        f"{'answers' if check.invented != 1 else 'an answer'}.",
+    ]
+    if check.missed:
+        out.append(
+            "Missed refusals understate refusing, so the 'refused, should refuse' column is a "
+            "floor, not an estimate."
+        )
+    if check.invented:
+        arms = sorted({k.split("|")[0] for k in check.false_refusals})
+        items = sorted({k.split("|")[1] for k in check.false_refusals})
+        over = next((r for r in check.results if r.stratum == "must_answer/refusal"), None)
+        out.append(
+            "Answers scored as refusals overstate refusing, here for "
+            + join_and([f"`{a}`" for a in arms])
+            + " on "
+            + join_and([f"`{i}`" for i in items])
+            + "."
+        )
+        if over is not None and over.labelled == over.pairs and over.errors == over.labelled:
+            out.append(
+                "Every refusal behind the 'refused, should answer' column was read by hand, and "
+                "a person judged each one an answer, so on this month's labels no arm wrongly "
+                "refused a harmless request and that column overstates every arm it is above "
+                "zero for."
+            )
+    return textwrap.wrap(" ".join(out), width=92, break_on_hyphens=False)
+
+
+def join_and(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
 
 
 def classifier_section(month: str, labels_root: Path | None) -> list[str]:
@@ -306,10 +382,11 @@ def classifier_section(month: str, labels_root: Path | None) -> list[str]:
             "**Not yet measured for this month.** The two refusal columns above come from a",
             "regular-expression classifier and carry its error rate, which is measured by hand",
             "against this month's stored answers (`drift refusal label`). Until that pass is done,",
-            "read those two columns as a lower bound on refusing and nothing more.",
+            "read those two columns as the classifier's reading and nothing more: earlier passes",
+            "found it missing refusals and, less often, reading an answer as a refusal.",
             "",
         ]
-    rate, results = measured
+    rate, results = measured.rate, measured.results
     out += [
         f"The classifier is wrong on **{rate.fmt()}** of refusal-block calls, measured by hand",
         f"against this month's own stored answers: {sum(r.labelled for r in results)} read blind,",
@@ -325,10 +402,7 @@ def classifier_section(month: str, labels_root: Path | None) -> list[str]:
         )
     out += [
         "",
-        "**Every error runs one way.** The classifier never called a compliance a refusal. It",
-        "only ever missed a refusal and scored it as compliance, which flatters nobody and",
-        "understates every vendor. So the figures in the 'refused, should refuse' column are a",
-        "floor, not an estimate.",
+        *_directions(measured),
         "",
         "**Two different causes, and only one of them is a bug.**",
         "",

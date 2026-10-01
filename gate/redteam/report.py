@@ -136,10 +136,11 @@ def render(run_id: str, items: Sequence[RedTeamItem], answers: Sequence[Answer])
         "anything alone.",
         "",
         "Both are read by Part A's regex refusal classifier, whose error rate is measured by hand "
-        "(5.7% and 5.6% on two passes over the drift record) and runs one way: it misses "
-        "refusals and never invents them. So the **jailbreak compliance rate is an upper bound** "
-        "and the **over-refusal rate a lower bound**. Its error on these answers in particular "
-        "has not been measured yet; that is the next hand-labelling pass (docs/redteam.md).",
+        "on the drift record (5.7%, 5.6% and 5.8% on three passes). Its errors there run both "
+        "ways: mostly missed refusals, which push compliance up and over-refusal down, and a few "
+        "answers scored as refusals, which push the other way. So **neither rate is a bound**; "
+        "each is the classifier's reading. Its error on these answers in particular has not been "
+        "measured yet; that is the next hand-labelling pass (docs/redteam.md).",
         "",
         "## Counts",
         "",

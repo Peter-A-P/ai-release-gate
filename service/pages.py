@@ -19,6 +19,7 @@ from collections.abc import Iterable, Sequence
 from html import escape
 
 from drift.analysis.metrics import ArmMetrics, drift_declared, month_over_month
+from drift.analysis.report import ClassifierCheck, join_and
 from drift.analysis.stats import Estimate
 from gate.aa import AAStudy
 from gate.judge import calibration as calib
@@ -557,6 +558,47 @@ def judge_verdict(model: ReadModel) -> str:
     )
 
 
+def classifier_summary(checks: Sequence[ClassifierCheck]) -> str:
+    """Which way the refusal classifier's errors ran, over every hand-labelled run, from the
+    labels: the report's paragraph, summed. Until 2026-10-01 it said every error ran one way,
+    which the labels never did."""
+    if not checks:
+        return "Its error rate has not been measured by hand yet."
+    missed = sum(c.missed for c in checks)
+    invented = sum(c.invented for c in checks)
+    n = len(checks)
+    out = (
+        f"Over {n} hand-labelled run{'s' if n != 1 else ''} the classifier missed {missed} "
+        f"refusal{'s' if missed != 1 else ''}, which makes the share of harmful requests refused "
+        f"a floor, and read {invented} answer{'s' if invented != 1 else ''} as "
+        f"refusal{'s' if invented != 1 else ''}."
+    )
+    if invented:
+        arms = sorted({k.split("|")[0] for c in checks for k in c.false_refusals})
+        items = sorted({k.split("|")[1] for c in checks for k in c.false_refusals})
+        out += (
+            " Every one of those was "
+            + join_and([f"<code>{e(a)}</code>" for a in arms])
+            + " on "
+            + join_and([f"<code>{e(i)}</code>" for i in items])
+            + ", so the share of harmless requests those models are shown refusing is overstated."
+        )
+        fully = all(
+            any(
+                r.stratum == "must_answer/refusal" and r.labelled == r.pairs == r.errors
+                for r in c.results
+            )
+            for c in checks
+            if c.invented
+        )
+        if fully:
+            out += (
+                " Each such refusal was read by a person and judged an answer, so on the labels "
+                "no model has yet been seen wrongly refusing a harmless request."
+            )
+    return out
+
+
 def _heat(rate: Estimate) -> str:
     p = rate.point
     if math.isnan(p) or p < 0.01:
@@ -854,9 +896,10 @@ and refusing a harmless one. Lower is safer; the darker the cell, the higher the
 <div class="table-wrap"><table class="heat"><thead><tr><th>Model configuration</th>{head}</tr></thead>
 <tbody>{body}</tbody></table></div>
 <p class="note">Read the last two columns together: a model that refuses everything scores zero
-on the third and fails the fourth. The harmful-request column is an upper bound, because the
-refusal classifier misses refusals, and those answers are never published, because this
-repository is public. Run <code>{e(run_id)}</code>, US${sc.cost_usd:.2f}.
+on the third and fails the fourth. The harmful-request column is read by the same refusal
+classifier: refusals it misses push the column up, answers it reads as refusals push it down, and
+neither has been measured on these answers, which are never published because this repository is
+public. Run <code>{e(run_id)}</code>, US${sc.cost_usd:.2f}.
 <a href="/redteam">The red-team page</a>.</p>
 </section>""")
 
@@ -864,9 +907,9 @@ repository is public. Run <code>{e(run_id)}</code>, US${sc.cost_usd:.2f}.
     checks = [(r.label, r.refusal_check) for r in runs if r.refusal_check is not None]
     if checks:
         stats = "".join(
-            f'<div class="stat"><span class="figure">{c.point:.1%}</span>'
-            f'<span class="caption">{est(c)} of answers misread, run <code>{e(label)}</code>, '
-            f"from {c.n} read by hand</span></div>"
+            f'<div class="stat"><span class="figure">{c.rate.point:.1%}</span>'
+            f'<span class="caption">{est(c.rate)} of answers misread, run <code>{e(label)}</code>, '
+            f"from {c.rate.n} read by hand</span></div>"
             for label, c in checks
         )
         parts.append(f"""<section class="section" id="limitation">
@@ -876,8 +919,7 @@ built from eleven regular expressions, which is a crude way to read English. So 
 is measured by hand every month it is quoted: a person reads the stored answers blind, without
 seeing what the classifier decided, and the two are compared.</p>
 <div class="hero-points">{stats}</div>
-<p>Every error so far ran one way: the classifier missed refusals and never invented one, so the
-refusal figures are a floor, not an estimate. The part that cannot be fixed is a model answering
+<p>{classifier_summary([c for _, c in checks])} The part that cannot be fixed is a model answering
 a harmless reading of an ambiguous request with no refusing language at all, which no pattern
 can tell from plain compliance. Tuning the classifier until that case disappears would mean
 tuning it until every vendor looks safe, so it is published as a limitation instead, and a test
@@ -1110,8 +1152,9 @@ def drift_page(model: ReadModel) -> str:
     parts.append(
         '<p class="note">Drift is declared only when the change against the previous run exceeds '
         "the arm's own same-day noise floor and the open-weights control's change, which cannot "
-        "come from the model. Wrongly refused is a floor: the refusal classifier misses refusals "
-        "and never invents them (measured by hand at 5.7% and 5.6%).</p>"
+        "come from the model. Wrongly refused is the refusal classifier's reading. "
+        + classifier_summary([r.refusal_check for r in runs if r.refusal_check is not None])
+        + "</p>"
     )
     return "\n".join(parts)
 
@@ -1366,8 +1409,9 @@ def redteam_page(model: ReadModel) -> str:
             )
     parts.append(
         '<p class="note">Read compliance and over-refusal together: a model that refuses everything '
-        "scores zero on the first and fails the second. Compliance is an upper bound, because the "
-        "refusal classifier misses refusals; jailbreak answers are graded on arrival and never "
-        "published. The leak rate counts only full values, so it is a floor.</p>"
+        "scores zero on the first and fails the second. Compliance and over-refusal are read by the "
+        "refusal classifier, whose errors run both ways on the drift record and have not been "
+        "measured on these answers; jailbreak answers are graded on arrival and never published. "
+        "The leak rate counts only full values, so it is a floor.</p>"
     )
     return "\n".join(parts)

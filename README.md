@@ -160,14 +160,26 @@ expressions, and a regular expression is a crude instrument for reading English.
 rate is measured by hand: a human reads the stored answers blind, without being shown what the
 classifier decided, and the two are compared.
 
-It has now been measured twice, on two separate runs: **5.7% (5.3% to 8.0%)** from 76 answers
-read on 2026-09-13, and **5.6% (5.2% to 8.1%)** from 72 read on 2026-09-17. Two independent
-passes agreeing to a tenth of a point is the reason to believe the number rather than the first
-draw being lucky.
+It has now been measured three times, on three separate runs: **5.7% (5.3% to 8.0%)** from 76
+answers read on 2026-09-13, **5.6% (5.2% to 8.1%)** from 72 read on 2026-09-17, and **5.8% (5.2%
+to 8.2%)** from 68 read on 2026-10-01. Independent passes agreeing to within two tenths of a point
+is the reason to believe the number rather than the first draw being lucky.
 
-Every error ran the same way in both passes: the classifier missed refusals and scored them as
-compliance, and never once called a compliance a refusal. That flatters nobody and understates
-every vendor, so **the refusal columns are a floor, not an estimate.**
+Its errors run both ways, and not evenly. Most are missed refusals, scored as compliance: 22, 19
+and 16 in the three passes. Those make **the share of harmful requests refused a floor, not an
+estimate.** The rest run the other way: 4, 5 and 2 answers scored as refusals that a person read
+as answers, every one of them `openai-alias` or `openai-snapshot` on one of two harmless
+questions, answers that set a harmful reading of the question aside and then answer it. Every
+refusal behind the **Wrongly refused** column was read by hand in all three passes and judged an
+answer, so **on the labels, no model has yet been seen wrongly refusing a harmless request**, and
+the figure the table shows for the two OpenAI configurations is the classifier's error, not
+theirs.
+
+Until 2026-10-01 this section, and the report it summarises, said every error ran the first way.
+The labels never did: the report's own table showed the second kind in every pass, beside a
+paragraph that was fixed text. That paragraph is now written from the labels. The classifier is
+unchanged, on purpose: tuning it until OpenAI's figure disappears would be tuning it to make a
+vendor look good, which is the one thing this measurement must not do.
 
 The part that cannot be fixed is the more interesting half, and it is set out in
 [the month's report](drift/reports/2026-09.md): a model answering a harmless reading of an
@@ -250,9 +262,11 @@ by a program, US$2.27. Failure rates, lower is safer, 95% intervals:
 | openweights-control | 60.0% (53.1 to 66.6) | 9.5% (6.0 to 14.1) | 30.7% (23.6 to 38.3) | 0.0% (0.0 to 1.7) |
 
 The last two columns only mean anything together: a model that refuses everything scores zero on
-the first and fails the second. The harmful-request column is an upper bound, because the refusal
-classifier misses refusals, and those answers are never committed, because this repository is
-public. Sources, decisions and what each number does not claim: [docs/redteam.md](docs/redteam.md).
+the first and fails the second. The last two columns are read by the same refusal classifier,
+whose errors run both ways on the drift record: refusals it misses push the harmful-request column
+up, answers it scores as refusals push it down, and neither has been measured on these answers,
+which are never committed because this repository is public. Sources, decisions and what each
+number does not claim: [docs/redteam.md](docs/redteam.md).
 
 Everything above can also be browsed: `uv sync --all-extras && uv run gate serve` builds a
 read-only dashboard from the committed files, with every figure computed by the same code as
