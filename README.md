@@ -86,14 +86,14 @@ ordinary program, so the marker cannot drift either.
 
 | Run | Model configuration | Accuracy | Noise floor (same-day) | Change vs previous run | Wrongly refused | Cost / 1,000 calls |
 |---|---|---|---|---|---|---|
-| 2026-09 | anthropic-alias | 95.0% (92.9 to 96.9) | 0.5% (0.0 to 1.2) | first run | 0.0% (0.0 to 11.7) | US$1.33 |
-| 2026-09 | anthropic-snapshot | 95.0% (92.9 to 96.9) | 0.2% (0.0 to 0.7) | first run | 0.0% (0.0 to 11.7) | US$1.33 |
-| 2026-09 | anthropic-sonnet-snapshot | 97.6% (96.0 to 98.8) | 1.4% (0.5 to 2.6) | first run | 0.0% (0.0 to 11.7) | US$2.78 |
-| 2026-09 | google-alias | 97.4% (95.7 to 98.8) | 4.0% (2.4 to 6.0) | first run | 0.0% (0.0 to 11.7) | US$1.16 |
-| 2026-09 | google-snapshot | 96.9% (95.0 to 98.3) | 5.0% (3.1 to 7.4) | first run | 0.0% (0.0 to 11.7) | US$1.13 |
-| 2026-09 | openai-alias | 94.5% (92.4 to 96.7) | 4.0% (2.4 to 6.2) | first run | 3.0% (0.0 to 9.0) | US$0.49 |
-| 2026-09 | openai-snapshot | 94.8% (92.6 to 96.9) | 1.0% (0.2 to 2.1) | first run | 5.0% (0.0 to 15.0) | US$0.49 |
-| 2026-09 | openweights-control | 92.1% (89.5 to 94.5) | 3.6% (1.9 to 5.5) | first run | 0.0% (0.0 to 11.7) | US$0.60 |
+| 2026-10 | anthropic-alias | 95.2% (93.1 to 97.1) | 1.7% (0.5 to 2.9) | 0.7% (0.0 to 1.7) | 0.0% (0.0 to 11.7) | US$1.33 |
+| 2026-10 | anthropic-snapshot | 95.0% (92.9 to 97.1) | 1.2% (0.2 to 2.4) | 1.0% (0.2 to 1.9) | 0.0% (0.0 to 11.7) | US$1.33 |
+| 2026-10 | anthropic-sonnet-snapshot | 97.4% (95.7 to 98.8) | 2.4% (1.0 to 4.0) | 0.7% (0.0 to 1.7) | 0.0% (0.0 to 11.7) | US$2.81 |
+| 2026-10 | google-alias | 97.6% (96.0 to 98.8) | 4.5% (2.6 to 6.7) | 1.2% (0.2 to 2.4) | 0.0% (0.0 to 11.7) | US$1.18 |
+| 2026-10 | google-snapshot | 96.7% (94.8 to 98.1) | 4.0% (2.4 to 6.0) | 1.7% (0.7 to 3.1) | 0.0% (0.0 to 11.7) | US$1.18 |
+| 2026-10 | openai-alias | 94.8% (92.6 to 96.9) | 2.1% (1.0 to 3.6) | 2.1% (0.7 to 3.6) | 5.0% (0.0 to 15.0) | US$0.50 |
+| 2026-10 | openai-snapshot | 94.8% (92.6 to 96.9) | 2.4% (1.0 to 4.0) | 1.4% (0.5 to 2.6) | 5.0% (0.0 to 15.0) | US$0.48 |
+| 2026-10 | openweights-control | 92.1% (89.5 to 94.8) | 3.1% (1.4 to 4.8) | 1.0% (0.2 to 1.9) | 0.0% (0.0 to 11.7) | US$0.60 |
 
 <!-- drift:end -->
 
