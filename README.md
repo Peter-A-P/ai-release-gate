@@ -14,9 +14,10 @@ twice does not reliably give the identical answer.
 This project fixes the second problem so that the first one can be measured, and publishes the
 evidence month by month while it does.
 
-**Status:** the record has started. Two full runs are in, on 2026-09-13 and 2026-09-16. The
-headline number, how much a score moves when nothing has changed, is measured and published
-below, and the record continues month by month from here.
+**Status:** the record is running. Three full runs are in: two in September, on 2026-09-13 and
+2026-09-16, which measured how much a score moves when nothing has changed, and the first
+scheduled monthly run on 2026-10-01, which found no model drifting. The record continues on the
+first of every month, and the table below is the latest run's.
 
 ---
 
@@ -76,7 +77,8 @@ ordinary program, so the marker cannot drift either.
 - **Noise floor (same-day)** is the headline. The share of questions where the model gave a
   different result across its own 5 tries **in the same sitting, with nothing changed**. This is
   the bar every drift claim must clear.
-- **Change vs previous run** compares this run against the one before it, question by question.
+- **Change vs previous run** compares this run against the previous month's, question by
+  question: the share of questions whose result changed between the two.
 - **Wrongly refused** is how often a model declined a perfectly reasonable request.
 - Every figure carries a **95% confidence interval** in brackets: the range the true value is
   very likely to sit in. A number without one is meaningless at this sample size, so none are
@@ -103,9 +105,11 @@ five asks of one question count as one piece of evidence, not five. Where every 
 0 refused or all refused, a bootstrap has nothing to resample and the interval is Jeffreys over
 the 20 questions: 0.0% (0.0 to 11.7) means no refusal was seen, not that the rate is zero.
 
-**The noise floor runs from 0.2% to 5.0% depending on the model configuration.** That spread is
-itself the point: a 2% change means nothing on a Google arm and would be remarkable on an
-Anthropic snapshot. A single global threshold would be wrong for almost every arm.
+**Across the three runs the noise floor runs from 0.2% to 5.0% depending on the model
+configuration**, and in October from 1.2% (`anthropic-snapshot`) to 4.5% (`google-alias`). That
+spread is itself the point: in October the top of `google-alias`'s interval is 6.7% and the top
+of `anthropic-snapshot`'s is 2.4%, so the same move can be noise on one arm and a change on
+another. A single global threshold would be wrong for almost every arm.
 
 ### The between-run baseline, measured 2026-09-16
 
@@ -125,8 +129,26 @@ non-significant, and accuracy moved between -1.2% and +0.5%. So: **a score moves
 3% between two runs with nothing changed at all.** That is the anchor for every drift call
 that follows, and it is the number the project exists to produce.
 
-The two runs cost US$19.53 and US$19.57 against an expected US$20.35 each. Full per-run detail,
-including the drift call against the noise floor and the control, is in
+The two runs cost US$19.53 and US$19.57 against an expected US$20.35 each.
+
+### The first month apart, 2026-10-01
+
+The first scheduled run, compared with the run of 2026-09-13. Eighteen and a half days is long enough for a
+vendor to have changed a model behind its pinned name, so this is the first comparison that could
+have found drift. It found none:
+
+| | Change, 2026-09-13 to 2026-10-01 |
+|---|---|
+| Lowest configuration | 0.7% (`anthropic-alias`, `anthropic-sonnet-snapshot`) |
+| Highest configuration | 2.1% (`openai-alias`) |
+| Open-weights control | 1.0% |
+| Configurations where drift was declared | **none, 0 of 8** |
+
+Every change sat below the top of the arm's own same-day floor, accuracy moved between -0.2% and +0.2%, and
+the paired test found no sign of change on any arm (McNemar p = 1.000 on all eight). The run cost
+US$19.76 against an expected US$20.35.
+
+Full per-run detail, including the drift call against the noise floor and the control, is in
 [`drift/reports/`](drift/reports/).
 
 ## The honest limitation
