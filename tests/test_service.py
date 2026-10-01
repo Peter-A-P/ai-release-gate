@@ -325,3 +325,26 @@ def test_the_front_page_figures_are_the_reports(model: readmodel.ReadModel) -> N
     for arm in run.arms.values():
         assert arm.same_day_flip_rate.compact() in body
     assert "0.924 (0.886 to 0.958)" in body and "92.4%" not in body
+
+
+def test_each_run_is_paired_with_the_run_its_report_compares_against() -> None:
+    labels = ["2026-09", "2026-09-run2", "2026-10"]
+    assert [readmodel.baseline_for(x, labels) for x in labels] == [None, "2026-09", "2026-09"]
+    assert readmodel.baseline_for("2026-11", [*labels, "2026-11"]) == "2026-10"
+
+
+def test_the_change_column_is_the_readmes_on_every_page() -> None:
+    """October is paired with September as its report and the README pair it, not with the
+    between-run baseline that happens to come before it in time."""
+    from service import pages
+
+    m = readmodel.build(ROOT, runs=["2026-09", "2026-09-run2", "2026-10"], aa=False)
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    block = readme.split("<!-- drift:start -->")[1].split("<!-- drift:end -->")[0]
+    rows = [r for r in block.splitlines() if r.startswith("| 2026-10 |")]
+    assert len(rows) == 8
+    front, drift = pages.overview(m), pages.drift_page(m)
+    for row in rows:
+        change = [c.strip() for c in row.strip("|").split("|")][4]
+        assert change in front and change in drift, row
+    assert "between run 2026-09 and run 2026-10" in front

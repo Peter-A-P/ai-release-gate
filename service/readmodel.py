@@ -19,7 +19,7 @@ from typing import Any
 import duckdb
 
 from drift.analysis.metrics import ArmMetrics
-from drift.analysis.report import classifier_check, metrics_for_month
+from drift.analysis.report import classifier_check, metrics_for_month, previous_month
 from drift.analysis.stats import Estimate
 from drift.panel import load_panel
 from drift.runner.records import (
@@ -73,6 +73,8 @@ class Run:
     arms: dict[str, ArmMetrics]
     # The refusal classifier's error rate on this run, read by hand; None if nobody has yet.
     refusal_check: Estimate | None = None
+    # The run this one's report is paired against (`baseline_for`); None for the first.
+    baseline: str | None = None
 
 
 @dataclass
@@ -179,6 +181,22 @@ def _redteam(root: Path) -> tuple[dict[str, rt_report.Scored], str | None]:
     return scored, rt_suite.suite_hash(items)
 
 
+def baseline_for(label: str, labels: Sequence[str]) -> str | None:
+    """The run `label`'s report compares it against, so a page's "change vs previous run" is the
+    README's and the report's. The monthly job pairs a month with the calendar month before
+    (`drift.analysis.report.previous_month`); a run with no such month, like the September
+    between-run baseline `2026-09-run2`, was paired by hand with the run before it. The record
+    does not remember a baseline (drift/cli.py), so this is the rule both reports follow.
+
+    Pairing with the previous run in time instead put October against `2026-09-run2`, which no
+    report does, and the front page printed a largest move the README table did not contain."""
+    earlier = list(labels[: list(labels).index(label)])
+    if not earlier:
+        return None
+    month = previous_month(label)
+    return month if month in earlier else earlier[-1]
+
+
 def aa_study(root: Path, labels: Sequence[str]) -> gate_aa.AAStudy | None:
     """The A/A study the gate's report publishes, computed by the functions `gate aa` calls:
     within-run pairs from the last of `labels`, and between-run pairs against the one before."""
@@ -235,6 +253,16 @@ def build(
                 check[0] if check is not None else None,
             )
         )
+    built = [
+        Run(
+            r.label,
+            r.meta,
+            r.arms,
+            r.refusal_check,
+            baseline_for(r.label, [b.label for b in built]),
+        )
+        for r in built
+    ]
     aa_runs = tuple(r.label for r in built[:2])
     db = duckdb.connect(":memory:")
     _calls_table(db, runs_root, [r.label for r in built])

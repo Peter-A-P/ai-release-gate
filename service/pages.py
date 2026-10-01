@@ -435,7 +435,7 @@ def floor_chart(prev: Run | None, cur: Run, control: str | None) -> str:
     )
     if prev is not None:
         out.append(
-            f'<span class="key"><span class="sw dot"></span>Change since the run before, '
+            f'<span class="key"><span class="sw dot"></span>Change from run '
             f"{e(prev.label)} to {e(cur.label)}</span>"
         )
     out.append('<span class="key"><span class="sw ci"></span>95% interval</span></div>')
@@ -574,7 +574,7 @@ def _days_between(a: Run, b: Run) -> int:
 def overview(model: ReadModel) -> str:
     runs = model.runs
     cur = runs[-1] if runs else None
-    prev = runs[-2] if len(runs) > 1 else None
+    prev = next((r for r in runs if cur is not None and r.label == cur.baseline), None)
     calls = sum(r.meta.calls for r in runs)
     spent = sum(r.meta.spent_usd for r in runs)
     parts: list[str] = []
@@ -622,7 +622,8 @@ def overview(model: ReadModel) -> str:
         point(
             f"{len(declared)} of {shared}",
             "models flagged as changed",
-            f"between the last two full runs, {_days_between(prev, cur)} days apart. "
+            f"between run {e(prev.label)} and run {e(cur.label)}, "
+            f"{_days_between(prev, cur)} days apart. "
             + (
                 "The largest move, "
                 + (f"{est(largest[0])} on <code>{e(largest[1])}</code>, " if largest else "")
@@ -1057,8 +1058,8 @@ def drift_page(model: ReadModel) -> str:
         "<h2>Accuracy by run</h2>",
         interval_chart(runs, arms),
     ]
-    for i, run in enumerate(runs):
-        prev = runs[i - 1] if i else None
+    for run in runs:
+        prev = next((r for r in runs if r.label == run.baseline), None)
         ck = model.control_key
         control = None
         if prev is not None and ck and ck in run.arms and ck in prev.arms:
