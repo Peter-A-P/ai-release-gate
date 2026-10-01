@@ -45,6 +45,17 @@ Checked on the live site on 2026-09-28:
   allows. 01 found its own policy blocking its chart colours only on the live site, which is why
   this check was repeated there.
 
+**Changed 2026-10-01: the pages take peterparker.ca's look.** The front page is rewritten for a
+reader who has never heard of a noise floor as well as one who will check the statistics, in the
+palette and typefaces of the portfolio and of 01, 02, 08 and 12's pages. The two fonts are
+committed in `service/static/fonts/` and served by the service at `/fonts/` as routes like any
+other, so the export still writes only what the service answers; the policy adds
+`font-src 'self'` and nothing else. The charts are HTML positioned in percentages and styled
+inline, still no script and no image. Checked locally before deploying: the export served with
+the config's own headers (not a bare static server), in Edge at desktop and phone width and in
+dark mode, with every font and chart rendering under the policy. Repeat the header check on the
+live site after the first deploy.
+
 **The JSON is under `/data/`, not `/api/`**, because Static Web Apps reserves `/api/` for its
 Functions backend. `gate serve` still answers the old `/api/` paths with the same bytes.
 

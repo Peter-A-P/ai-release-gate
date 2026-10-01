@@ -19,9 +19,18 @@ from typing import Any
 import duckdb
 
 from drift.analysis.metrics import ArmMetrics
-from drift.analysis.report import metrics_for_month
+from drift.analysis.report import classifier_check, metrics_for_month
+from drift.analysis.stats import Estimate
 from drift.panel import load_panel
-from drift.runner.records import RECORDS_FILE, RunMeta, load_meta
+from drift.runner.records import (
+    RECORDS_FILE,
+    RunMeta,
+    arms_recorded,
+    load_meta,
+    read_records,
+    records_path,
+)
+from gate import aa as gate_aa
 from gate import gold
 from gate import ledger as gate_ledger
 from gate.judge import calibration as calib
@@ -30,6 +39,7 @@ from gate.judge.rubric import rubric_hash
 from gate.redteam import report as rt_report
 from gate.redteam import run as rt_run
 from gate.redteam import suite as rt_suite
+from gate.spec import load_spec
 
 # A run directory with "dry" in its name is a rehearsal: its records exist so the official run
 # could be trusted, and it is never shown as part of the record.
@@ -61,6 +71,8 @@ class Run:
     label: str  # the directory name, "2026-09" or "2026-09-run2"
     meta: RunMeta
     arms: dict[str, ArmMetrics]
+    # The refusal classifier's error rate on this run, read by hand; None if nobody has yet.
+    refusal_check: Estimate | None = None
 
 
 @dataclass
@@ -78,6 +90,14 @@ class ReadModel:
     # The open-weights arm whose weights cannot change, read from drift/panel.yaml as the
     # report reads it: its movement is the measurement's own noise.
     control_key: str | None
+    # The gate run against itself, as `gate/reports/aa-2026-09.md` publishes it: `gate aa
+    # --month SECOND --baseline FIRST` under the shipped spec, on the first two official runs.
+    # Those are the between-run baseline, four days apart, where nothing can have changed, so
+    # every block is a false block. A later month is a month apart and a vendor may have moved
+    # its model in between, so pairing the latest two runs would stop being an A/A study the day
+    # the October run lands. None when not built (most of a minute) or there is no run.
+    aa: gate_aa.AAStudy | None
+    aa_runs: tuple[str, ...]
     db: duckdb.DuckDBPyConnection = field(repr=False)
     lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -159,6 +179,29 @@ def _redteam(root: Path) -> tuple[dict[str, rt_report.Scored], str | None]:
     return scored, rt_suite.suite_hash(items)
 
 
+def aa_study(root: Path, labels: Sequence[str]) -> gate_aa.AAStudy | None:
+    """The A/A study the gate's report publishes, computed by the functions `gate aa` calls:
+    within-run pairs from the last of `labels`, and between-run pairs against the one before."""
+    if not labels:
+        return None
+    runs_root = root / "drift" / "runs"
+    spec = load_spec(root / "gate" / "specs" / "drift-blocks.yaml")
+
+    def records(label: str) -> dict[str, list[Any]]:
+        return {
+            k: list(read_records(records_path(runs_root, label, k)))
+            for k in arms_recorded(runs_root, label)
+        }
+
+    cur = records(labels[-1])
+    pairs = gate_aa.within_run_pairs(spec, cur, month=labels[-1], size=2)
+    if len(labels) > 1:
+        pairs += gate_aa.between_run_pairs(
+            spec, records(labels[-2]), cur, first_month=labels[-2], second_month=labels[-1]
+        )
+    return gate_aa.study(spec, pairs) if pairs else None
+
+
 def _calls_table(db: duckdb.DuckDBPyConnection, runs_root: Path, labels: Sequence[str]) -> None:
     cols = ", ".join(f"{k} {v}" for k, v in CALL_COLUMNS.items())
     db.execute(f"CREATE TABLE calls (run_label VARCHAR, {cols})")
@@ -171,8 +214,11 @@ def _calls_table(db: duckdb.DuckDBPyConnection, runs_root: Path, labels: Sequenc
         )
 
 
-def build(root: Path, *, runs: Sequence[str] | None = None, seed: int = 0) -> ReadModel:
-    """Everything, from the repository at `root`. `runs` limits the drift runs read, for tests."""
+def build(
+    root: Path, *, runs: Sequence[str] | None = None, seed: int = 0, aa: bool = True
+) -> ReadModel:
+    """Everything, from the repository at `root`. `runs` limits the drift runs read and `aa`
+    skips the A/A study, both for tests."""
     runs_root = root / "drift" / "runs"
     labels = list(runs) if runs is not None else official_runs(runs_root)
     built: list[Run] = []
@@ -180,7 +226,16 @@ def build(root: Path, *, runs: Sequence[str] | None = None, seed: int = 0) -> Re
         meta = load_meta(runs_root, label)
         if meta is None:
             continue
-        built.append(Run(label, meta, metrics_for_month(runs_root, label, seed=seed)))
+        check = classifier_check(label, root / "drift")
+        built.append(
+            Run(
+                label,
+                meta,
+                metrics_for_month(runs_root, label, seed=seed),
+                check[0] if check is not None else None,
+            )
+        )
+    aa_runs = tuple(r.label for r in built[:2])
     db = duckdb.connect(":memory:")
     _calls_table(db, runs_root, [r.label for r in built])
     redteam, rt_hash = _redteam(root)
@@ -197,6 +252,8 @@ def build(root: Path, *, runs: Sequence[str] | None = None, seed: int = 0) -> Re
         redteam=redteam,
         redteam_suite_hash=rt_hash,
         control_key=control.key if control is not None else None,
+        aa=aa_study(root, aa_runs) if aa else None,
+        aa_runs=aa_runs if aa else (),
         db=db,
     )
 

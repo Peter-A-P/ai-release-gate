@@ -235,7 +235,10 @@ public. Sources, decisions and what each number does not claim: [docs/redteam.md
 Everything above can also be browsed: `uv sync --all-extras && uv run gate serve` builds a
 read-only dashboard from the committed files, with every figure computed by the same code as
 the reports. The same pages are published, rebuilt nightly, at
-[gate.peterparker.ca](https://gate.peterparker.ca) ([deploy/README.md](deploy/README.md)).
+[gate.peterparker.ca](https://gate.peterparker.ca) ([deploy/README.md](deploy/README.md)): a
+front page that explains the project in plain terms, with the noise floor, the gate's measured
+false-alarm rate, the judge licences and the red-team rates drawn from the committed record,
+and a page each for the detail.
 
 Every decision the gate makes on a pull request is kept in its ledger and rendered, with
 each side's interval, cost and latency, in [gate/reports/decisions.md](gate/reports/decisions.md),

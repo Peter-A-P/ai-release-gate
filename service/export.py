@@ -19,13 +19,14 @@ from service.readmodel import ReadModel
 
 CONFIG_FILE = "staticwebapp.config.json"
 
-# The headers the Caddyfile sent on the VPS design, carried over. The pages load nothing from
-# anywhere: no scripts, fonts or images, and styles only inline, so the policy allows exactly
-# that. 01 found its own policy had been blocking its chart legend's colours on the live site
-# since launch, which a plain local server cannot show; this one is checked under the policy,
+# The headers the Caddyfile sent on the VPS design, carried over. The pages load no script and no
+# image, styles only inline, and two fonts from this site's own /fonts/ (peterparker.ca's
+# typefaces, copied rather than linked), so the policy allows exactly that. 01 found its own
+# policy had been blocking its chart legend's colours on the live site since launch, which a plain local server cannot show; this one is checked under the policy,
 # locally with the headers applied, and has to be checked again once deployed.
 CSP = (
-    "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; base-uri 'none'; "
+    "default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; img-src 'self'; "
+    "base-uri 'none'; "
     "form-action 'none'; frame-ancestors 'none'"
 )
 HEADERS = {
@@ -55,8 +56,9 @@ def config() -> dict[str, Any]:
             *rewrites,
             {"route": "/data/build.json", "headers": {"Cache-Control": "no-store"}},
             {"route": "/data/*", "headers": {"Cache-Control": "public, max-age=3600"}},
+            {"route": "/fonts/*", "headers": {"Cache-Control": "public, max-age=604800"}},
         ],
-        "mimeTypes": {".json": "application/json"},
+        "mimeTypes": {".json": "application/json", ".woff2": "font/woff2"},
         "globalHeaders": HEADERS,
     }
 

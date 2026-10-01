@@ -145,6 +145,9 @@ def build_json(m: ReadModel) -> dict[str, Any]:
 
 HTML = "text/html; charset=utf-8"
 JSON = "application/json"
+WOFF2 = "font/woff2"
+TEXT = "text/plain; charset=utf-8"
+STATIC = Path(__file__).resolve().parent / "static"
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,6 +171,12 @@ def _json(value: Callable[[ReadModel], Any]) -> Callable[[ReadModel], bytes]:
     ).encode("utf-8")
 
 
+def _file(name: str) -> Callable[[ReadModel], bytes]:
+    """A committed file, served as it is: the portfolio's two typefaces and their licence. Not
+    computed from the record, so the same bytes whatever the model holds."""
+    return lambda _m: (STATIC / name).read_bytes()
+
+
 ROUTES: tuple[Route, ...] = (
     Route("/", "index.html", HTML, _page("/", "Overview", pages.overview)),
     Route("/drift", "drift.html", HTML, _page("/drift", "Drift record", pages.drift_page)),
@@ -184,6 +193,19 @@ ROUTES: tuple[Route, ...] = (
     ),
     Route("/data/redteam.json", "data/redteam.json", JSON, _json(redteam_json), ("/api/redteam",)),
     Route("/data/build.json", "data/build.json", JSON, _json(build_json), ("/healthz",)),
+    Route(
+        "/fonts/inter-latin.woff2",
+        "fonts/inter-latin.woff2",
+        WOFF2,
+        _file("fonts/inter-latin.woff2"),
+    ),
+    Route(
+        "/fonts/newsreader-latin.woff2",
+        "fonts/newsreader-latin.woff2",
+        WOFF2,
+        _file("fonts/newsreader-latin.woff2"),
+    ),
+    Route("/fonts/LICENSE.txt", "fonts/LICENSE.txt", TEXT, _file("fonts/LICENSE.txt")),
 )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from drift.analysis.metrics import (
     HELDOUT_SUFFIX,
@@ -12,6 +13,7 @@ from drift.analysis.metrics import (
     drift_declared,
     month_over_month,
 )
+from drift.analysis.stats import Estimate
 from drift.panel import Panel
 from drift.runner.grading import verdict
 from drift.runner.records import (
@@ -24,6 +26,9 @@ from drift.runner.records import (
     write_records,
 )
 from drift.suite import Suite
+
+if TYPE_CHECKING:
+    from drift.labelling import StratumResult
 
 README_START = "<!-- drift:start -->"
 README_END = "<!-- drift:end -->"
@@ -258,6 +263,27 @@ def render(
     return "\n".join(lines)
 
 
+def classifier_check(month: str, labels_root: Path) -> tuple[Estimate, list[StratumResult]] | None:
+    """The refusal classifier's error rate for a month, from the human labels, and the strata it
+    was read in; None when nobody has read that month yet. The report's section and the
+    dashboard both print this, so the figure cannot differ between them."""
+    from drift.labelling import (
+        build_queue,
+        error_rate,
+        labels_path,
+        read_labels,
+        refusal_records,
+        stratum_results,
+    )
+
+    labels = read_labels(labels_path(labels_root, month))
+    if not labels:
+        return None
+    queue = build_queue(refusal_records(labels_root / "runs", month), keep=labels.keys())
+    results = stratum_results(queue, labels)
+    return error_rate(results), results
+
+
 def classifier_section(month: str, labels_root: Path | None) -> list[str]:
     """What the refusal numbers above are worth, measured by hand rather than asserted.
 
@@ -268,15 +294,13 @@ def classifier_section(month: str, labels_root: Path | None) -> list[str]:
     tell how much to believe it, which for a claim about a named vendor's safety behaviour is
     not good enough.
     """
-    from drift.labelling import STRATUM_RULE, error_rate, read_labels, stratum_results
+    from drift.labelling import STRATUM_RULE
 
     out = ["", "## What the refusal columns are worth", ""]
     if labels_root is None:
         return []
-    from drift.labelling import build_queue, labels_path, refusal_records
-
-    labels = read_labels(labels_path(labels_root, month))
-    if not labels:
+    measured = classifier_check(month, labels_root)
+    if measured is None:
         return [
             *out,
             "**Not yet measured for this month.** The two refusal columns above come from a",
@@ -285,9 +309,7 @@ def classifier_section(month: str, labels_root: Path | None) -> list[str]:
             "read those two columns as a lower bound on refusing and nothing more.",
             "",
         ]
-    queue = build_queue(refusal_records(labels_root / "runs", month), keep=labels.keys())
-    results = stratum_results(queue, labels)
-    rate = error_rate(results)
+    rate, results = measured
     out += [
         f"The classifier is wrong on **{rate.fmt()}** of refusal-block calls, measured by hand",
         f"against this month's own stored answers: {sum(r.labelled for r in results)} read blind,",

@@ -30,7 +30,9 @@ APIS = ("/api/drift", "/api/costs", "/api/gate", "/api/judge", "/api/redteam", "
 def model() -> readmodel.ReadModel:
     # One official run rather than both: the published intervals take about twenty seconds a
     # run to compute, and one is enough to hold every page to the report.
-    return readmodel.build(ROOT, runs=[RUN])
+    # The A/A study is left out here, at most of a minute on its own, and held to its report by
+    # the one test that needs it.
+    return readmodel.build(ROOT, runs=[RUN], aa=False)
 
 
 @pytest.fixture(scope="module")
@@ -220,6 +222,8 @@ def test_the_export_publishes_no_answer_text_and_nothing_withheld(site: Path) ->
 
     files = sorted(p for p in site.rglob("*") if p.is_file())
     assert not [p for p in files if "withheld" in p.as_posix()]
+    # The fonts are binary and are the committed files themselves, checked below.
+    files = [p for p in files if p.suffix != ".woff2"]
     published = "\n".join(p.read_text(encoding="utf-8") for p in files)
     answers = [
         r.output
@@ -260,3 +264,64 @@ def test_the_hosting_config_serves_every_page_at_its_clean_url(site: Path) -> No
     # Azure Static Web Apps reserves /api/ for Functions, so nothing is published under it.
     assert not (site / "api").exists()
     assert not [r for r in ROUTES if r.path.startswith("/api/")]
+
+
+# ---------------------------------------------------------------------------- the front page
+
+
+def test_the_fonts_are_the_committed_files_and_the_policy_allows_only_them(
+    client: TestClient, site: Path
+) -> None:
+    """The portfolio's typefaces, served from this site and nowhere else: a font is an
+    off-origin request like any other, and the policy would refuse one from another host."""
+    from service.export import CSP
+
+    static = ROOT / "service" / "static" / "fonts"
+    for name in ("inter-latin.woff2", "newsreader-latin.woff2"):
+        got = client.get(f"/fonts/{name}")
+        assert got.headers["content-type"] == "font/woff2"
+        assert got.content == (static / name).read_bytes() == (site / "fonts" / name).read_bytes()
+    assert "font-src 'self'" in CSP
+    for path in PAGES:
+        body = client.get(path).text
+        assert "url(/fonts/inter-latin.woff2)" in body
+        # Nothing on a page loads from anywhere: links out are anchors, never sources.
+        assert "src=" not in body and "@import" not in body, path
+        assert body.count("url(") == 2, path
+
+
+def test_the_front_page_figures_are_the_reports(model: readmodel.ReadModel) -> None:
+    """The front page's hero and sections say what the reports say. The A/A figures are the
+    committed A/A report's, computed by the same functions `gate aa` calls; the refusal check is
+    the monthly report's own section."""
+    from drift.analysis.report import classifier_check
+    from service import pages
+
+    runs = ["2026-09", "2026-09-run2"]
+    study = readmodel.aa_study(ROOT, runs)
+    assert study is not None
+    m = readmodel.ReadModel(
+        **{**model.__dict__, "aa": study, "aa_runs": tuple(runs), "lock": threading.Lock()}
+    )
+    body = pages.overview(m)
+    assert not TYPOGRAPHIC.search(body)
+
+    aa_report = (ROOT / "gate" / "reports" / "aa-2026-09.md").read_text(encoding="utf-8")
+    fb, pr = study.false_block_rate(seed=0).compact(), study.point_rule_rate(seed=0).compact()
+    assert f"| delta 3, as specified | all | {study.n} | 1.0 of 8 | {fb} | {pr} |" in aa_report
+    assert fb in body and pr in body
+    assert body.count('<span class="on"></span>') == sum(p.blocked for p in study.pairs) + sum(
+        p.point_rule_blocked for p in study.pairs
+    )
+
+    check = classifier_check(RUN, ROOT / "drift")
+    assert check is not None
+    rate, _ = check
+    report = (ROOT / "drift" / "reports" / f"{RUN}.md").read_text(encoding="utf-8")
+    assert f"The classifier is wrong on **{rate.fmt()}**" in report
+    assert rate.compact() in body
+
+    (run,) = model.runs
+    for arm in run.arms.values():
+        assert arm.same_day_flip_rate.compact() in body
+    assert "0.924 (0.886 to 0.958)" in body and "92.4%" not in body

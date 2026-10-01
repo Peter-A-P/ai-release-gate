@@ -2,20 +2,32 @@
 
 Every figure is formatted by the library's own `Estimate.compact`, the function that writes the
 README table, so a number reads identically on a page, in a report and in the README.
+
+The look is peterparker.ca's, as the other projects' public pages are (01, 02, 08, 12): its
+palette, its two typefaces and the 3px rule over the page, so a visitor arriving from the
+portfolio does not land on a different-looking site. The fonts are served from this site
+(`service/static/fonts/`), never linked from another host: a font is an off-origin request like
+any other. The charts are HTML rather than SVG, positioned in percentages, so their labels stay
+the size of the text around them on a phone instead of shrinking with a viewBox.
 """
 
 from __future__ import annotations
 
+import datetime as dt
+import math
 from collections.abc import Iterable, Sequence
 from html import escape
 
 from drift.analysis.metrics import ArmMetrics, drift_declared, month_over_month
 from drift.analysis.stats import Estimate
+from gate.aa import AAStudy
 from gate.judge import calibration as calib
 from gate.redteam.suite import FAILURE, SUITES
 from service.readmodel import ReadModel, Run
 
 REPO = "https://github.com/Peter-A-P/ai-release-gate"
+PORTFOLIO = "https://peterparker.ca"
+PROJECT_PAGE = "https://peterparker.ca/projects/ai-release-gate/"
 
 NAV = (
     ("/", "Overview"),
@@ -27,49 +39,245 @@ NAV = (
 )
 
 CSS = """
+@font-face { font-family: "Newsreader"; font-style: normal; font-weight: 200 800;
+  font-display: swap; src: url(/fonts/newsreader-latin.woff2) format("woff2"); }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 400 600;
+  font-display: swap; src: url(/fonts/inter-latin.woff2) format("woff2"); }
 :root {
-  --bg: #fbfbf9; --fg: #1d1d1b; --muted: #5f5f5a; --rule: #deded8; --panel: #f1f1ec;
-  --accent: #1f5f8b; --pass: #2e6b3a; --block: #9b2c2c; --warn: #8a5a00;
-  --s1: #1f5f8b; --s2: #c2641d; --s3: #5b7f2a; --s4: #7a4d8c;
+  color-scheme: light dark;
+  --paper: #f5f3ee; --paper-soft: #fdfcf9; --ink: #16181d; --ink-soft: #3c4048;
+  --ink-faint: #6b7079; --line: #e3dfd6; --line-2: #cfc9bd; --line-soft: #eeebe4;
+  --accent: #0f5c6e; --accent-ink: #0b4653; --accent-soft: #e4eff1;
+  --warn: #c0392b; --good: #1e7a4c; --amber: #9a6700; --sim: #6d3f9e;
+  --s1: #0f5c6e; --s2: #6d3f9e; --s3: #9a6700; --s4: #1e7a4c;
+  --serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  --radius: 10px; --shadow: 0 6px 24px -18px rgba(0, 0, 0, 0.35); --column: 66rem;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #161615; --fg: #e8e8e3; --muted: #a3a39c; --rule: #34342f; --panel: #1f1f1d;
-    --accent: #7fb3d9; --pass: #7cc38a; --block: #e58a8a; --warn: #e0b35a;
-    --s1: #7fb3d9; --s2: #f0a36b; --s3: #a9cf74; --s4: #c39ad6;
+    --paper: #0e1013; --paper-soft: #15181d; --ink: #ece9e2; --ink-soft: #c9c6bf;
+    --ink-faint: #969ba5; --line: #262a31; --line-2: #363b44; --line-soft: #1c2026;
+    --accent: #7cc7d6; --accent-ink: #a9dde7; --accent-soft: #14262b;
+    --warn: #f0736a; --good: #58c286; --amber: #e0b35a; --sim: #b191e0;
+    --s1: #7cc7d6; --s2: #b191e0; --s3: #e0b35a; --s4: #58c286;
+    --shadow: 0 6px 24px -14px rgba(0, 0, 0, 0.6);
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg);
-  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
-header, main, footer { max-width: 72rem; margin: 0 auto; padding: 0 16px; }
-header { border-bottom: 1px solid var(--rule); padding-top: 1rem; }
-header .name { font-weight: 650; font-size: 1.1rem; }
-nav { display: flex; flex-wrap: wrap; gap: 0.25rem 1.1rem; padding: 0.6rem 0 0.8rem; }
-nav a { color: var(--muted); text-decoration: none; }
-nav a[aria-current] { color: var(--fg); font-weight: 600; }
-main { padding-top: 1.2rem; padding-bottom: 2rem; }
-h1 { font-size: 1.6rem; line-height: 1.25; margin: 0.4rem 0 0.8rem; }
-h2 { font-size: 1.2rem; margin: 2rem 0 0.6rem; }
-p, li { max-width: 46rem; }
-a { color: var(--accent); }
-.muted { color: var(--muted); }
-.scroll { overflow-x: auto; margin: 0.6rem 0 1rem; }
-table { border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 0.93rem; }
-th, td { text-align: left; padding: 0.35rem 0.8rem 0.35rem 0; border-bottom: 1px solid var(--rule);
-  vertical-align: top; white-space: nowrap; }
+html { font-size: 18px; -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans);
+  font-size: 1rem; line-height: 1.72; border-top: 3px solid var(--accent);
+  font-feature-settings: "cv11", "ss01"; }
+main { max-width: var(--column); margin: 0 auto; padding: 0 1.5rem 4rem; }
+a { color: var(--accent); text-decoration: none; text-underline-offset: 0.15em; }
+a:hover, a:focus-visible { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code { font-family: var(--mono); font-size: 0.86em; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.012em; }
+h1 { font-size: clamp(2.1rem, 4.6vw, 3rem); line-height: 1.1; margin: 0 0 1rem; }
+h2 { font-size: clamp(1.55rem, 2.6vw, 2rem); line-height: 1.2; margin: 0 0 0.7rem; }
+h3 { font-size: 1.2rem; line-height: 1.25; margin: 0 0 0.45rem; }
+p, li { margin: 0 0 0.85rem; }
+.muted { color: var(--ink-faint); }
+.pass { color: var(--good); font-weight: 600; }
+.block { color: var(--warn); font-weight: 600; }
+.warn { color: var(--amber); font-weight: 600; }
+
+.top { border-bottom: 1px solid var(--line); }
+.top-inner { max-width: var(--column); margin: 0 auto; padding: 0 1.5rem; height: 4rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.brand { display: inline-flex; align-items: center; gap: 0.7rem; color: var(--ink);
+  font-weight: 600; letter-spacing: -0.01em; }
+.brand:hover { text-decoration: none; color: var(--accent-ink); }
+.mono-mark { width: 1.9rem; height: 1.9rem; border-radius: 6px; background: var(--accent);
+  color: #fdfcf9; font-family: var(--serif); font-weight: 500; font-size: 1.15rem;
+  display: inline-flex; align-items: center; justify-content: center; }
+@media (prefers-color-scheme: dark) { .mono-mark { color: #0e1013; } }
+.top-nav { font-size: 0.92rem; margin: 0; text-align: right; }
+.top-nav a { color: var(--ink-soft); }
+.tabs { border-bottom: 1px solid var(--line); background: var(--paper-soft); }
+.tabs-inner { max-width: var(--column); margin: 0 auto; padding: 0.55rem 1.5rem;
+  display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.tabs a { font-size: 0.85rem; padding: 0.2rem 0.75rem; border-radius: 999px;
+  border: 1px solid transparent; color: var(--ink-soft); }
+.tabs a:hover { text-decoration: none; border-color: var(--line-2); color: var(--accent-ink); }
+.tabs a[aria-current] { border-color: var(--accent); background: var(--accent-soft);
+  color: var(--ink); font-weight: 600; }
+
+.hero { padding: 3.25rem 0 2.25rem; border-bottom: 1px solid var(--line); }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem;
+  font-weight: 600; color: var(--ink-faint); margin: 0 0 0.6rem; }
+.lead { font-size: 1.05rem; color: var(--ink-soft); }
+.hero-points { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.9rem; margin: 1.75rem 0 1.1rem; }
+.point, .stat, .takeaway, .card { background: var(--paper-soft); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 1rem 1.1rem; min-width: 0; }
+.point-figure, .figure { display: block; font-family: var(--serif); font-size: 1.9rem;
+  font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+  line-height: 1.15; }
+.point-unit { display: block; margin-top: 0.2rem; font-size: 0.84rem; font-weight: 600;
+  color: var(--ink-soft); line-height: 1.35; }
+.point-label, .caption { display: block; margin-top: 0.4rem; padding-top: 0.4rem;
+  border-top: 1px solid var(--line); font-size: 0.82rem; color: var(--ink-faint);
+  line-height: 1.45; }
+.hero-note, .note { font-size: 0.86rem; color: var(--ink-faint); }
+.hero-note { margin: 0; }
+
+.section { padding: 2.75rem 0; border-bottom: 1px solid var(--line); }
+.section-lead { color: var(--ink-soft); }
+.section > h3 { margin-top: 2rem; }
+.part { padding: 2.75rem 0 0.5rem; }
+.part h2 { font-size: clamp(1.8rem, 3.4vw, 2.4rem); }
+.detail h1 { font-size: clamp(1.9rem, 3.8vw, 2.5rem); margin-top: 2.25rem; }
+.detail h2 { font-size: 1.35rem; margin: 2.2rem 0 0.6rem; }
+.detail > p { color: var(--ink-soft); }
+.detail .note, .verdict { margin: 1.1rem 0 0; padding: 0.9rem 1.1rem;
+  border-radius: 0 var(--radius) var(--radius) 0; background: var(--accent-soft);
+  border-left: 3px solid var(--accent); font-size: 0.93rem; color: var(--ink); }
+.verdict.good { background: color-mix(in srgb, var(--good) 12%, transparent);
+  border-left-color: var(--good); }
+.verdict.bad { background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border-left-color: var(--warn); }
+
+.scroll, .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0.8rem 0 1rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem;
+  font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--line);
+  white-space: nowrap; vertical-align: top; }
+th { font-weight: 600; font-size: 0.8rem; background: var(--line-soft);
+  border-bottom-color: var(--line-2); }
 td.wrap { white-space: normal; min-width: 18rem; }
-th { font-weight: 600; color: var(--muted); }
-.pass { color: var(--pass); font-weight: 600; }
-.block { color: var(--block); font-weight: 600; }
-.warn { color: var(--warn); font-weight: 600; }
-.note { background: var(--panel); border-left: 3px solid var(--rule); padding: 0.6rem 0.9rem;
-  margin: 1rem 0; max-width: 46rem; }
-code { font-size: 0.9em; }
-svg text { fill: var(--muted); font-size: 12px; }
-svg .axis { stroke: var(--rule); }
-footer { border-top: 1px solid var(--rule); padding: 1rem 16px 2rem; color: var(--muted);
-  font-size: 0.85rem; }
+table.idea td { white-space: normal; }
+table.idea td:first-child { width: 34%; }
+table.idea tr.real { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+@media (max-width: 46rem) {
+  table.idea thead { display: none; }
+  table.idea tr { display: block; padding: 0.6rem 0.2rem; border-bottom: 1px solid var(--line); }
+  table.idea td { display: block; width: auto !important; border: 0; padding: 0.1rem 0.55rem; }
+  table.idea td[data-label]::before { content: attr(data-label) ": "; color: var(--ink-faint); }
+}
+
+.legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin: 1rem 0 0.6rem;
+  font-size: 0.82rem; color: var(--ink-soft); }
+.key { display: inline-flex; align-items: center; gap: 0.45rem; }
+.sw { display: inline-block; flex: none; }
+.sw.bar { width: 18px; height: 10px; border-radius: 0 4px 4px 0;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-right: 2px solid var(--accent); }
+.sw.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--sim); }
+.sw.good { width: 10px; height: 10px; border-radius: 50%; background: var(--good); }
+.sw.bad { width: 10px; height: 10px; border-radius: 50%; background: var(--warn); }
+.sw.ci { width: 18px; height: 2px; background: var(--ink-faint); }
+.sw.line { width: 2px; height: 14px; background: var(--ink-soft); }
+
+.dp { margin: 0.4rem 0 0.4rem; }
+.dp-group { font-size: 0.78rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--ink-faint); margin: 1rem 0 0.2rem; }
+.dp-row { display: grid; grid-template-columns: 13rem 1fr 13.5rem; gap: 0 1rem;
+  align-items: center; padding: 0.3rem 0; border-bottom: 1px solid var(--line-soft); }
+.dp-label { font-size: 0.85rem; overflow-wrap: anywhere; line-height: 1.3; }
+.dp-label small { display: block; color: var(--ink-faint); font-size: 0.75rem; }
+.dp-track { position: relative; height: 1.9rem; }
+.dp-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line); }
+.dp-grid.zero { background: var(--line-2); }
+.dp-value { font-size: 0.8rem; color: var(--ink-soft); line-height: 1.35;
+  font-variant-numeric: tabular-nums; }
+.dp-value b { color: var(--ink); font-weight: 600; }
+.dp-bar { position: absolute; left: 0; top: 0.35rem; height: 0.7rem; border-radius: 0 4px 4px 0;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-right: 2px solid var(--accent); }
+.dp-ci { position: absolute; height: 2px; background: var(--ink-faint); }
+.dp-ci.upper { top: 0.67rem; }
+.dp-ci.lower { top: 1.42rem; }
+.dp-ci.mid { top: 0.9rem; }
+.dp-dot { position: absolute; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%;
+  background: var(--sim); box-shadow: 0 0 0 2px var(--paper); }
+.dp-dot.lower { top: 1.07rem; }
+.dp-dot.mid { top: 0.55rem; }
+.dp-dot.good { background: var(--good); }
+.dp-dot.bad { background: var(--warn); }
+.dp-rule { position: absolute; top: -0.2rem; bottom: -0.2rem; width: 2px; margin-left: -1px;
+  background: var(--ink-soft); opacity: 0.6; }
+.dp-axis { display: grid; grid-template-columns: 13rem 1fr 13.5rem; gap: 0 1rem; }
+.dp-ticks { position: relative; height: 1.4rem; font-size: 0.72rem; color: var(--ink-faint); }
+.dp-ticks span { position: absolute; transform: translateX(-50%); top: 0.2rem; white-space: nowrap; }
+.dp-ticks span:first-child { transform: none; }
+.dp-ticks span:last-child { transform: translateX(-100%); }
+.dp-axis-title { grid-column: 2; font-size: 0.75rem; color: var(--ink-faint); margin: 0; }
+
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.25rem 0; }
+.arena { border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: var(--radius); padding: 1.1rem 1.25rem; background: var(--paper-soft);
+  box-shadow: var(--shadow); min-width: 0; }
+.arena.naive { border-left-color: var(--line-2); }
+.arena h3 { font-size: 1.1rem; }
+.arena .figure { margin: 0.4rem 0 0.1rem; }
+.waffle { display: grid; grid-template-columns: repeat(32, 1fr); gap: 2px; margin: 0.8rem 0 0.4rem; }
+.waffle span { aspect-ratio: 1; border-radius: 2px; background: var(--line); }
+.waffle span.on { background: var(--warn); }
+.tag { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 0.12rem 0.55rem; border-radius: 999px; background: var(--line-soft);
+  border: 1px solid var(--line); color: var(--ink-soft); white-space: nowrap; }
+.tag.good { background: color-mix(in srgb, var(--good) 15%, transparent); color: var(--good);
+  border-color: transparent; }
+.tag.bad { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn);
+  border-color: transparent; }
+
+table.heat td.cell { font-weight: 600; text-align: right; }
+table.heat th.num { text-align: right; }
+td.r0 { background: transparent; }
+td.r1 { background: color-mix(in srgb, var(--warn) 9%, transparent); }
+td.r2 { background: color-mix(in srgb, var(--warn) 18%, transparent); }
+td.r3 { background: color-mix(in srgb, var(--warn) 30%, transparent); }
+td.r4 { background: color-mix(in srgb, var(--warn) 44%, transparent); }
+
+.steps { list-style: none; padding: 0; margin: 1.25rem 0; display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.9rem; counter-reset: step; }
+.steps li { counter-increment: step; background: var(--paper-soft); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 1rem 1.1rem; margin: 0; font-size: 0.9rem;
+  color: var(--ink-soft); }
+.steps li::before { content: counter(step); display: inline-flex; width: 1.6rem; height: 1.6rem;
+  border-radius: 50%; background: var(--accent); color: var(--paper-soft); font-weight: 600;
+  font-size: 0.8rem; align-items: center; justify-content: center; margin-bottom: 0.5rem; }
+.steps strong { display: block; color: var(--ink); font-size: 0.95rem; margin-bottom: 0.2rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.6rem 0 0; padding: 0;
+  list-style: none; }
+.chips li { font-size: 0.8rem; padding: 0.2rem 0.7rem; border: 1px solid var(--line-2);
+  border-radius: 999px; background: var(--paper-soft); color: var(--ink-soft); margin: 0; }
+.takeaways, .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.1rem; }
+.cards { grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+.takeaway p, .card p { font-size: 0.9rem; color: var(--ink-soft); margin: 0; }
+.card h3 { font-size: 1.1rem; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.25rem 0; }
+
+svg text { fill: var(--ink-faint); font-size: 12px; }
+svg .axis { stroke: var(--line); }
+footer { max-width: var(--column); margin: 0 auto; padding: 2rem 1.5rem 3rem;
+  font-size: 0.86rem; color: var(--ink-faint); border-top: 1px solid var(--line); }
+footer .footer-lead { color: var(--ink); font-weight: 600; font-size: 0.95rem; }
+
+@media (max-width: 58rem) {
+  .compare, .split { grid-template-columns: 1fr; }
+  .dp-row, .dp-axis { grid-template-columns: 9.5rem 1fr; }
+  .dp-value { grid-column: 2; padding-bottom: 0.2rem; }
+}
+@media (max-width: 46rem) {
+  html { font-size: 17px; }
+  .takeaways { grid-template-columns: 1fr; }
+  .top-inner { height: auto; padding: 0.8rem 1rem; }
+  .top-nav { display: none; }
+  .tabs-inner { padding: 0.5rem 1rem; }
+  main { padding: 0 1rem 3rem; }
+  footer { padding: 2rem 1rem 3rem; }
+  .hero { padding: 2.25rem 0 1.75rem; }
+  .section { padding: 2rem 0; }
+  .dp-row, .dp-axis { grid-template-columns: 1fr; }
+  .dp-label, .dp-value, .dp-axis-title, .dp-ticks { grid-column: 1; }
+  .dp-axis > div:first-child, .dp-axis > div:last-child { display: none; }
+  th, td { padding: 0.45rem 0.55rem; }
+}
 """
 
 
@@ -83,22 +291,37 @@ def page(model: ReadModel, path: str, title: str, body: str) -> str:
         for href, label in NAV
     )
     commit = model.commit[:12] if model.commit else "unknown"
+    full_title = (
+        "AI Release Gate: did the AI get worse, or is that just noise?"
+        if path == "/"
+        else f"{title} | AI Release Gate"
+    )
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{e(title)} | AI Release Gate</title>
+<title>{e(full_title)}</title>
+<meta name="description" content="A release gate for AI: a frozen test asked of eight model configurations every month, five times each, so a change in score can be told apart from noise. Every number is reproducible from the repository.">
 <style>{CSS}</style>
 </head>
 <body>
-<header><div class="name">AI Release Gate</div><nav>{nav}</nav></header>
-<main>
+<header class="top"><div class="top-inner">
+<a class="brand" href="{PORTFOLIO}"><span class="mono-mark" aria-hidden="true">P</span>Peter Parker</a>
+<p class="top-nav"><a href="{PROJECT_PAGE}">Project 03: AI Release Gate</a></p>
+</div></header>
+<nav class="tabs" aria-label="This site"><div class="tabs-inner">{nav}</div></nav>
+<main{' class="detail"' if path != "/" else ""}>
 {body}
 </main>
-<footer>Read-only. Built {e(model.built_utc)} from commit <code>{e(commit)}</code> of
-<a href="{REPO}">the repository</a>, where every number here can be regenerated offline with the
-CLI. Intervals are 95%.</footer>
+<footer>
+<p class="footer-lead">Every number on this site is reproducible from the repository, offline, without a vendor key.</p>
+<p><a href="{REPO}">The repository, the method and the reports</a> &middot;
+<a href="{PROJECT_PAGE}">The project page</a> &middot;
+<a href="{PORTFOLIO}">The rest of the portfolio</a></p>
+<p>Read-only. Built {e(model.built_utc)} from commit <code>{e(commit)}</code>, by the same code
+that writes the reports. Intervals are 95%.</p>
+</footer>
 </body>
 </html>
 """
@@ -124,52 +347,618 @@ def est(x: Estimate, *, pct: bool = True) -> str:
 
 
 # ---------------------------------------------------------------------------- overview
+#
+# The front page, written for two readers at once: someone who has never heard of a noise floor
+# and wants to know what this is for, and someone who will check the statistics. Each section
+# says the plain thing first and puts the number that backs it beside it. Every figure is a
+# library value from the read model, formatted by `Estimate.compact`; the words around a figure
+# are fixed and the figure is not, so a new month changes the numbers and never the claim's
+# wording into something the numbers do not say.
+
+
+def _pct(v: float, lo: float, hi: float) -> float:
+    """Where `v` sits on a track from `lo` to `hi`, in percent, clamped to the track."""
+    if math.isnan(v) or hi <= lo:
+        return 0.0
+    return max(0.0, min(100.0, (v - lo) / (hi - lo) * 100))
+
+
+def _ci(x: Estimate, lo: float, hi: float, where: str) -> str:
+    if math.isnan(x.lo) or math.isnan(x.hi):
+        return ""
+    a, b = _pct(x.lo, lo, hi), _pct(x.hi, lo, hi)
+    return f'<span class="dp-ci {where}" style="left:{a:.2f}%;width:{max(b - a, 0.4):.2f}%"></span>'
+
+
+def _grid(lo: float, hi: float, values: Iterable[float]) -> str:
+    return "".join(
+        f'<span class="dp-grid{" zero" if v == 0 else ""}" style="left:{_pct(v, lo, hi):.2f}%"></span>'
+        for v in values
+    )
+
+
+def _ticks(lo: float, hi: float, labels: Sequence[tuple[float, str]], title: str) -> str:
+    spans = "".join(
+        f'<span style="left:{_pct(v, lo, hi):.2f}%">{e(text)}</span>' for v, text in labels
+    )
+    return (
+        f'<div class="dp-axis"><div></div><div class="dp-ticks">{spans}</div><div></div></div>'
+        f'<div class="dp-axis"><div></div><p class="dp-axis-title">{e(title)}</p><div></div></div>'
+    )
+
+
+def _scale_top(values: Iterable[float], step: float) -> float:
+    top = max((v for v in values if not math.isnan(v)), default=step)
+    return max(step, math.ceil(top / step) * step)
+
+
+def floor_chart(prev: Run | None, cur: Run, control: str | None) -> str:
+    """Per model configuration: the same-day noise floor of the latest run as a bar with its
+    interval, and the change since the run before as a dot with its interval. A dot inside the
+    bar's reach is a move noise explains."""
+    control_mom = None
+    if prev is not None and control and control in prev.arms and control in cur.arms:
+        control_mom = month_over_month(prev.arms[control], cur.arms[control])
+    rows: list[tuple[str, ArmMetrics, Estimate | None, bool]] = []
+    for key, m in cur.arms.items():
+        if prev is not None and key in prev.arms:
+            mom = month_over_month(prev.arms[key], m)
+            declared = drift_declared(mom, m, None if key == control else control_mom)
+            rows.append((key, m, mom.flip_rate, declared))
+        else:
+            rows.append((key, m, None, False))
+    rows.sort(key=lambda r: r[1].same_day_flip_rate.point)
+    top = _scale_top(
+        [r[1].same_day_flip_rate.hi for r in rows] + [r[2].hi for r in rows if r[2] is not None],
+        0.02,
+    )
+    grid = _grid(0, top, [top * i / 4 for i in range(5)])
+    out = ['<div class="legend">']
+    out.append(
+        f'<span class="key"><span class="sw bar"></span>Noise floor: answers that changed across '
+        f"five identical asks, {e(cur.label)}</span>"
+    )
+    if prev is not None:
+        out.append(
+            f'<span class="key"><span class="sw dot"></span>Change since the run before, '
+            f"{e(prev.label)} to {e(cur.label)}</span>"
+        )
+    out.append('<span class="key"><span class="sw ci"></span>95% interval</span></div>')
+    out.append('<div class="dp" role="table" aria-label="Noise floor and change, by model">')
+    for key, m, change, declared in rows:
+        f = m.same_day_flip_rate
+        marks = grid + (
+            f'<span class="dp-bar" style="width:{_pct(f.point, 0, top):.2f}%" '
+            f'title="{e(key)} noise floor: {est(f)}"></span>' + _ci(f, 0, top, "upper")
+        )
+        value = f"floor <b>{est(f)}</b>"
+        if change is not None:
+            marks += _ci(change, 0, top, "lower") + (
+                f'<span class="dp-dot lower" style="left:{_pct(change.point, 0, top):.2f}%" '
+                f'title="{e(key)} change: {est(change)}"></span>'
+            )
+            value += f"<br>change <b>{est(change)}</b>"
+            if declared:
+                value += ' <span class="tag bad">drift</span>'
+        label = f"<code>{e(key)}</code>"
+        if key == control:
+            label += "<small>open weights: cannot change</small>"
+        out.append(
+            f'<div class="dp-row" role="row"><div class="dp-label" role="cell">{label}</div>'
+            f'<div class="dp-track" role="cell">{marks}</div>'
+            f'<div class="dp-value" role="cell">{value}</div></div>'
+        )
+    out.append("</div>")
+    ticks = [(top * i / 4, f"{top * i / 4:.1%}") for i in range(5)]
+    out.append(_ticks(0, top, ticks, "share of the 420 questions"))
+    return "".join(out)
+
+
+def waffle(study: AAStudy, *, point_rule: bool) -> str:
+    """One square per no-change comparison, red where it was blocked: blocked first, so the
+    count reads as an area."""
+    blocked = sum(1 for p in study.pairs if (p.point_rule_blocked if point_rule else p.blocked))
+    cells = '<span class="on"></span>' * blocked + "<span></span>" * (study.n - blocked)
+    label = "point rule" if point_rule else "the gate's rule"
+    return (
+        f'<div class="waffle" role="img" aria-label="{blocked} of {study.n} comparisons '
+        f'blocked under {label}">{cells}</div>'
+    )
+
+
+def judge_chart(model: ReadModel) -> str:
+    groups = (
+        ("The first hundred questions", model.judges),
+        ("Multi-part questions, licensed separately", model.judges_multipart),
+    )
+    lo, hi = -0.2, 1.0
+    out = [
+        '<div class="legend">'
+        '<span class="key"><span class="sw good"></span>licensed: allowed to grade</span>'
+        '<span class="key"><span class="sw bad"></span>refused: below the bar</span>'
+        '<span class="key"><span class="sw ci"></span>95% interval</span>'
+        f'<span class="key"><span class="sw line"></span>the bar, kappa {calib.KAPPA_FLOOR:g}'
+        "</span></div>"
+    ]
+    names = {"complete": "is the answer complete?", "faithful": "is it true to the source?"}
+    grid = _grid(lo, hi, (0.0, 0.2, 0.4, 0.6, 0.8, 1.0))
+    rule = (
+        grid + f'<span class="dp-rule" style="left:{_pct(calib.KAPPA_FLOOR, lo, hi):.2f}%"></span>'
+    )
+    for title, judges in groups:
+        if not judges:
+            continue
+        out.append(f'<p class="dp-group">{e(title)}</p><div class="dp">')
+        for key, c in sorted(judges.items()):
+            for t in sorted(c.tasks, key=lambda t: t.task):
+                k = t.kappa
+                status = (
+                    '<span class="tag good">licensed</span>'
+                    if t.usable
+                    else '<span class="tag bad">refused</span>'
+                )
+                dot = (
+                    f'<span class="dp-dot mid {"good" if t.usable else "bad"}" '
+                    f'style="left:{_pct(k.point, lo, hi):.2f}%" '
+                    f'title="{e(key)}, {e(t.task)}: kappa {est(k, pct=False)}"></span>'
+                    if not math.isnan(k.point)
+                    else ""
+                )
+                out.append(
+                    f'<div class="dp-row"><div class="dp-label"><code>{e(key)}</code>'
+                    f"<small>{e(names.get(t.task, t.task))}</small></div>"
+                    f'<div class="dp-track">{rule}{_ci(k, lo, hi, "mid")}{dot}</div>'
+                    f'<div class="dp-value">kappa <b>{est(k, pct=False)}</b> {status}</div></div>'
+                )
+        out.append("</div>")
+    ticks = [(v, f"{v:g}") for v in (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)]
+    out.append(_ticks(lo, hi, ticks, "Cohen's kappa against a human: 1 is perfect, 0 is chance"))
+    return "".join(out)
+
+
+def judge_verdict(model: ReadModel) -> str:
+    """The point of licensing per stratum, said only when the figures above show it."""
+    lost = sorted(
+        (k, t.task)
+        for k, c in model.judges.items()
+        for t in c.tasks
+        if t.usable
+        and k in model.judges_multipart
+        and any(u.task == t.task and not u.usable for u in model.judges_multipart[k].tasks)
+    )
+    if not lost:
+        return ""
+    k, task = lost[0]
+    asks = {
+        "complete": "whether an answer is complete",
+        "faithful": "whether it is true to its source",
+    }
+    return (
+        f'<p class="verdict">A licence never carries from one kind of question to another. '
+        f"<code>{e(k)}</code> clears the bar on the first hundred questions for "
+        f"{e(asks.get(task, task))} and "
+        "falls below it on multi-part ones, so there the gate grades with no judge at all "
+        "rather than with an instrument shown not to work.</p>"
+    )
+
+
+def _heat(rate: Estimate) -> str:
+    p = rate.point
+    if math.isnan(p) or p < 0.01:
+        return "r0"
+    return "r1" if p < 0.05 else "r2" if p < 0.15 else "r3" if p < 0.4 else "r4"
+
+
+def _days_between(a: Run, b: Run) -> int:
+    def when(r: Run) -> dt.datetime:
+        return dt.datetime.fromisoformat(r.meta.started_utc.replace("Z", "+00:00"))
+
+    return round(abs((when(b) - when(a)).total_seconds()) / 86400)
 
 
 def overview(model: ReadModel) -> str:
     runs = model.runs
-    latest = runs[-1] if runs else None
-    parts = [
-        "<h1>A frozen test, asked every month, with error bars</h1>",
-        "<p>No prompt or model change reaches users unless it is proven not to have regressed. "
-        "This site shows the evidence behind that: a monthly record of how vendors' pinned "
-        "models behave on a suite that never changes, the gate's own decisions, the judge it is "
-        "allowed to use and the one it is not, and the red-team rates.</p>",
-    ]
-    if latest is not None:
-        floors = sorted((m.same_day_flip_rate.point, k) for k, m in latest.arms.items())
-        lo, hi = floors[0], floors[-1]
-        parts.append(
-            f"<h2>The noise floor, {e(latest.label)}</h2><p>How much a model's answers change "
-            "when it is asked the same thing five times in one sitting, with nothing changed: "
-            f"from {lo[0]:.1%} (<code>{e(lo[1])}</code>) to {hi[0]:.1%} (<code>{e(hi[1])}</code>). "
-            "Every drift claim has to clear this first, arm by arm.</p>"
+    cur = runs[-1] if runs else None
+    prev = runs[-2] if len(runs) > 1 else None
+    calls = sum(r.meta.calls for r in runs)
+    spent = sum(r.meta.spent_usd for r in runs)
+    parts: list[str] = []
+
+    # -------------------------------------------------------------- hero
+    points: list[str] = []
+
+    def point(figure: str, unit: str, label: str) -> None:
+        points.append(
+            f'<div class="point"><span class="point-figure">{figure}</span>'
+            f'<span class="point-unit">{unit}</span><span class="point-label">{label}</span></div>'
         )
-    parts.append("<h2>What is here</h2><ul>")
-    parts.append(
-        f'<li><a href="/drift">Drift record</a>: {len(runs)} official runs, '
-        f"{sum(r.meta.calls for r in runs):,} calls.</li>"
+
+    floors = sorted(
+        ((m.same_day_flip_rate, k, r.label) for r in runs for k, m in r.arms.items()),
+        key=lambda t: t[0].point,
     )
-    parts.append(
-        f'<li><a href="/gate">Gate decisions</a>: {len(model.decisions)} in the ledger.</li>'
+    if floors:
+        (lo_f, lo_k, lo_r), (hi_f, hi_k, hi_r) = floors[0], floors[-1]
+        point(
+            f"{lo_f.point:.1%} to {hi_f.point:.1%}",
+            "noise floor, depending on the model",
+            "how many answers change when the same model is asked the same question five times "
+            f"in one sitting, with nothing changed. Lowest <code>{e(lo_k)}</code> in {e(lo_r)}, "
+            f"{est(lo_f)}; highest <code>{e(hi_k)}</code> in {e(hi_r)}, {est(hi_f)}",
+        )
+    declared: list[str] = []
+    largest: tuple[Estimate, str] | None = None
+    if prev is not None and cur is not None:
+        ck = model.control_key
+        cm = (
+            month_over_month(prev.arms[ck], cur.arms[ck])
+            if ck and ck in prev.arms and ck in cur.arms
+            else None
+        )
+        for k, m in cur.arms.items():
+            if k not in prev.arms:
+                continue
+            mom = month_over_month(prev.arms[k], m)
+            if drift_declared(mom, m, None if k == ck else cm):
+                declared.append(k)
+            if largest is None or mom.flip_rate.point > largest[0].point:
+                largest = (mom.flip_rate, k)
+        shared = sum(1 for k in cur.arms if k in prev.arms)
+        point(
+            f"{len(declared)} of {shared}",
+            "models flagged as changed",
+            f"between the last two full runs, {_days_between(prev, cur)} days apart. "
+            + (
+                "The largest move, "
+                + (f"{est(largest[0])} on <code>{e(largest[1])}</code>, " if largest else "")
+                + "was inside what noise alone explains"
+                if not declared
+                else "Drift declared on "
+                + ", ".join(f"<code>{e(k)}</code>" for k in sorted(declared))
+                + ": a move larger than its own noise floor and the control's"
+            ),
+        )
+    if model.aa is not None:
+        s = model.aa
+        fb = s.false_block_rate(seed=0)
+        pr = s.point_rule_rate(seed=0)
+        point(
+            f"{fb.point:.1%}",
+            "false alarms from the gate",
+            f"{est(fb)}, on {s.n} comparisons where nothing had changed. Blocking whenever "
+            f"the score is lower would have raised {est(pr)}",
+        )
+    best = max(
+        ((t.kappa, k, t.task) for k, c in model.judges.items() for t in c.tasks if t.usable),
+        key=lambda x: x[0].point,
+        default=None,
     )
+    if best is not None:
+        point(
+            f"{best[0].point:.3f}",
+            "agreement of the AI judge with a human",
+            f"kappa {est(best[0], pct=False)} for <code>{e(best[1])}</code>, against a bar of "
+            f"{calib.KAPPA_FLOOR:g}. A judge is used only where it clears that bar"
+            + (
+                ", and on multi-part questions none does"
+                if model.judges_multipart
+                and not any(t.usable for c in model.judges_multipart.values() for t in c.tasks)
+                else ""
+            ),
+        )
+
+    arms = len(cur.arms) if cur else 0
+    parts.append(f"""<header class="hero">
+<p class="eyebrow">Measured results, reproducible from one command</p>
+<h1>Did the AI get worse, or is that just noise? This tells you, with error bars.</h1>
+<p class="lead">Software teams change code and run their tests. Teams building on AI change a
+prompt, or the vendor quietly updates a model, and the evaluation score moves from 86 to 83.
+Is that a regression? Nobody in the room can say, <strong>because an AI model's score moves by
+about that much when nothing has changed at all.</strong> This project measures that noise,
+model by model, on a test that never changes, and builds a release gate on top of it: a change
+is blocked only when the evidence says it is worse, and every decision is kept on a record an
+auditor can read.</p>
+<div class="hero-points">{"".join(points)}</div>
+<p class="hero-note">{len(runs)} full runs so far, {calls:,} calls to {arms} model
+configurations from Anthropic, OpenAI, Google and one open-weights model, US${spent:.2f} in
+total. Every answer is marked by an ordinary program rather than by another AI, so the marker
+cannot drift while it is measuring drift.</p>
+</header>""")
+
+    # -------------------------------------------------------------- the idea
+    parts.append("""<section class="section" id="idea">
+<h2>Four reasons a score moves, and only two of them are real</h2>
+<p class="section-lead">Running the test twice and comparing does not work, because several
+different things move the number. A release gate is only as good as its ability to tell these
+apart.</p>
+<div class="table-wrap"><table class="idea">
+<thead><tr><th>Why a score moved</th><th>Is it a real change?</th><th>How this project tells</th></tr></thead>
+<tbody>
+<tr><td><strong>The model's own randomness, call to call</strong></td><td data-label="Real change">No</td><td data-label="How it is told">Ask the same model the same question five times in one sitting: that spread is the noise floor</td></tr>
+<tr><td><strong>The vendor's servers: hardware, routing, load</strong></td><td data-label="Real change">No</td><td data-label="How it is told">Run an open-weights model whose weights physically cannot change, as a control</td></tr>
+<tr class="real"><td><strong>The vendor changed the model behind a "frozen" name</strong></td><td data-label="Real change"><strong>Yes</strong></td><td data-label="How it is told">A move larger than both floors above, on a test that never changes, month after month</td></tr>
+<tr class="real"><td><strong>Your team changed a prompt or a model</strong></td><td data-label="Real change"><strong>Yes, the one you meant to measure</strong></td><td data-label="How it is told">The gate: all of the above, then a paired test with an interval, on every pull request</td></tr>
+</tbody></table></div>
+<p>The first two rows are why most AI evaluation cannot be trusted. So the first thing measured
+here is not drift at all. It is the noise floor: how far a score moves when nothing whatsoever has
+changed. Every later claim that a model changed has to clear it, model by model, before it
+counts.</p>
+</section>""")
+
+    # -------------------------------------------------------------- the floor
+    if cur is not None:
+        verdict = ""
+        if prev is not None and declared:
+            verdict = (
+                f'<p class="verdict bad"><strong>Drift declared on {len(declared)} of '
+                f"{len(cur.arms)}:</strong> "
+                + ", ".join(f"<code>{e(k)}</code>" for k in sorted(declared))
+                + ". The move cleared both the model's own noise floor and the control's. The "
+                '<a href="/drift">drift record</a> has the detail.</p>'
+            )
+        elif prev is not None:
+            days = _days_between(prev, cur)
+            verdict = (
+                '<p class="verdict good"><strong>No model moved more than noise explains.'
+                "</strong> "
+                + (
+                    f"Two runs {days} days apart is too short for a vendor to change anything, "
+                    "so a flagged model here would have meant the method was wrong. None was. "
+                    if days < 14
+                    else ""
+                )
+                + "Note how different the floors are: the same move can be noise on one model "
+                "and remarkable on another, which is why one threshold for everyone is wrong.</p>"
+            )
+        parts.append(f"""<section class="section" id="floor">
+<h2>Every move, against its own noise floor</h2>
+<p class="section-lead">One row per model configuration. The bar is how many of the {cur.meta.items}
+questions got a different result across five identical asks in the same sitting. The dot is how
+many changed between runs. A <code>snapshot</code> is a dated version the vendor promises is
+frozen; an <code>alias</code> is a floating name such as "latest" that the vendor may repoint at
+any time. Running both side by side is how a quietly moved model gets caught.</p>
+{floor_chart(prev, cur, model.control_key)}
+{verdict}
+</section>""")
+
+    # -------------------------------------------------------------- the gate
+    if model.aa is not None:
+        s = model.aa
+        fb, pr = s.false_block_rate(seed=0), s.point_rule_rate(seed=0)
+        aa_runs = [r for r in runs if r.label in model.aa_runs]
+        aa_from = (
+            f"the runs of {e(aa_runs[0].meta.started_utc[:10])} and "
+            f"{e(aa_runs[1].meta.started_utc[:10])}: each model's answers split against "
+            f"themselves, and each model against its own run {_days_between(*aa_runs)} days later"
+            if len(aa_runs) == 2
+            else f"run {e(model.aa_runs[0])}: each model's answers split against themselves"
+            if model.aa_runs
+            else "the record"
+        )
+        blocked_arms = [a for a, (_, b) in s.blocks_by_arm().items() if b]
+        blocked_suites = [x for x, b in s.blocks_by_suite().items() if b]
+        if not blocked_arms:
+            where = "The gate raised no false alarm at all"
+        else:
+            where = (
+                "Every one of the gate's false alarms fell on "
+                if len(blocked_arms) == 1
+                else "The gate's false alarms fell on "
+            ) + ", ".join(f"<code>{e(a)}</code>" for a in blocked_arms)
+            if blocked_arms == [model.control_key]:
+                where += ", the one model whose weights cannot change"
+            where += ", in " + ", ".join(f"<code>{e(x)}</code>" for x in blocked_suites)
+            if s.mean_decided() <= 1.0:
+                where += (
+                    ", the only suite with enough questions for the power screen to let the gate "
+                    "decide it at the shipped margin"
+                )
+        ledger = ""
+        if model.decisions:
+            items = "".join(
+                f'<div class="card"><h3>{_PASS if rec.passed else _BLOCK}'
+                f" <code>{e(rec.record_id)}</code></h3><p>{_side_text(rec.baseline)} against "
+                f"{_side_text(rec.candidate)}, spec <code>{e(rec.spec_name)}</code>, "
+                f"{e(rec.ts_utc[:10])}</p></div>"
+                for rec in reversed(model.decisions[-4:])
+            )
+            ledger = (
+                "<h3>Decisions on the record</h3><p>Every decision the gate makes, here or on a "
+                "pull request, goes into an append-only ledger. Each record's id is the hash of "
+                "its content, so the same comparison under the same rules is the same id, and a "
+                "wrong decision is superseded by a new record, never edited. "
+                f'<a href="/gate">All {len(model.decisions)} decisions</a>.</p>'
+                f'<div class="cards">{items}</div>'
+            )
+        parts.append(f"""<section class="section" id="gate">
+<h2>The gate, tested where the right answer is known</h2>
+<p class="section-lead">Before a gate is trusted to block anyone's change, it should be run
+where nothing changed, because then every block is a false alarm. {s.n} such comparisons were
+cut from {aa_from}. Each square below is one comparison.</p>
+<div class="compare">
+<article class="arena"><span class="tag good">the gate</span>
+<h3>Block only when the interval rules out a drop</h3>
+<span class="figure">{est(fb)}</span>
+{waffle(s, point_rule=False)}
+<p class="note">false alarms. A change passes unless the 95% interval for its difference cannot
+rule out a drop bigger than the suite's margin.</p></article>
+<article class="arena naive"><span class="tag">the usual rule</span>
+<h3>Block whenever the new score is lower</h3>
+<span class="figure">{est(pr)}</span>
+{waffle(s, point_rule=True)}
+<p class="note">false alarms. This is what "the number went down" costs: the team learns to
+ignore the gate, and then it catches nothing.</p></article>
+</div>
+<p class="verdict">{where}. That rate is published as the gate's
+measured cost rather than tuned away: tuning the rules until this test passes would measure
+nothing.</p>
+{ledger}
+</section>""")
+
+    # -------------------------------------------------------------- the judge
+    if model.judges or model.judges_multipart:
+        parts.append(f"""<section class="section" id="judge">
+<h2>An AI judge, allowed only where it agrees with a human</h2>
+<p class="section-lead">Some answers cannot be marked by a program: is a summary complete, is it
+true to its source? Using another AI as the marker is common and usually unchecked. Here a
+person first labelled answers by hand, blind to which model wrote them and to what the judge
+said, and each judge is licensed task by task only if its agreement with that person clears a
+kappa of {calib.KAPPA_FLOOR:g}. Kappa is agreement after removing what guessing would get
+right.</p>
+{judge_chart(model)}
+{judge_verdict(model)}
+</section>""")
+
+    # -------------------------------------------------------------- red team
+    for run_id, sc in sorted(model.redteam.items())[-1:]:
+        head = "".join(f'<th class="num">{e(FAILURE[x].capitalize())}</th>' for x in SUITES)
+        body = "".join(
+            f"<tr><td><code>{e(a)}</code></td>"
+            + "".join(
+                f'<td class="cell {_heat(sc.cells[(a, x)].rate)}">{est(sc.cells[(a, x)].rate)}</td>'
+                for x in SUITES
+            )
+            + "</tr>"
+            for a in sc.arms
+        )
+        rt_items = sum(
+            sc.cells[(a, x)].graded + sc.cells[(a, x)].ungradeable
+            for a in sc.arms[:1]
+            for x in SUITES
+        )
+        parts.append(f"""<section class="section" id="redteam">
+<h2>Four ways a model can fail you, measured</h2>
+<p class="section-lead">The same discipline applied to safety: {rt_items} frozen attack and control
+items per model, every answer graded by a program, a 95% interval on every rate. Leaking
+personal data, obeying instructions smuggled into a document, complying with a harmful request,
+and refusing a harmless one. Lower is safer; the darker the cell, the higher the failure rate.</p>
+<div class="table-wrap"><table class="heat"><thead><tr><th>Model configuration</th>{head}</tr></thead>
+<tbody>{body}</tbody></table></div>
+<p class="note">Read the last two columns together: a model that refuses everything scores zero
+on the third and fails the fourth. The harmful-request column is an upper bound, because the
+refusal classifier misses refusals, and those answers are never published, because this
+repository is public. Run <code>{e(run_id)}</code>, US${sc.cost_usd:.2f}.
+<a href="/redteam">The red-team page</a>.</p>
+</section>""")
+
+    # -------------------------------------------------------------- the limitation
+    checks = [(r.label, r.refusal_check) for r in runs if r.refusal_check is not None]
+    if checks:
+        stats = "".join(
+            f'<div class="stat"><span class="figure">{c.point:.1%}</span>'
+            f'<span class="caption">{est(c)} of answers misread, run <code>{e(label)}</code>, '
+            f"from {c.n} read by hand</span></div>"
+            for label, c in checks
+        )
+        parts.append(f"""<section class="section" id="limitation">
+<h2>The honest limitation</h2>
+<p class="section-lead">Whether a model <em>refused</em> a request is decided by a classifier
+built from eleven regular expressions, which is a crude way to read English. So its error rate
+is measured by hand every month it is quoted: a person reads the stored answers blind, without
+seeing what the classifier decided, and the two are compared.</p>
+<div class="hero-points">{stats}</div>
+<p>Every error so far ran one way: the classifier missed refusals and never invented one, so the
+refusal figures are a floor, not an estimate. The part that cannot be fixed is a model answering
+a harmless reading of an ambiguous request with no refusing language at all, which no pattern
+can tell from plain compliance. Tuning the classifier until that case disappears would mean
+tuning it until every vendor looks safe, so it is published as a limitation instead, and a test
+fails if anyone tries.</p>
+</section>""")
+
+    # -------------------------------------------------------------- how it works
+    repeats = cur.meta.repeats if cur else 0
+    items_n = cur.meta.items if cur else 0
+    parts.append(f"""<section class="section" id="how">
+<h2>How a number gets onto this page</h2>
+<p class="section-lead">For the technical reader: each step exists because the obvious version of
+it was tried, or reasoned about, and found to produce numbers that could not be trusted.</p>
+<ol class="steps">
+<li><strong>A frozen test</strong>{items_n} questions, content-hashed and never
+edited after the hash was committed. Some are held out and never published, so no vendor can
+train on them.</li>
+<li><strong>Asked {repeats} times of {arms} configurations</strong>A dated snapshot and a floating
+alias from each vendor, plus an open-weights control on fixed hardware. The repeats are what
+make a noise floor measurable at all.</li>
+<li><strong>Marked by programs</strong>Deterministic graders, tested against adversarial
+outputs: markdown fences, trailing chatter, unicode digits, empty strings. One grading function
+serves live runs and re-grades alike.</li>
+<li><strong>An append-only record</strong>Raw answers are committed and every record carries the
+hash of the grader that marked it, so any number can be regenerated offline and a bad run is
+marked, never deleted.</li>
+<li><strong>Floor first, then drift</strong>A model is flagged only when its change clears its
+own same-day floor and the control's change, with bootstrap intervals over questions.</li>
+<li><strong>A judge only with a licence</strong>Where a program cannot mark an answer, an AI judge
+may, but only on a task where its kappa against blind human labels clears the bar, and the
+gate divides the judge's own error out of the difference it reports.</li>
+<li><strong>The gate on a pull request</strong>A paired non-inferiority test per suite, rules
+taken from the base branch so a change cannot loosen its own margin, and a power screen that
+warns rather than decides when a suite is too small.</li>
+<li><strong>Published nightly</strong>These pages are static files exported by the same code
+that writes the reports, checked after every deploy against the commit they were built from.</li>
+</ol>
+<ul class="chips" aria-label="Built with">
+<li>Python 3.13, typed, mypy and ruff clean</li><li>SQLite ledgers</li><li>DuckDB read model</li>
+<li>FastAPI</li><li>Bootstrap and Jeffreys intervals</li><li>Cohen's kappa, Krippendorff's alpha</li>
+<li>Paired non-inferiority tests</li><li>Power analysis</li><li>GitHub Actions gate</li>
+<li>OpenTelemetry traces</li><li>Azure Static Web Apps</li>
+</ul>
+</section>""")
+
+    # -------------------------------------------------------------- limits
+    per_run = spent / len(runs) if runs else 0.0
+    parts.append(f"""<section class="section" id="limits">
+<h2>What this deliberately does not do</h2>
+<div class="takeaways">
+<div class="takeaway"><h3>No AI marks the drift record</h3><p>Every answer in the monthly record
+is marked by a plain program, so the marker cannot drift while it is measuring drift. An AI
+judge appears only in the gate, and only where it has been licensed against a person.</p></div>
+<div class="takeaway"><h3>No drift it cannot separate from noise</h3><p>A move is called a change
+only when it clears that model's own floor and the control. A score that went down is not, on
+its own, evidence of anything.</p></div>
+<div class="takeaway"><h3>It does not say why a vendor changed a model</h3><p>It shows that one
+did, and when, on a test that never changed. The reasons are the vendor's to give.</p></div>
+<div class="takeaway"><h3>It does not run the largest models every month</h3><p>Each run costs
+about US${per_run:.0f}. The panel is chosen so the record can continue for a year on a fixed budget,
+because a record that stops is worth little.</p></div>
+</div>
+</section>""")
+
+    # -------------------------------------------------------------- the rest
     parts.append(
-        f'<li><a href="/judge">Judge calibration</a>: {len(model.judges)} judges against the '
-        "human gold labels.</li>"
-    )
-    parts.append(f'<li><a href="/redteam">Red team</a>: {len(model.redteam)} runs.</li>')
-    parts.append(
-        '<li><a href="/costs">Cost</a>: what every run spent, by model and block.</li></ul>'
-    )
-    parts.append(
-        '<p class="muted">Machine-readable, the same figures: '
+        f"""<section class="section" id="explore">
+<h2>Explore the record</h2>
+<div class="cards">
+<div class="card"><h3><a href="/drift">Drift record</a></h3><p>Every run, every model
+configuration: accuracy, noise floor, change, refusals and cost, as the README prints them.</p></div>
+<div class="card"><h3><a href="/gate">Gate decisions</a></h3><p>The ledger: each decision, suite
+by suite, with the interval and the reason it passed or blocked.</p></div>
+<div class="card"><h3><a href="/judge">Judge calibration</a></h3><p>Each judge against the human
+labels: kappa, alpha, sensitivity and specificity, on each stratum.</p></div>
+<div class="card"><h3><a href="/redteam">Red team</a></h3><p>The four safety suites, with the
+counts behind each rate.</p></div>
+<div class="card"><h3><a href="/costs">Cost</a></h3><p>What each run spent, by model and block,
+checked against what the run recorded.</p></div>
+<div class="card"><h3><a href="{REPO}">The repository</a></h3><p>Raw answers, graders, tests and
+the plan. Three commands regrade every stored answer offline.</p></div>
+</div>
+<p class="note">Machine-readable, the same figures: """
         + ", ".join(
             f'<a href="/data/{n}.json">/data/{n}.json</a>'
             for n in ("drift", "gate", "judge", "redteam", "costs", "build")
         )
-        + ".</p>"
+        + ".</p>\n</section>"
     )
     return "\n".join(parts)
+
+
+_PASS = '<span class="tag good">pass</span>'
+_BLOCK = '<span class="tag bad">block</span>'
+
+
+def _side_text(side: dict[str, str]) -> str:
+    if side.get("kind") == "drift_block":
+        return f"<code>{e(side.get('arm'))}</code> in run {e(side.get('month'))}"
+    return _side(side)
 
 
 # ---------------------------------------------------------------------------- drift
