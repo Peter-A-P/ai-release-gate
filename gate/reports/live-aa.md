@@ -6,7 +6,7 @@ Spec `regulated-qa` (b797ab35ca9872a0), model `claude-haiku-4-5-20251001`, promp
 |---|---|
 | Ordered pairs of distinct runs | 2 |
 | Blocked, every one a false block | 0 |
-| False-block rate | 0.0% (0.0 to 0.0) |
-| Items whose verdict differed between two runs | 0.0% (0.0 to 0.0) |
+| False-block rate | 0.0% (0.0 to 67.2) |
+| Items whose verdict differed between two runs | 0.0% (0.0 to 2.5) |
 
 Intervals are 95% and resample the 2 runs, not the pairs: every run is in 2 pairs, so the pairs are not independent evidence. The margin's reasoning in docs/gate-statistics.md assumed about 4% of items would differ between two runs, and set ten points from it; the second row is that number, measured.

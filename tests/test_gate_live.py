@@ -414,3 +414,4 @@ def test_the_live_aa_study_pays_for_each_run_once_and_pairs_them_offline(
     text = report.read_text(encoding="utf-8")
     assert "| Ordered pairs of distinct runs | 6 |" in text
     assert "resample the 3 runs, not the pairs" in text
+    assert "(0.0 to 0.0)" not in text, "a unanimous share still has an interval with width"

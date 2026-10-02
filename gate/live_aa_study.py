@@ -26,7 +26,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from drift.analysis.stats import Estimate
+from drift.analysis.stats import Estimate, jeffreys_proportion
 from gate.decision import decide
 from gate.live import LiveSuite
 from gate.outcomes import Side, SuiteOutcomes
@@ -119,10 +119,21 @@ class LiveAAStudy:
     runs: int
     pairs: tuple[LivePair, ...]
     spent_usd: float
+    items: int = 0  # items graded per run, the largest seen
 
-    def _by_runs(self, value: Mapping[tuple[int, int], float], *, seed: int) -> Estimate:
-        """A mean over ordered pairs of distinct runs, with an interval that resamples runs."""
+    def _by_runs(
+        self, value: Mapping[tuple[int, int], float], *, seed: int, units: int
+    ) -> Estimate:
+        """A mean over ordered pairs of distinct runs, with an interval that resamples runs.
+
+        Where every pair gave the same value, 0 or 1, resampling reproduces it and the interval
+        would be "0.0% (0.0 to 0.0)", a bare number wearing brackets: the two-run probe of
+        2026-10-02 printed exactly that. Such a share gets the Jeffreys interval over `units`,
+        the independent evidence behind it, instead."""
         point = sum(value.values()) / len(value)
+        if point in (0.0, 1.0) and all(v == point for v in value.values()):
+            j = jeffreys_proportion(round(point * units), units, seed=seed)
+            return Estimate(point, j.lo, j.hi, len(value), clusters=self.runs)
         rng = random.Random(seed)
         draws: list[float] = []
         for _ in range(2000):
@@ -148,13 +159,19 @@ class LiveAAStudy:
         )
 
     def false_block_rate(self, *, seed: int = 0) -> Estimate:
+        # About one independent pair per run.
         return self._by_runs(
-            {(p.baseline, p.candidate): 1.0 if p.blocked else 0.0 for p in self.pairs}, seed=seed
+            {(p.baseline, p.candidate): 1.0 if p.blocked else 0.0 for p in self.pairs},
+            seed=seed,
+            units=self.runs,
         )
 
     def discordance(self, *, seed: int = 0) -> Estimate:
+        # A share of items: those of the K // 2 disjoint pairs the runs can make.
         return self._by_runs(
-            {(p.baseline, p.candidate): p.discordance for p in self.pairs}, seed=seed
+            {(p.baseline, p.candidate): p.discordance for p in self.pairs},
+            seed=seed,
+            units=max(1, self.items) * max(1, self.runs // 2),
         )
 
 
@@ -187,7 +204,8 @@ def study(
                 continue
             d = decide(spec, a, b, judges=judges)
             pairs.append(LivePair(i, j, not d.passed, _discordance(a, b)))
-    return LiveAAStudy(spec.name, spec.sha256()[:16], len(sides), tuple(pairs), spent_usd)
+    items = max((sum(len(s.outcomes) for s in side.suites.values()) for side in sides), default=0)
+    return LiveAAStudy(spec.name, spec.sha256()[:16], len(sides), tuple(pairs), spent_usd, items)
 
 
 def render(s: LiveAAStudy, *, prompt_sha: str, model: str, seed: int = 0) -> str:
