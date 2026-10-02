@@ -1,0 +1,27 @@
+# The release gate's config for this repository. The margins, thresholds and suites below are
+# read from the BASE branch of a pull request, never from the pull request itself: a change
+# that could loosen its own margin could pass itself.
+version: 1
+name: regulated-qa
+# Ten points, not the gate's default three, and the reasoning is in the gate's
+# docs/gate-statistics.md: 100 questions graded by a judge cannot tell three points from noise.
+delta_points: 10
+alpha: 0.05
+resamples: 2000
+seed: 0
+suites:
+  - key: regulated_qa
+    # The gold set's 100 consumer questions, each answered from its own FCAC or SEC page.
+    source: { kind: gold_questions }
+    # Gemini 3.8 Flash on completeness: kappa 0.914 against 480 hand labels. The gate refuses
+    # any judge, task or budget that calibration did not clear, so this line cannot be edited
+    # into grading faithfulness, where both judges failed.
+    grader: { judge: google-judge-mid, task: complete, max_tokens: 1024 }
+latency: { max_increase_pct: 50 }
+cost: { max_increase_pct: 50 }
+
+# What a pull request is allowed to change: the prompt and the model.
+subject:
+  prompt: prompts/answer.txt
+  provider: anthropic
+  model: claude-haiku-4-5-20251001
