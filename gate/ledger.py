@@ -27,7 +27,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -36,6 +36,7 @@ from pydantic import BaseModel, ConfigDict, SerializerFunctionWrapHandler, model
 
 from gate import __version__
 from gate.decision import Decision, SuiteResult
+from gate.judge.calibration import CorrectedRate
 from gate.outcomes import Side
 
 LEDGER_FILE = "ledger.jsonl"
@@ -103,6 +104,20 @@ class SideSuite(BaseModel):
     latency_p50_ms: float | None
     cost_usd: float
     uncosted_calls: int
+    # For a judge-graded suite, the accuracy with the judge's own error taken out
+    # (Rogan-Gladen, `gate.judge.calibration.corrected_rate`), beside the raw call above.
+    # Kept from 2026-10-02; absent from the line when there is none.
+    corrected: float | None = None
+    corrected_lo: float | None = None
+    corrected_hi: float | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data: dict[str, object] = handler(self)
+        for key in ("corrected", "corrected_lo", "corrected_hi"):
+            if data.get(key) is None:
+                data.pop(key, None)
+        return data
 
 
 class JudgeLine(BaseModel):
@@ -133,10 +148,20 @@ class Occasion(BaseModel):
     sides: dict[str, list[SideSuite]] = {}
 
 
-def side_suites(side: Side, *, resamples: int, seed: int) -> list[SideSuite]:
+def side_suites(
+    side: Side,
+    *,
+    resamples: int,
+    seed: int,
+    corrected: Mapping[str, CorrectedRate] | None = None,
+) -> list[SideSuite]:
+    """Each suite of a side as measured. `corrected` holds the judge-corrected rate for the
+    suites a judge graded, from the same function the pull-request comment prints."""
     out = []
     for key, s in side.suites.items():
         acc = s.accuracy(resamples=resamples, seed=seed)
+        c = (corrected or {}).get(key)
+        fixed = c.corrected if c is not None and not c.degenerate and c.corrected.n else None
         out.append(
             SideSuite(
                 suite=key,
@@ -149,6 +174,9 @@ def side_suites(side: Side, *, resamples: int, seed: int) -> list[SideSuite]:
                 latency_p50_ms=_num(s.latency_p50_ms),
                 cost_usd=s.cost_usd,
                 uncosted_calls=s.uncosted_calls,
+                corrected=_num(fixed.point) if fixed is not None else None,
+                corrected_lo=_num(fixed.lo) if fixed is not None else None,
+                corrected_hi=_num(fixed.hi) if fixed is not None else None,
             )
         )
     return out

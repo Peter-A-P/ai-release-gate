@@ -104,3 +104,30 @@ def test_plain_estimate_is_unchanged_by_the_cluster_field() -> None:
     e = bootstrap_mean([1.0] * 80 + [0.0] * 20, seed=1)
     assert e.clusters is None and not e.interval_undefined
     assert e.fmt().endswith("n = 100)")
+
+
+def test_a_change_with_no_flips_still_has_an_interval_either_side_of_zero() -> None:
+    from drift.analysis.stats import paired_change
+
+    e = paired_change(0, 0, 420)
+    assert e.point == 0.0 and e.lo < 0.0 < e.hi, "never a bare zero wearing brackets"
+    worse = paired_change(10, 0, 420)
+    assert worse.point < 0 and worse.hi < 0.0 + 1e-9
+
+
+def test_a_difference_of_two_small_shares_is_wide() -> None:
+    from drift.analysis.stats import difference_of_shares
+
+    e = difference_of_shares([1.0] * 18 + [0.0] * 2, [1.0] * 15 + [0.0] * 5)
+    assert math.isclose(e.point, 0.15) and e.lo < 0.0 < e.hi and e.n == 20
+    same = difference_of_shares([1.0] * 20, [1.0] * 20)
+    assert same.point == 0.0 and same.lo < 0.0 < same.hi
+
+
+def test_the_detectable_change_grows_with_noise_and_shrinks_with_items() -> None:
+    from drift.analysis.stats import detectable_change
+
+    assert detectable_change(420, 0.01) < detectable_change(420, 0.05)
+    assert detectable_change(1000, 0.03) < detectable_change(420, 0.03)
+    # PLAN.md section 4's order of magnitude: about three points on 420 items at a 2% floor.
+    assert 0.025 < detectable_change(420, 0.02) < 0.035

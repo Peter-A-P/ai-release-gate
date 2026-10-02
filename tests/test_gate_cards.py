@@ -196,3 +196,25 @@ def test_the_action_records_every_decision_with_the_options_gate_check_takes() -
         assert name in params
     keep = next(s for s in action["runs"]["steps"] if s.get("name") == "Keep the answers")
     assert keep["with"]["retention-days"] == 90, "the ledger workflow harvests from here"
+
+
+def test_a_judge_corrected_rate_is_kept_beside_the_raw_call_and_absent_when_there_is_none() -> None:
+    """Since 2026-10-02 `gate check --record` keeps each side's corrected rate in the occasion,
+    so the reports rendered from the ledger show it beside the raw call. A side with none
+    serialises exactly as before, so no committed line changes."""
+    plain = side(0.96)
+    assert "corrected" not in plain.model_dump_json()
+    fixed = plain.model_copy(update={"corrected": 0.95, "corrected_lo": 0.9, "corrected_hi": 0.99})
+    rec = make(judges=[JUDGE])
+    assert rec.occasion is not None
+    with_fix = rec.model_copy(
+        update={"occasion": rec.occasion.model_copy(update={"sides": {"candidate": [fixed]}})}
+    )
+    assert with_fix.record_id == rec.record_id, "the corrected rate is the occasion's, not the id's"
+    text = cards.render_decisions([with_fix])
+    assert "Corrected for the judge" in text and "95.0% (90.0 to 99.0)" in text
+    card = cards.render_model_card(
+        next(iter(cards.subjects([with_fix]))), [(with_fix, "candidate")]
+    )
+    assert "95.0% (90.0 to 99.0)" in card and "Rogan-Gladen" in card
+    assert "Corrected for the judge" not in cards.render_decisions([make(judges=[JUDGE])])

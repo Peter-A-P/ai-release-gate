@@ -187,3 +187,105 @@ def mcnemar_exact(b: int, c: int) -> float:
     k = min(b, c)
     tail = sum(math.comb(n, i) for i in range(k + 1)) / float(2**n)
     return float(min(1.0, 2 * tail))
+
+
+def _share_draw(rng: random.Random, k: int, n: int) -> float:
+    """One draw of a share of k in n: the observed share, or a Jeffreys draw when k is 0 or n,
+    so a count of none is never taken as a certainty of none."""
+    if k in (0, n):
+        return rng.betavariate(k + 0.5, n - k + 0.5)
+    return k / n
+
+
+def paired_change(
+    worse: int, better: int, n: int, *, resamples: int = 2000, seed: int = 0
+) -> Estimate:
+    """The change in accuracy between two runs of the same items, (better - worse) / n, with a
+    bootstrap interval over items.
+
+    Paired: each item is -1, 0 or +1, so a resample of n items is a multinomial count of the
+    three, drawn here as two binomials. A count of 0 is drawn from its Jeffreys posterior
+    rather than held at 0, or two runs that agreed on every item would print "+0.0% (+0.0 to
+    +0.0)", a bare number wearing an interval. Until 2026-10-02 the report printed this change
+    as a bare number with no interval at all.
+    """
+    if n == 0:
+        nan = float("nan")
+        return Estimate(nan, nan, nan, 0)
+    point = (better - worse) / n
+    rng = random.Random(seed)
+    draws = []
+    for _ in range(resamples):
+        w = rng.binomialvariate(n, _share_draw(rng, worse, n))
+        rest = n - w
+        b = rng.binomialvariate(rest, _share_draw(rng, better, n - worse)) if rest else 0
+        draws.append((b - w) / n)
+    draws.sort()
+    return Estimate(
+        point, draws[int(0.025 * resamples)], draws[min(resamples - 1, int(0.975 * resamples))], n
+    )
+
+
+def difference_of_shares(
+    a: Sequence[float], b: Sequence[float], *, resamples: int = 2000, seed: int = 0
+) -> Estimate:
+    """mean(a) - mean(b) for two independent sets of 0/1 items, with a bootstrap interval that
+    resamples each set on its own. A set that is all 0 or all 1 is drawn from its Jeffreys
+    posterior instead, for the reason `bootstrap_mean` gives. `n` is the smaller set, which is
+    what limits the interval."""
+    if not a or not b:
+        nan = float("nan")
+        return Estimate(nan, nan, nan, 0)
+    rng = random.Random(seed)
+
+    def draw(values: Sequence[float]) -> float:
+        n = len(values)
+        if _unanimous(values):
+            return _share_draw(rng, round(sum(values)), n)
+        return sum(values[rng.randrange(n)] for _ in range(n)) / n
+
+    point = sum(a) / len(a) - sum(b) / len(b)
+    draws = sorted(draw(a) - draw(b) for _ in range(resamples))
+    return Estimate(
+        point,
+        draws[int(0.025 * resamples)],
+        draws[min(resamples - 1, int(0.975 * resamples))],
+        min(len(a), len(b)),
+    )
+
+
+Z_TWO_SIDED_05 = 1.959964
+Z_POWER_80 = 0.841621
+
+
+def detectable_change(n: int, discordance: float) -> float:
+    """The smallest accuracy change a paired test on `n` items can see at 80% power, two-sided
+    at 5%, when `discordance` of items already disagree between two runs with nothing changed.
+
+    The paired (McNemar) normal approximation: n d^2 = (z_a sqrt(psi) + z_b sqrt(psi - d^2))^2,
+    where psi is the share of discordant items under the change. A real change of d moves d of
+    the items one way on top of the noise, so psi = discordance + d. Solved for d by bisection.
+    PLAN.md section 4 asks for this figure from the observed same-day disagreement; the
+    same-day flip rate counts an item as discordant if any of its repeats disagreed, which is
+    more than two single runs disagree, so the figure errs large.
+    """
+    if n <= 0 or math.isnan(discordance):
+        return float("nan")
+
+    def gap(d: float) -> float:
+        psi = min(1.0, discordance + d)
+        return (
+            n * d * d
+            - (Z_TWO_SIDED_05 * math.sqrt(psi) + Z_POWER_80 * math.sqrt(max(psi - d * d, 0.0))) ** 2
+        )
+
+    lo, hi = 1e-9, 1.0
+    if gap(hi) < 0:
+        return float("nan")
+    for _ in range(80):
+        mid = (lo + hi) / 2
+        if gap(mid) < 0:
+            lo = mid
+        else:
+            hi = mid
+    return hi

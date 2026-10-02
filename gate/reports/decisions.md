@@ -22,10 +22,10 @@ Differences are candidate minus baseline, paired by item, with 95% bootstrap int
 | closed_form_reasoning | 120 | -1.7% (-5.0 to +1.7) | -3% | block |
 | multiple_choice | 100 | +1.0% (+0.0 to +3.0) | -3% | warn |
 | instruction_following | 60 | +1.7% (+0.0 to +5.0) | -3% | warn |
-| structured_extraction | 20 | +0.0% (+0.0 to +0.0) | -3% | warn |
-| structured_extraction_heldout | 20 | +0.0% (+0.0 to +0.0) | -3% | warn |
+| structured_extraction | 20 | +0.0% (zero-width, as recorded before 2026-09-27) | -3% | warn |
+| structured_extraction_heldout | 20 | +0.0% (zero-width, as recorded before 2026-09-27) | -3% | warn |
 | refusal_calibration | 40 | +2.5% (+0.0 to +7.5) | -3% | warn |
-| long_context_recall | 20 | +0.0% (+0.0 to +0.0) | -3% | warn |
+| long_context_recall | 20 | +0.0% (zero-width, as recorded before 2026-09-27) | -3% | warn |
 | paraphrase_robustness | 40 | +2.5% (+0.0 to +7.5) | -3% | warn |
 
 Recorded before the ledger kept each side's interval, cost and latency: the difference above is what this record holds.
@@ -43,14 +43,14 @@ Reasons:
 
 | Suite | Paired items | Difference | Margin | Verdict |
 |---|---:|---|---:|---|
-| closed_form_reasoning | 120 | +0.0% (+0.0 to +0.0) | -3% | pass |
+| closed_form_reasoning | 120 | +0.0% (zero-width, as recorded before 2026-09-27) | -3% | pass |
 | multiple_choice | 100 | -1.0% (-5.0 to +2.0) | -3% | warn |
-| instruction_following | 60 | +0.0% (+0.0 to +0.0) | -3% | warn |
-| structured_extraction | 20 | +0.0% (+0.0 to +0.0) | -3% | warn |
-| structured_extraction_heldout | 20 | +0.0% (+0.0 to +0.0) | -3% | warn |
-| refusal_calibration | 40 | +0.0% (+0.0 to +0.0) | -3% | warn |
-| long_context_recall | 20 | +0.0% (+0.0 to +0.0) | -3% | warn |
-| paraphrase_robustness | 40 | +0.0% (+0.0 to +0.0) | -3% | warn |
+| instruction_following | 60 | +0.0% (zero-width, as recorded before 2026-09-27) | -3% | warn |
+| structured_extraction | 20 | +0.0% (zero-width, as recorded before 2026-09-27) | -3% | warn |
+| structured_extraction_heldout | 20 | +0.0% (zero-width, as recorded before 2026-09-27) | -3% | warn |
+| refusal_calibration | 40 | +0.0% (zero-width, as recorded before 2026-09-27) | -3% | warn |
+| long_context_recall | 20 | +0.0% (zero-width, as recorded before 2026-09-27) | -3% | warn |
+| paraphrase_robustness | 40 | +0.0% (zero-width, as recorded before 2026-09-27) | -3% | warn |
 
 Recorded before the ledger kept each side's interval, cost and latency: the difference above is what this record holds.
 

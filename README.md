@@ -125,7 +125,8 @@ rather than a model moving. Nothing was:
 | Configurations where drift was declared | **none, 0 of 8** |
 
 Every arm came in at or below its own same-day floor, every statistical test was
-non-significant, and accuracy moved between -1.2% and +0.5%. So: **a score moves by up to about
+non-significant, and every arm's change in accuracy had an interval reaching zero, the largest
+`google-alias` at -1.2% (-2.4% to +0.0%). So: **a score moves by up to about
 3% between two runs with nothing changed at all.** That is the anchor for every drift call
 that follows, and it is the number the project exists to produce.
 
@@ -144,9 +145,12 @@ have found drift. It found none:
 | Open-weights control | 1.0% |
 | Configurations where drift was declared | **none, 0 of 8** |
 
-Every change sat below the top of the arm's own same-day floor, accuracy moved between -0.2% and +0.2%, and
-the paired test found no sign of change on any arm (McNemar p = 1.000 on all eight). The run cost
-US$19.76 against an expected US$20.35.
+Every change sat below the top of the arm's own same-day floor, every arm's change in accuracy
+had an interval spanning zero, all of them inside -1.4% to +1.7%, and the paired test found no
+sign of change on any arm (McNemar p = 1.000 on all eight). The smallest change this record can
+see at all, at 80% power, runs from 2.7 points on `anthropic-snapshot` to 4.0 on `google-alias`
+(the October report gives each with its interval). The run cost US$19.76 against an expected
+US$20.35.
 
 Full per-run detail, including the drift call against the noise floor and the control, is in
 [`drift/reports/`](drift/reports/).

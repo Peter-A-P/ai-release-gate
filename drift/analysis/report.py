@@ -15,7 +15,11 @@ from drift.analysis.metrics import (
     drift_declared,
     month_over_month,
 )
-from drift.analysis.stats import Estimate
+from drift.analysis.stats import (
+    Estimate,
+    detectable_change,
+    difference_of_shares,
+)
 from drift.panel import Panel
 from drift.runner.grading import verdict
 from drift.runner.records import (
@@ -203,14 +207,14 @@ def render(
         )
     else:
         lines += [
-            "| Arm | Paired items | Flip rate (95% CI) | Correct to incorrect | Incorrect to correct | McNemar p | Accuracy change | Drift declared |",
-            "|---|---:|---|---:|---:|---:|---:|---|",
+            "| Arm | Paired items | Flip rate (95% CI) | Correct to incorrect | Incorrect to correct | McNemar p | Accuracy change (95% CI) | Drift declared |",
+            "|---|---:|---|---:|---:|---:|---|---|",
         ]
         for key, mom in sorted(moms.items()):
             declared = drift_declared(mom, cur[key], control_mom if key != control_key else None)
             lines.append(
                 f"| {key} | {mom.paired_items} | {mom.flip_rate.fmt()} | {mom.correct_to_incorrect} | {mom.incorrect_to_correct} "
-                f"| {mom.mcnemar_p:.3f} | {mom.accuracy_change:+.1%} | {'**yes**' if declared else 'no'} |"
+                f"| {mom.mcnemar_p:.3f} | {signed(mom.accuracy_change)} | {'**yes**' if declared else 'no'} |"
             )
         lines += [
             "",
@@ -228,6 +232,7 @@ def render(
                 "so the flip rate above is the between-run baseline: the same suite, the same "
                 "arms, a short interval, and nothing expected to have changed.",
             ]
+    lines += detectable_section(cur)
     lines += ["", "## Accuracy by block", ""]
     blocks = sorted({b for m in cur.values() for b in m.accuracy_by_block})
     lines.append("| Arm | " + " | ".join(blocks) + " |")
@@ -246,8 +251,8 @@ def render(
             "Held-out items are never published, so a model cannot have seen them. Public accuracy",
             "rising while held-out accuracy does not is evidence of contamination, not capability.",
             "",
-            "| Arm | Block | Public accuracy | Held-out accuracy | Public minus held-out |",
-            "|---|---|---|---|---:|",
+            "| Arm | Block | Public accuracy | Held-out accuracy | Public minus held-out (95% CI) |",
+            "|---|---|---|---|---|",
         ]
         for key, m in sorted(cur.items()):
             for hb in heldout:
@@ -256,7 +261,11 @@ def render(
                 public = m.accuracy_by_block.get(pb)
                 if held is None:
                     continue
-                gap = f"{public.point - held.point:+.1%}" if public is not None else "n/a"
+                gap = (
+                    signed(difference_of_shares(m.block_values[pb], m.block_values[hb]))
+                    if public is not None and pb in m.block_values and hb in m.block_values
+                    else "n/a"
+                )
                 lines.append(
                     f"| {key} | {pb} | {public.fmt() if public is not None else 'n/a'} | {held.fmt()} | {gap} |"
                 )
@@ -284,6 +293,48 @@ class ClassifierCheck:
     def invented(self) -> int:
         """Answers the classifier scored as refusals."""
         return sum(r.errors for r in self.results if r.stratum.endswith("/refusal"))
+
+
+def signed(e: Estimate) -> str:
+    """A change, with its sign and its interval."""
+    if e.n == 0:
+        return "n/a"
+    return f"{e.point:+.1%} ({e.lo:+.1%} to {e.hi:+.1%}, n = {e.n})"
+
+
+def detectable_section(cur: dict[str, ArmMetrics]) -> list[str]:
+    """PLAN.md section 4: the smallest accuracy change each arm's paired comparison can see at
+    80% power, from its own same-day noise floor, at the floor's point and at both ends of its
+    interval. A change smaller than this is reported but cannot be told from noise."""
+    out = [
+        "",
+        "## Detectable change",
+        "",
+        "The smallest change in accuracy a paired test on this suite can see at 80% power, two-sided",
+        "at 5%, given each arm's own same-day noise floor. In brackets, the same at the two ends of",
+        "the floor's interval. Changes smaller than this are reported above but cannot be told",
+        "from noise.",
+        "",
+        "| Arm | Items | Noise floor | Detectable change, points |",
+        "|---|---:|---|---|",
+    ]
+    for key, m in sorted(cur.items()):
+        f = m.same_day_flip_rate
+        n = m.accuracy.n
+        if n == 0 or f.n == 0:
+            out.append(f"| {key} | {n} | n/a | n/a |")
+            continue
+        at = [detectable_change(n, x) * 100 for x in (f.point, f.lo, f.hi)]
+        out.append(f"| {key} | {n} | {f.compact()} | {at[0]:.1f} ({at[1]:.1f} to {at[2]:.1f}) |")
+    out += [
+        "",
+        "The paired normal approximation to McNemar's test, with the discordance under a change",
+        "taken as the floor plus the change. The floor counts an item as unstable if any of its",
+        "five repeats disagreed, which is more than two single runs disagree, so these err large.",
+        "Drift itself is declared on the flip rate, not on this test; this is the size of change",
+        "the record could see at all.",
+    ]
+    return out
 
 
 def classifier_check(month: str, labels_root: Path) -> ClassifierCheck | None:

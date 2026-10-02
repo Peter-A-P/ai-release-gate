@@ -24,9 +24,17 @@ def _stat(e: Estimate, *, pct: bool) -> str:
     return f"{e.point:.3f} ({e.lo:.3f} to {e.hi:.3f})"
 
 
+def _signed(e: Estimate) -> str:
+    if math.isnan(e.lo):
+        return f"{e.point:+.1%} (no interval)"
+    return f"{e.point:+.1%} ({e.lo * 100:+.1f} to {e.hi * 100:+.1f})"
+
+
 def render_task(t: TaskCalibration) -> str:
     rows = [
-        f"| Agreement with the human, raw | {t.raw_agreement:.1%} |",
+        "| Agreement with the human, raw | "
+        + (_stat(t.agreement, pct=True) if t.agreement is not None else f"{t.raw_agreement:.1%}")
+        + " |",
         f"| Cohen's kappa | {_stat(t.kappa, pct=False)} |",
         f"| Krippendorff's alpha | {_stat(t.alpha, pct=False)} |",
         f"| Sensitivity (human yes, judge yes) | {_stat(t.sensitivity, pct=True)} |",
@@ -61,8 +69,19 @@ def render_task(t: TaskCalibration) -> str:
         out += [
             "",
             f"A judge that always answered with the majority class would agree "
-            f"{max(t.human_rate.point, 1 - t.human_rate.point):.1%} of the time. This one agrees "
-            f"{t.raw_agreement:.1%}, which is {t.informative:+.1%} on top of saying nothing.",
+            f"{_stat(t.majority, pct=True)} of the time. This one agrees "
+            + (
+                _stat(t.agreement, pct=True)
+                if t.agreement is not None
+                else f"{t.raw_agreement:.1%}"
+            )
+            + ", which is "
+            + (
+                _signed(t.above_majority)
+                if t.above_majority is not None
+                else f"{t.informative:+.1%}"
+            )
+            + " on top of saying nothing.",
         ]
     if t.note:
         out += ["", f"Note: {t.note}."]

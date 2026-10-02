@@ -36,9 +36,24 @@ def _estimate(s: SideSuite) -> str:
     return Estimate(s.accuracy, s.lo, s.hi, s.items).compact()
 
 
+def _corrected(s: SideSuite) -> str:
+    if s.corrected is None or s.corrected_lo is None or s.corrected_hi is None:
+        return "n/a"
+    return Estimate(s.corrected, s.corrected_lo, s.corrected_hi, s.items).compact()
+
+
+def _any_corrected(suites: Sequence[SideSuite]) -> bool:
+    return any(s.corrected is not None for s in suites)
+
+
 def _diff(point: float | None, lo: float | None, hi: float | None) -> str:
     if point is None or lo is None or hi is None:
         return "n/a"
+    if lo == hi:
+        # Records made before 2026-09-27 (f274a45) could hold a zero-width interval where every
+        # item agreed. The record is the record, so it is printed as kept, and said to be what
+        # it is: a point with no interval, not a certainty.
+        return f"{point:+.1%} (zero-width, as recorded before 2026-09-27)"
     return f"{point:+.1%} ({lo * 100:+.1f} to {hi * 100:+.1f})"
 
 
@@ -65,9 +80,14 @@ def _verdict(r: GateRecord) -> str:
 
 
 def _operating_table(sides: dict[str, list[SideSuite]]) -> list[str]:
+    # The corrected column appears only for records that kept a corrected rate, so a record
+    # from before it existed renders exactly as it did.
+    fixed = any(_any_corrected(v) for v in sides.values())
     out = [
-        "| Side | Suite | Items | Accuracy | Ungradeable | Calls | Latency p50 | Cost / call |",
-        "|---|---|---:|---|---:|---:|---:|---:|",
+        "| Side | Suite | Items | Accuracy | "
+        + ("Corrected for the judge | " if fixed else "")
+        + "Ungradeable | Calls | Latency p50 | Cost / call |",
+        "|---|---|---:|---|" + ("---|" if fixed else "") + "---:|---:|---:|---:|",
     ]
     for side, suites in sides.items():
         for s in suites:
@@ -75,8 +95,9 @@ def _operating_table(sides: dict[str, list[SideSuite]]) -> list[str]:
             cost = f"US${s.cost_usd / costed:.5f}" if costed else "n/a"
             lat = f"{s.latency_p50_ms:.0f} ms" if s.latency_p50_ms is not None else "n/a"
             out.append(
-                f"| {side} | {s.suite} | {s.items} | {_estimate(s)} | {s.ungradeable_items} | "
-                f"{s.calls} | {lat} | {cost} |"
+                f"| {side} | {s.suite} | {s.items} | {_estimate(s)} | "
+                + (f"{_corrected(s)} | " if fixed else "")
+                + f"{s.ungradeable_items} | {s.calls} | {lat} | {cost} |"
             )
     return out
 
@@ -221,19 +242,24 @@ def render_model_card(subject: Subject, seen: Sequence[tuple[GateRecord, str]]) 
     out.append(f"- **Last measured**: {r.ts_utc}, record `{r.record_id}`, at {_where(r)}.")
     if r.occasion.head_sha:
         out.append(f"- **Commit**: `{r.occasion.head_sha[:12]}`.")
+    fixed = _any_corrected(r.occasion.sides[side])
     out += [
         "",
         "## Measured",
         "",
-        "| Suite | Items | Accuracy | Ungradeable | Latency p50 | Cost / call |",
-        "|---|---:|---|---:|---:|---:|",
+        "| Suite | Items | Accuracy | "
+        + ("Corrected for the judge | " if fixed else "")
+        + "Ungradeable | Latency p50 | Cost / call |",
+        "|---|---:|---|" + ("---|" if fixed else "") + "---:|---:|---:|",
     ]
     for s in r.occasion.sides[side]:
         costed = s.calls - s.uncosted_calls
         cost = f"US${s.cost_usd / costed:.5f}" if costed else "n/a"
         lat = f"{s.latency_p50_ms:.0f} ms" if s.latency_p50_ms is not None else "n/a"
         out.append(
-            f"| {s.suite} | {s.items} | {_estimate(s)} | {s.ungradeable_items} | {lat} | {cost} |"
+            f"| {s.suite} | {s.items} | {_estimate(s)} | "
+            + (f"{_corrected(s)} | " if fixed else "")
+            + f"{s.ungradeable_items} | {lat} | {cost} |"
         )
     out += [
         "",
@@ -252,10 +278,17 @@ def render_model_card(subject: Subject, seen: Sequence[tuple[GateRecord, str]]) 
     else:
         out.append("- Programmatic graders only.")
     out += ["", "## Limitations", ""]
-    if judges:
+    if judges and fixed:
+        out.append(
+            "- A judge-graded accuracy is the judge's raw call. The corrected column takes the "
+            "judge's own error out of it (Rogan-Gladen), with the calibration's uncertainty in "
+            "the interval, and the same error is taken out of the difference the gate decides on."
+        )
+    elif judges:
         out.append(
             "- A judge-graded accuracy is the judge's raw call. Its own error is taken out of "
-            "the difference the gate decides on, not out of this table."
+            "the difference the gate decides on, not out of this table: this record was made "
+            "before the ledger kept the corrected rate."
         )
     ungraded = [t for t in TASKS if t not in graded]
     if judges and ungraded:

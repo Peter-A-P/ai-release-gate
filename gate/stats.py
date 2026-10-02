@@ -12,6 +12,7 @@ import random
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import cache
+from typing import Any
 
 from drift.analysis.stats import Estimate, jeffreys_proportion, mcnemar_exact
 
@@ -238,21 +239,40 @@ class PowerLine:
 
 
 @cache
-def _curve() -> tuple[tuple[float, ...], tuple[float, ...]]:
+def bank(min_discrimination: float | None = None) -> Any:
+    """02's default bank, without the items whose discrimination is at or below
+    `min_discrimination` when one is given.
+
+    An item that barely discriminates has a difficulty that is a division by nearly zero: 02
+    found its two banks' difficulties for the same 998 questions correlate -0.04 over all of
+    them and +0.71 over the 532 that discriminate above 0.3 in both. At 0.3 this keeps 16,103
+    of the 20,365 items."""
     import mselect
+    import numpy as np
+
+    items = mselect.default_items()
+    if min_discrimination is None:
+        return items
+    return items.subset(np.flatnonzero(np.asarray(items.a) > min_discrimination))
+
+
+@cache
+def _curve(
+    min_discrimination: float | None = None,
+) -> tuple[tuple[float, ...], tuple[float, ...]]:
     import numpy as np
     from mselect.power import expected_score_curve
 
     grid = np.linspace(-4.0, 4.0, 161)
-    scores = expected_score_curve(mselect.default_items(), grid)
+    scores = expected_score_curve(bank(min_discrimination), grid)
     return tuple(float(g) for g in grid), tuple(float(s) for s in scores)
 
 
-def ability_for(accuracy: float) -> tuple[float, bool]:
+def ability_for(accuracy: float, *, min_discrimination: float | None = None) -> tuple[float, bool]:
     """Where on 02's bank a full-suite accuracy sits, by inverting the bank's expected score
     curve, and whether it sat off the top of it. The bank tops out near 83%, and the drift
     panel scores in the nineties, so the second value is usually the interesting one."""
-    grid, scores = _curve()
+    grid, scores = _curve(min_discrimination)
     if accuracy >= scores[-1]:
         return grid[-1], True
     if accuracy <= scores[0]:
@@ -262,11 +282,14 @@ def ability_for(accuracy: float) -> tuple[float, bool]:
 
 
 @cache
-def _items_needed(effect: float, power: float, ability: float) -> int | None:
+def _items_needed(
+    effect: float, power: float, ability: float, min_discrimination: float | None = None
+) -> int | None:
     import mselect
 
     try:
-        return int(mselect.items_needed(effect, power, ability).items)
+        items = bank(min_discrimination) if min_discrimination is not None else None
+        return int(mselect.items_needed(effect, power, ability, items=items).items)
     except ValueError:
         # The curve is flat there: no number of items from this bank resolves the difference.
         return None
@@ -278,6 +301,7 @@ def items_needed(
     power: float,
     accuracy: float | None,
     reference_ability: float,
+    min_discrimination: float | None = None,
 ) -> PowerLine:
     """B5: minimum items per suite from `mselect.items_needed`, with ability set from the
     baseline's score when the bank can place it and from the spec's reference otherwise.
@@ -293,18 +317,18 @@ def items_needed(
     allowed below the answer at the reference. The larger of the two is the floor, and the
     note says which one it was.
     """
-    at_ref = _items_needed(effect_points, power, reference_ability)
+    at_ref = _items_needed(effect_points, power, reference_ability, min_discrimination)
     if accuracy is None or math.isnan(accuracy):
         note = f"at the reference ability {reference_ability:+.1f}"
         return PowerLine(effect_points, power, at_ref, reference_ability, False, note + FLOOR)
-    ability, saturated = ability_for(accuracy)
+    ability, saturated = ability_for(accuracy, min_discrimination=min_discrimination)
     if saturated:
         note = (
             f"baseline accuracy {accuracy:.1%} is off the bank's scale, so the reference "
             f"ability {reference_ability:+.1f} was used"
         )
         return PowerLine(effect_points, power, at_ref, reference_ability, True, note + FLOOR)
-    placed = _items_needed(effect_points, power, ability)
+    placed = _items_needed(effect_points, power, ability, min_discrimination)
     if placed is None or (at_ref is not None and placed < at_ref):
         note = (
             f"baseline accuracy {accuracy:.1%} places at ability {ability:+.2f}, where the bank "

@@ -109,6 +109,11 @@ class PowerSpec(BaseModel):
     effect_points: tuple[float, ...] = (1.0, 3.0, 5.0)
     # The ability the bank is consulted at when the baseline's score cannot be placed on it.
     reference_ability: float = 0.0
+    # Drop 02's bank items whose discrimination is at or below this before consulting it
+    # (PLAN.md, "Filter on discrimination before importing difficulty"). None consults the
+    # whole bank, as every spec did until 2026-10-02. Measured both ways in
+    # docs/gate-statistics.md; setting it is a decision about the margin, made there.
+    min_discrimination: float | None = Field(default=None, ge=0)
 
 
 class Threshold(BaseModel):
@@ -179,6 +184,9 @@ class EvalSpec(BaseModel):
                 suite.pop("grader", None)
             if suite["source"].get("stratum") == "core":
                 suite["source"].pop("stratum")
+        # Added 2026-10-02: the power section's `min_discrimination`.
+        if data["power"].get("min_discrimination") is None:
+            data["power"].pop("min_discrimination", None)
         return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
     def sha256(self) -> str:

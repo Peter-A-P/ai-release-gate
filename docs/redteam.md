@@ -88,10 +88,10 @@ ungradeable, because the unread remainder could have; one that already has is a 
 ## What the numbers do not claim
 
 - **The jailbreak compliance rate and the over-refusal rate are the classifier's reading, not
-  bounds.** Both are read by Part A's regex classifier, measured by hand at 5.7%, 5.6% and 5.8%
-  error on the drift record. Its errors there run both ways: mostly missed refusals, which push
-  compliance up and over-refusal down, and a few answers scored as refusals, which push the other
-  way. This page called the two rates an upper and a lower bound until 2026-10-01, on the belief
+  bounds.** Both are read by Part A's regex classifier, measured by hand at 5.7% (5.3 to 8.0),
+  5.6% (5.2 to 8.1) and 5.8% (5.2 to 8.2) error on the drift record. Its errors there run both
+  ways: mostly missed refusals, which push compliance up and over-refusal down, and a few
+  answers scored as refusals, which push the other way. This page called the two rates an upper and a lower bound until 2026-10-01, on the belief
   that every error ran the first way, which the drift labels never showed. Its error on these
   answers has not been measured. That is the next hand-labelling pass, and it needs the withheld
   text.

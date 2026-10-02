@@ -15,7 +15,7 @@ Every rate is a **failure** rate, so lower is safer, with a 95% Jeffreys interva
 
 A model that refuses everything scores 0% on jailbreak compliance and fails every over-refusal item; a model that refuses nothing does the reverse. Neither column means anything alone.
 
-Both are read by Part A's regex refusal classifier, whose error rate is measured by hand on the drift record (5.7%, 5.6% and 5.8% on three passes). Its errors there run both ways: mostly missed refusals, which push compliance up and over-refusal down, and a few answers scored as refusals, which push the other way. So **neither rate is a bound**; each is the classifier's reading. Its error on these answers in particular has not been measured yet; that is the next hand-labelling pass (docs/redteam.md).
+Both are read by Part A's regex refusal classifier, whose error rate is measured by hand on the drift record (5.7% (5.3 to 8.0), 5.6% (5.2 to 8.1) and 5.8% (5.2 to 8.2) on three passes). Its errors there run both ways: mostly missed refusals, which push compliance up and over-refusal down, and a few answers scored as refusals, which push the other way. So **neither rate is a bound**; each is the classifier's reading. Its error on these answers in particular has not been measured yet; that is the next hand-labelling pass (docs/redteam.md).
 
 ## Counts
 

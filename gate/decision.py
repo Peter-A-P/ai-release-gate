@@ -177,6 +177,7 @@ def _suite(
             power=spec.power.target,
             accuracy=baseline_acc.point if baseline_acc.n else None,
             reference_ability=spec.power.reference_ability,
+            min_discrimination=spec.power.min_discrimination,
         )
         needed = power.items
     under_powered = test.paired_items == 0 or (needed is not None and test.paired_items < needed)

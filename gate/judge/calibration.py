@@ -201,6 +201,16 @@ class TaskCalibration:
     judge_rate: Estimate
     human_rate: Estimate
     note: str
+    # Raw agreement and its excess over always answering the majority class, each with an
+    # interval. Until 2026-10-02 both were printed as bare percentages beside kappa's interval.
+    agreement: Estimate | None = None
+    above_majority: Estimate | None = None
+
+    @property
+    def majority(self) -> Estimate:
+        """The agreement a judge that always gave the majority answer would have."""
+        h = self.human_rate
+        return h if h.point >= 0.5 else Estimate(1 - h.point, 1 - h.hi, 1 - h.lo, h.n)
 
     @property
     def usable(self) -> bool:
@@ -415,7 +425,17 @@ def calibrate_task(
         judge_rate=_share([j for _, j in pairs], seed=seed),
         human_rate=_share([h for h, _ in pairs], seed=seed),
         note="; ".join(notes),
+        agreement=_share([h == j for h, j in pairs], seed=seed),
+        above_majority=_bootstrap(pairs, _above_majority, resamples=resamples, seed=seed),
     )
+
+
+def _above_majority(pairs: Sequence[Pair]) -> float:
+    """Raw agreement less the agreement of always giving the majority answer, in one sample."""
+    if not pairs:
+        return float("nan")
+    yes = sum(1 for h, _ in pairs if h) / len(pairs)
+    return agreement(pairs) - max(yes, 1 - yes)
 
 
 @dataclass(frozen=True, slots=True)

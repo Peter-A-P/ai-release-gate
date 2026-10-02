@@ -14,7 +14,7 @@ An LLM judge that has not been calibrated is not a cheap measurement. It is a ra
 
 | | |
 |---|---|
-| Agreement with the human, raw | 84.6% |
+| Agreement with the human, raw | 84.6% (81.0 to 87.7) |
 | Cohen's kappa | 0.066 (-0.010 to 0.154) |
 | Krippendorff's alpha | 0.014 (-0.075 to 0.114) |
 | Sensitivity (human yes, judge yes) | 85.4% (82.0 to 88.3) |
@@ -28,12 +28,12 @@ The 2x2 table: 402 both yes, 4 both no, 5 the judge said yes and the human said 
 
 **Refused** for this task: kappa is below 0.6. The gate falls back to a programmatic grader or to "needs human review" (B2.3).
 
-A judge that always answered with the majority class would agree 98.1% of the time. This one agrees 84.6%, which is -13.5% on top of saying nothing.
+A judge that always answered with the majority class would agree 98.1% (96.9 to 99.2) of the time. This one agrees 84.6% (81.0 to 87.7), which is -13.5% (-16.9 to -10.4) on top of saying nothing.
 ### openai-judge-small, complete
 
 | | |
 |---|---|
-| Agreement with the human, raw | 91.0% |
+| Agreement with the human, raw | 91.0% (88.3 to 93.5) |
 | Cohen's kappa | 0.790 (0.729 to 0.848) |
 | Krippendorff's alpha | 0.789 (0.727 to 0.848) |
 | Sensitivity (human yes, judge yes) | 98.4% (96.8 to 99.7) |
@@ -47,7 +47,7 @@ The 2x2 table: 312 both yes, 125 both no, 38 the judge said yes and the human sa
 
 **Usable** for this task: kappa is at or above 0.6.
 
-A judge that always answered with the majority class would agree 66.0% of the time. This one agrees 91.0%, which is +25.0% on top of saying nothing.
+A judge that always answered with the majority class would agree 66.0% (61.9 to 70.4) of the time. This one agrees 91.0% (88.3 to 93.5), which is +25.0% (+20.8 to +29.2) on top of saying nothing.
 
 ## The decision
 

@@ -239,6 +239,25 @@ def aa_study(
     _write(out, report.render_aa(studies, seed=s.seed))
 
 
+@app.command("power-check")
+def power_check_cmd(
+    month: Annotated[str, typer.Option(help="the run whose repeats are split")],
+    spec: SpecOpt = DEFAULT_SPEC,
+    draws: Annotated[int, typer.Option(help="random draws per arm and size")] = 100,
+    out: Annotated[Path | None, typer.Option(help="also write the report here")] = None,
+) -> None:
+    """The power function checked against real answers: how often the gate passes where nothing
+    changed, by number of items, beside what `mselect.items_needed` asks for. Offline."""
+    from gate import power_check
+
+    s = _spec(spec)
+    recs = {k: list(read_records(records_path(RUNS, month, k))) for k in arms_recorded(RUNS, month)}
+    if not recs:
+        typer.echo(f"no records for {month!r}", err=True)
+        raise typer.Exit(2)
+    _write(out, power_check.render(power_check.check(s, recs, month=month, draws=draws)))
+
+
 @app.command("power")
 def power(
     side: Annotated[
@@ -259,6 +278,7 @@ def power(
                 power=s.power.target,
                 accuracy=acc.point if acc.n else None,
                 reference_ability=s.power.reference_ability,
+                min_discrimination=s.power.min_discrimination,
             )
             for e in s.power.effect_points
         ]
@@ -1258,10 +1278,16 @@ def check(
                 spent_usd=spend.usd,
                 sides={
                     "baseline": ledger.side_suites(
-                        base_side, resamples=spec.resamples, seed=spec.seed
+                        base_side,
+                        resamples=spec.resamples,
+                        seed=spec.seed,
+                        corrected={j[0]: j[4] for j in judged},
                     ),
                     "candidate": ledger.side_suites(
-                        cand_side, resamples=spec.resamples, seed=spec.seed
+                        cand_side,
+                        resamples=spec.resamples,
+                        seed=spec.seed,
+                        corrected={j[0]: j[5] for j in judged},
                     ),
                 },
             ),

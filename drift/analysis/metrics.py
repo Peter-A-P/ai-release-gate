@@ -23,6 +23,7 @@ from drift.analysis.stats import (
     bootstrap_mean,
     bootstrap_mean_by_cluster,
     mcnemar_exact,
+    paired_change,
     percentile,
 )
 from drift.graders import is_refusal
@@ -74,6 +75,8 @@ class ArmMetrics:
     cost_per_1000_calls_usd: float
     uncosted_calls: int
     outcomes: dict[str, bool | None] = field(default_factory=dict, repr=False)
+    # Each block's item outcomes, 1.0 correct and 0.0 not, for statistics across blocks.
+    block_values: dict[str, list[float]] = field(default_factory=dict, repr=False)
 
 
 def arm_metrics(arm_key: str, records: list[CallRecord], *, seed: int = 0) -> ArmMetrics:
@@ -148,6 +151,7 @@ def arm_metrics(arm_key: str, records: list[CallRecord], *, seed: int = 0) -> Ar
         cost_per_1000_calls_usd=(cost / n * 1000.0) if n else 0.0,
         uncosted_calls=sum(1 for r in records if r.gradeable and not r.costed),
         outcomes=outcomes,
+        block_values={b: list(v) for b, v in sorted(by_block.items())},
     )
 
 
@@ -159,7 +163,8 @@ class MonthOverMonth:
     correct_to_incorrect: int
     incorrect_to_correct: int
     mcnemar_p: float
-    accuracy_change: float
+    # Paired over the items graded in both runs, with its interval.
+    accuracy_change: Estimate
 
 
 def month_over_month(prev: ArmMetrics, cur: ArmMetrics, *, seed: int = 0) -> MonthOverMonth:
@@ -178,7 +183,7 @@ def month_over_month(prev: ArmMetrics, cur: ArmMetrics, *, seed: int = 0) -> Mon
         correct_to_incorrect=b,
         incorrect_to_correct=c,
         mcnemar_p=mcnemar_exact(b, c),
-        accuracy_change=cur.accuracy.point - prev.accuracy.point,
+        accuracy_change=paired_change(b, c, len(paired), seed=seed),
     )
 
 

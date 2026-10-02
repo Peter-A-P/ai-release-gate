@@ -69,6 +69,68 @@ drift blocks (120, 100, 60, 40, 40, 20, 20, 20 items) that means one suite of ei
 at three points and five at five points. The drift suite was built to measure drift, not to
 gate on, and the screen says so in print rather than blocking on twenty items.
 
+### The power function, checked against real answers (2026-10-02)
+
+The plan asks for the power numbers to be validated here, not only taken from 02. `gate
+power-check --month 2026-10` does it with the gate's own paired test on October's answers: for
+each arm, the five repeats split two against two, the suites' 420 items pooled, and a hundred
+random draws of each size put through the test at a three- and a five-point margin. Nothing
+changed between the two halves, so the share of draws that pass is the gate's power at that
+margin, and it should reach 80% where the bank says it does. The full table is
+[`gate/reports/power-check-2026-10.md`](../gate/reports/power-check-2026-10.md).
+
+| Margin | The bank asks for | Without items of discrimination 0.3 or less | Empirically, the fewest any arm needs | Empirically, the noisiest arm |
+|---|---:|---:|---:|---:|
+| 3 points | 118 | 222 | 120 (four arms) | 320 (`google-alias`) |
+| 5 points | 33 | 57 | 80 (seven arms) | 160 (`google-alias`) |
+
+"Empirically" is the fewest items at which the gate passed at least 80 of its 100 draws and
+kept doing so at every larger size tried; the sizes tried are 40, 60, 80, 120, 160, 240, 320
+and 400, so a figure is the first size that cleared, not an interpolation.
+
+What it shows:
+
+- **At three points the bank is right for the quietest arms and short for the rest.** The two
+  Anthropic and two OpenAI configurations reach 80% at 120 items, against the bank's 118. The
+  sonnet snapshot and the control pass 82% and 81% at 120 and slip to 77% at 160, which is
+  within the draws' own noise (each cell's interval is about eight points either side), and so
+  are counted at 240. The Google arms, whose noise floors are the highest, need 240 and 320.
+- **At five points the bank is optimistic by more than half.** It asks for 33; no arm reaches
+  80% below 80 items, and `google-alias` needs 160. This is 02's own caveat, that the function
+  over-promises for large effects, measured here: treat its answer as a floor, as every power
+  line already says.
+- **It explains the A/A study's five-point row.** At five points the screen decides the suites
+  with 33 items or more, including the 40- and 60-item ones, which this check says pass a
+  no-change comparison well under four times in five. That is why the A/A study blocked every
+  pair at five points: the suites the screen let through were too small for the margin.
+
+### Filtering the bank on discrimination, measured and not switched on (2026-10-02)
+
+PLAN.md asks that 02's items be filtered on discrimination before their difficulties are used,
+because an item that barely discriminates has a difficulty that is a division by nearly zero.
+The spec now takes `power.min_discrimination`, and at 0.3 the bank keeps 16,103 of its 20,365
+items. It is **not set** in the shipped spec, because of what it does to the gate:
+
+| `drift-blocks`, 256 no-change pairs | Bank as shipped | Filtered at 0.3 |
+|---|---|---|
+| Items asked for, 3 points | 118 | 222 |
+| Suites decided per pair, 3 points | 1 of 8 | 0 of 8 |
+| False-block rate, 3 points | 7.0% (4.3 to 10.2) | 0.0% (0.0 to 1.0), and the zero is the screen's |
+| Items asked for, 5 points | 33 | 57 |
+| Suites decided per pair, 5 points | 5 of 8 | 3 of 8 |
+| False-block rate, 5 points | 100.0% (99.0 to 100.0) | 89.5% (85.9 to 93.0) |
+
+Filtered, the gate decides nothing on the drift blocks at three points, so its published
+false-block rate would become a zero that measures the screen and not the rule. At five
+points it is better than the bank as shipped and still blocks nearly nine no-change pairs in
+ten, because the check above says five points needs about 80 items and the filter lets a
+60-item suite through. Neither setting of the bank is the right screen for this panel; the
+empirical numbers above are closer to it than either. Choosing between them changes the
+margin's evidence, which this document says is changed only with a measured reason, so it is
+left as a decision rather than made here. The figures are reproducible with the spec copied and
+`min_discrimination: 0.3` added under `power`, and `gate aa --month 2026-09-run2 --baseline
+2026-09 --delta 5 --no-decide-all --spec <that copy>`.
+
 ## Local dependence, shown and not used
 
 A hundred items of one benchmark are not a hundred independent pieces of evidence. 02 measured
@@ -169,6 +231,7 @@ uv run gate power --side 2026-09/anthropic-alias        # items needed for 1, 3 
 uv run gate compare --baseline 2026-09/anthropic-alias --candidate 2026-09-run2/anthropic-alias --no-record
 uv run gate compare --baseline 2026-09/openweights-control --candidate 2026-09-run2/openweights-control --no-record
 uv run gate aa --month 2026-09-run2 --baseline 2026-09 --delta 5 --delta 2
+uv run gate power-check --month 2026-10                 # the power function against real answers
 ```
 
 The second `compare` exits 1: it is the between-run false block on the control, and the reason

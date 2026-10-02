@@ -23,6 +23,7 @@ from drift.analysis.report import ClassifierCheck, join_and
 from drift.analysis.stats import Estimate
 from gate.aa import AAStudy
 from gate.judge import calibration as calib
+from gate.ledger import GateRecord
 from gate.redteam.suite import FAILURE, SUITES
 from service.readmodel import ReadModel, Run
 
@@ -1255,7 +1256,9 @@ def gate_page(model: ReadModel) -> str:
         "<p>Every decision the gate has made, from its append-only ledger. A candidate passes a "
         "suite only when the lower bound of the 95% interval for its difference from the "
         "baseline stays above minus the suite's margin. Records are content-addressed: the same "
-        "comparison under the same spec is the same id.</p>",
+        "comparison under the same spec is the same id. Each side's accuracy is shown with the "
+        "interval the record kept; records made before 2026-09-30 kept none, and show none "
+        "rather than a bare point.</p>",
     ]
     if not model.decisions:
         parts.append("<p>No decisions recorded yet.</p>")
@@ -1290,8 +1293,8 @@ def gate_page(model: ReadModel) -> str:
                         e(s.suite),
                         _verdict(s.verdict),
                         str(s.paired_items),
-                        f"{s.baseline_accuracy:.1%}" if s.baseline_accuracy is not None else "",
-                        f"{s.candidate_accuracy:.1%}" if s.candidate_accuracy is not None else "",
+                        _side_accuracy(rec, "baseline", s.suite),
+                        _side_accuracy(rec, "candidate", s.suite),
                         _difference(s.difference, s.lo, s.hi),
                         f"{s.delta:.0%}",
                         e(s.reasons[0] if s.reasons else ""),
@@ -1304,9 +1307,29 @@ def gate_page(model: ReadModel) -> str:
     return "\n".join(parts)
 
 
+def _side_accuracy(rec: GateRecord, side: str, suite: str) -> str:
+    """One side's accuracy on one suite with its interval, as the record kept it. A record from
+    before the ledger kept each side's interval has none, and shows none rather than a bare
+    point: its difference, which does carry an interval, is beside it."""
+    if rec.occasion is None:
+        return '<span class="muted">not recorded</span>'
+    for x in rec.occasion.sides.get(side, []):
+        if x.suite == suite and x.accuracy is not None and x.lo is not None and x.hi is not None:
+            return est(Estimate(x.accuracy, x.lo, x.hi, x.items))
+    return '<span class="muted">not recorded</span>'
+
+
+def _signed(x: Estimate) -> str:
+    if math.isnan(x.lo):
+        return e(f"{x.point:+.1%} (no interval)")
+    return e(f"{x.point:+.1%} ({x.lo * 100:+.1f} to {x.hi * 100:+.1f})")
+
+
 def _difference(d: float | None, lo: float | None, hi: float | None) -> str:
     if d is None or lo is None or hi is None:
         return "n/a"
+    if lo == hi:
+        return f"{d * 100:+.1f} (zero-width, as recorded before 2026-09-27)"
     return f"{d * 100:+.1f} ({lo * 100:+.1f} to {hi * 100:+.1f})"
 
 
@@ -1331,8 +1354,8 @@ def _judge_table(judges: dict[str, calib.Calibration]) -> str:
                     est(t.alpha, pct=False),
                     est(t.sensitivity),
                     est(t.specificity),
-                    f"{t.raw_agreement:.1%}",
-                    f"{t.informative:+.1%}",
+                    est(t.agreement) if t.agreement is not None else "n/a",
+                    _signed(t.above_majority) if t.above_majority is not None else "n/a",
                 ]
             )
     return table(

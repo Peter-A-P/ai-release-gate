@@ -115,3 +115,21 @@ def test_a_suite_names_its_stratum_and_the_default_keeps_old_hashes() -> None:
     assert multipart.sha256() != spec.sha256()
     with pytest.raises(ValidationError, match="takes no stratum"):
         Source(kind="drift_block", block="closed_form_reasoning", stratum="multipart")
+
+
+def test_the_discrimination_filter_is_off_and_leaves_the_shipped_hash_alone() -> None:
+    from gate.stats import bank, items_needed
+
+    s = load_spec(Path(__file__).resolve().parent.parent / "gate" / "specs" / "drift-blocks.yaml")
+    assert s.power.min_discrimination is None
+    assert s.sha256().startswith("1b6d78c7491ba911"), "the hash every drift-block record is under"
+    on = s.model_copy(update={"power": s.power.model_copy(update={"min_discrimination": 0.3})})
+    assert on.sha256() != s.sha256()
+    assert bank(0.3).n_items == 16103 and bank(None).n_items == 20365
+    assert items_needed(3, power=0.8, accuracy=None, reference_ability=0.0).items == 118
+    assert (
+        items_needed(
+            3, power=0.8, accuracy=None, reference_ability=0.0, min_discrimination=0.3
+        ).items
+        == 222
+    )
