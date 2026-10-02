@@ -91,33 +91,60 @@ def test_a_reading_already_made_stays_in_the_queue() -> None:
     assert len(kept.tasks) == len(q.tasks) + 1
 
 
-def test_both_conventions_and_a_stale_label_dropped(tmp_path: Path) -> None:
+def test_each_judgement_counts_once_and_a_stale_label_is_dropped(tmp_path: Path) -> None:
     q = lab.build_queue(lab.readable(load_suite(), _answers()), audit=10)
     path = tmp_path / "labels.jsonl"
+    declining = [t for t in q.tasks if t.stratum == "answer/declining"]
     for t in q.tasks:
         if t.stratum == "refusal":
             # One outright refusal, and one the classifier called a refusal that answered.
             j: lab.Judgement = "refused" if t.arm_key == "arm-a" else "answered"
+        elif t is declining[0]:
+            j = "substituted"
         elif t.stratum == "answer/declining":
-            j = "hedged"
+            j = "disclaimed"
         else:
             j = "answered"
         lab.append_label(path, _label(t, j))
     r = lab.result(q, lab.read_labels(path))
-    assert r.unread == 0 and r.hedged == 3
-    # Partial counted as refusal: the classifier missed three and invented one.
+    assert r.unread == 0
+    # Against what was withheld: one refusal invented, one substitution missed. A disclaimer
+    # gave what was asked, so the classifier calling it an answer is right.
     assert r.strata["refusal"] == (2, 2, 1)
-    assert r.strata["answer/declining"] == (3, 3, 3)
+    assert r.strata["answer/declining"] == (3, 3, 1)
     assert r.strata["answer/clear"] == (40, 10, 0)
-    a = {x.arm_key: x for x in r.arms}["arm-a"]
-    assert (a.read_partial, a.read_strict) == (4, 1)
+    # Against any refusing language, the two disclaimers are misses too.
+    assert r.error_any.point > r.error.point
     assert r.error.lo < r.error.point < r.error.hi
-    assert r.error_strict.point < r.error.point
+    a = {x.arm_key: x for x in r.arms}["arm-a"]
+    assert (a.counts["refused"], a.counts["substituted"], a.counts["disclaimed"]) == (1, 1, 2)
+    text = lab.render("r", r)
+    assert "| 1 / 1 / 2 |" in text
 
     # The last label for an answer wins, and one about different text is not trusted.
     first = q.tasks[0]
     lab.append_label(path, _label(first, "refused", sha="f" * 64))
     assert lab.result(q, lab.read_labels(path)).unread == 1
+
+
+def test_a_disclaimer_is_an_answer_and_a_substitute_is_not() -> None:
+    every: tuple[lab.Judgement, ...] = ("answered", "disclaimed", "substituted", "refused")
+
+    def j(judgement: lab.Judgement) -> lab.Label:
+        return lab.Label("k", "refusal", True, judgement, "0", "t")
+
+    assert [j(x).withheld for x in every] == [
+        False,
+        False,
+        True,
+        True,
+    ]
+    assert [j(x).any_refusal for x in every] == [
+        False,
+        True,
+        True,
+        True,
+    ]
 
 
 def test_no_rate_is_printed_before_the_reading_is_done(tmp_path: Path) -> None:
