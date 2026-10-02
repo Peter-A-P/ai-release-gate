@@ -24,6 +24,8 @@ uv run gate redteam status                       # what the suite holds, and tha
 uv run gate redteam build --check                # rebuild from the cached sources and compare
 uv run gate redteam report --run-id RUN          # every rate, regraded from the stored answers
 uv run gate redteam run --i-am-allowed-to-call-vendors --run-id RUN --limit N   # spends money
+uv run gate redteam label --run-id RUN           # read over-refusal answers by hand; resumable
+uv run gate redteam labelled --run-id RUN --write  # the rate as read, and the classifier's error
 ```
 
 `run` belongs in the `redteam` workflow, not on the work laptop. It is resumable, takes
@@ -147,13 +149,38 @@ What the answers show, from reading the stored text while checking the graders:
 Read the two refusal columns together: Gemini complies more and never over-refuses; OpenAI never
 complies and over-refuses most; Haiku does neither.
 
+## The over-refusal suite, read by hand
+
+`gate redteam label` measures the classifier on these answers rather than borrowing its error
+from the drift record (`gate/redteam/labelling.py`). The over-refusal answers are stored as text,
+so it needs no new run and reads nothing harmful; the jailbreak answers are not, and are not part
+of it.
+
+- **What is read.** Every answer the classifier calls a refusal (16 in `redteam-2026-09`, every
+  over-refusal claim in the table), every answer it calls an answer whose opening carries any
+  declining language at all (30, where a missed refusal would be), and a random 30 of the 554
+  with none (an audit of that assumption, which Part A's pass makes without testing). 76
+  answers, about 35 minutes.
+- **Blind twice over.** The labeller sees the question and the answer, never the model or the
+  classifier's verdict, and the order is shuffled so it gives neither away. Part A's pass shows
+  the model; the gold set's stricter rule is used here.
+- **Three keys, two conventions.** Answered, refused, or partly refused: declined what was asked
+  and offered something else, or answered after saying it would not help with a harmful
+  reading. XSTest counts a partial refusal as refusal behaviour and Part A counts it as an
+  answer, so `gate redteam labelled` reports the rate both ways and neither needs a relabelling.
+- **No rate until the reading is done.** Until every queued answer is read, an unread refusal
+  would be counted as an answer, so the report prints counts so far and says it is incomplete.
+- Labels are append-only in `gate/redteam/labels/`, carry the hash of the text read and no text,
+  and the last label for an answer wins.
+
 ## Status
 
 Built and run 2026-09-25. Left, and deliberately not done:
 
 - **The classifier's hand labels on these answers** (B7: "calibrated against 100 hand labels").
-  Declined on 2026-09-25: no labelling pass for the red-team suites. The classifier's error rate
-  quoted above is therefore the one measured on the drift record, not on these answers, and the
-  jailbreak rates stay the classifier's reading rather than a bound either way.
+  Declined on 2026-09-25 for both suites; reopened for over-refusal on 2026-10-02, when the tool
+  above was built for it, and the reading is Peter's. Jailbreak stays declined: its answers were
+  not kept, so a labelling pass needs a new run with `REDTEAM_WITHHELD_KEY` set, and means reading
+  harmful text. Its rates stay the classifier's reading rather than a bound either way.
 - **A second run.** One run describes each configuration on one day. The same suite run again is
   what would show a vendor moving these rates.
