@@ -326,8 +326,8 @@ Under rubric v3's judge counts (2026-09-29). Under v2's the ten-point column rea
 
 At the gate's default three points an unchanged prompt is blocked about seven times in ten. Ten
 points is the smallest round margin that keeps the false-block rate near or under 5%, **and
-only if about 4% of items disagree between two runs of one prompt**. That rate is not measured
-yet. The demo repository's A/A pull request measures it, and if it comes out near 7% the
+only if about 4% of items disagree between two runs of one prompt**. That rate was not measured
+when the margin was set; it is now, below, at 0.0% (0.0 to 0.3) for a prompt at the ceiling. The demo repository's A/A pull request measures it, and if it comes out near 7% the
 false-block rate at ten points is near one in ten and the margin is revisited here, with the
 measurement, before anything is tuned.
 
@@ -346,6 +346,26 @@ runs through the gate ([`gate/reports/live-aa.md`](../gate/reports/live-aa.md)).
 `live-aa` workflow, since it spends, and its intervals resample runs, not pairs, because each
 run is in many pairs. The share of items that differ between two runs is the number the table
 above needed.
+
+**Result, 2026-10-02: 20 runs, US$3.66.** Claude Haiku 4.5 on the demo's base prompt
+(`ade40cb668ff1e93`), each run 100 answers and 100 judgements with no cache. Every one of the
+2,000 answers was judged complete, so:
+
+| | Measured | Assumed for the margin |
+|---|---|---|
+| Items whose verdict differed between two runs | 0.0% (0.0 to 0.3) | about 4% |
+| False-block rate at ten points, 380 ordered pairs | 0.0% (0.0 to 11.7), 0 blocked | about 2% |
+
+The measurement does not contradict the margin: discordance is under the table's lowest row,
+where ten points false-blocks about 2% of the time, and none of the 380 pairs was blocked. **The
+margin stays at ten points**, and the measurement is not a reason to narrow it, for two reasons.
+The base prompt sits at the ceiling, 100 of 100 on every run, and an item that is never failed
+cannot disagree with itself; a prompt scoring in the eighties, with items near the line, would
+disagree more, and the table's rows are what that looks like. And the false-block interval is
+wide because twenty runs are about twenty independent pieces of evidence, not 380: its upper end,
+11.7%, does not rule out the margin being too narrow, let alone too wide. What it does establish is
+that this judge, on this suite, does not invent disagreement: twenty sittings of the same prompt
+were graded identically, item for item.
 
 What this means in plain terms: a 100-question suite graded by a judge can guard against a
 regression of ten points or more and cannot see anything smaller. The remedy is more questions,
