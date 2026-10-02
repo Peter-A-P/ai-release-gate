@@ -63,11 +63,19 @@ jobs:
                   || echo "$repo $name has no decision.jsonl (a run from before 2026-09-30)"
                 # The run's call ledger too, kept in the repository so push-ledgers sends it to
                 # the portfolio's central ledger: the record of what each gate check spent. Only
-                # a ledger with rows; a run served wholly from the cache spent nothing.
+                # a ledger with rows; a run served wholly from the cache spent nothing. Its -wal
+                # comes too and is folded in before counting: a check cancelled mid-run never
+                # reached its own checkpoint, and three on 2026-09-30 held every paid row there.
                 run_id="${name#gate-answers-}"
                 keep="gate/runs/pr-ledgers/$repo/$run_id/ledger.sqlite"
-                if [ ! -e "$keep" ] && unzip -o -q "$dir/a.zip" ledger.sqlite -d "$dir" 2>/dev/null; then
-                  rows=$(python3 -c "import sqlite3,sys; print(sqlite3.connect(sys.argv[1]).execute('select count(*) from ledger').fetchone()[0])" "$dir/ledger.sqlite" 2>/dev/null || echo 0)
+                if [ ! -e "$keep" ] && unzip -o -q "$dir/a.zip" 'ledger.sqlite*' -d "$dir" 2>/dev/null; then
+                  rows=$(python3 -c "
+          import sqlite3, sys
+          con = sqlite3.connect(sys.argv[1])
+          con.execute('pragma wal_checkpoint(TRUNCATE)')
+          print(con.execute('select count(*) from ledger').fetchone()[0])
+          con.execute('pragma journal_mode=DELETE')
+          " "$dir/ledger.sqlite" 2>/dev/null || echo 0)
                   if [ "$rows" -gt 0 ]; then
                     mkdir -p "$(dirname "$keep")"
                     cp "$dir/ledger.sqlite" "$keep"

@@ -367,3 +367,10 @@ So that a gap is seen the day it happens:
 - The nightly `ledger` workflow keeps each gate run's call ledger, when it has rows, under
   `gate/runs/pr-ledgers/`, and `push-ledgers` sends it to the portfolio's central ledger like any
   other committed ledger.
+
+The same check of Google's bill found US$0.16 on 2026-09-30 that no ledger held. It was three
+checks on the demo cancelled after one to two minutes, when their pull requests were closed:
+178 Gemini judge calls, US$0.17, every row still in the artifact but in the ledger's `-wal`,
+because a cancelled check never reaches its checkpoint, and the harvest unpacked only the main
+file and counted it empty. The harvest now unpacks the `-wal` too and folds it in before
+counting, so a cancelled check's spend is kept like any other.
