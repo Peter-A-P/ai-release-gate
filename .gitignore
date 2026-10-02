@@ -74,3 +74,6 @@ site/
 # OpenTelemetry traces written by `drift traces`. Rebuilt from the committed ledgers on demand,
 # so never committed: about 25 MB a month of what the ledgers already hold.
 traces/
+gate/runs/live-aa/ledger.sqlite-wal
+gate/runs/live-aa/ledger.sqlite-shm
+gate/runs/live-aa/raw/*.tmp

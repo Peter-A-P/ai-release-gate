@@ -150,3 +150,25 @@ Reproduce offline with `uv run drift rulec judge --month 2026-09 --replay`. The 
 of this report printed the result under the heading "Rejected" with a self-disagreement of
 "0.0% (0.0% to 0.0%)", which were the expectation and a collapsed bootstrap writing the result;
 both are fixed and tested.
+
+## Part B: filtering the power function's bank on discrimination (2026-10-02)
+
+**Rejected for this panel.** The plan asked that project 02's item bank be filtered on
+discrimination before its numbers are used, because an item that barely discriminates has a
+difficulty that is a division by nearly zero. Built as `power.min_discrimination` and measured
+on the 256 no-change pairs of the A/A study before anything used it:
+
+| `drift-blocks` | Bank as shipped | Filtered at 0.3 |
+|---|---|---|
+| Items asked for, 3 points | 118 | 222 |
+| Suites decided per pair, 3 points | 1 of 8 | 0 of 8 |
+| False-block rate, 3 points | 7.0% (4.3 to 10.2) | 0.0% (0.0 to 1.0) |
+| False-block rate, 5 points | 100.0% (99.0 to 100.0) | 89.5% (85.9 to 93.0) |
+
+The filtered zero is the screen declining to decide anything, not the rule passing anything.
+And the check against real answers (`gate power-check --month 2026-10`) says the unfiltered 118
+is about what the quietest four arms actually need at three points, so the filter moves the
+screen away from the measurement. Kept, off, so this can be reproduced: copy
+`gate/specs/drift-blocks.yaml`, add `min_discrimination: 0.3` under `power`, and run `gate aa
+--month 2026-09-run2 --baseline 2026-09 --delta 5 --no-decide-all --spec <the copy>`. The full
+reasoning is in [`gate-statistics.md`](gate-statistics.md).

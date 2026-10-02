@@ -1,0 +1,84 @@
+name: live-aa
+
+# The A/A study at full size (PLAN.md B10 stage 7): the demo repository's base prompt answered
+# and judged live, again and again with no cache, so that every pair of runs is a pull request
+# that changed nothing. `gate live-aa report` then puts each pair through the gate.
+#
+# Manual, never scheduled. It spends: one run is 100 answers and 100 judgements, about US$0.17,
+# and `max_usd` stops it before a run once that much has gone. Resumable: runs already committed
+# are kept and not paid for again, so asking for more later only pays for the difference.
+#
+# It reads the base branch of Peter-A-P/regulated-qa-demo, the configuration the gate actually
+# gates on, and refuses to add runs of a different prompt or model to the same store.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: "stop once this many runs are stored"
+        required: true
+        default: "2"
+      max_usd:
+        description: "stop before a run once this much has been spent in this job"
+        required: true
+        default: "1"
+
+concurrency:
+  group: live-aa
+  cancel-in-progress: false
+
+jobs:
+  live-aa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    steps:
+      # The branch tip when the job starts, for the reason gold.yml gives: a run that waited in
+      # the queue must not commit on top of a tree without the run before it.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/checkout@v4
+        with:
+          repository: Peter-A-P/regulated-qa-demo
+          ref: main
+          path: demo-base
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - run: uv sync --frozen --all-extras
+
+      - name: Answer and judge the base prompt, fresh each run
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
+        run: |
+          uv run gate live-aa run --i-am-allowed-to-call-vendors \
+            --root demo-base --runs "${{ inputs.runs }}" --max-usd "${{ inputs.max_usd }}"
+
+      - name: Report on what is stored
+        if: always()
+        run: |
+          uv run gate live-aa report --write gate/reports/live-aa.md \
+            || echo "fewer than two runs stored; no report yet"
+
+      - name: Keep the record as an artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-aa-${{ github.run_id }}
+          path: gate/runs/live-aa
+          retention-days: 30
+
+      - name: Commit the record
+        if: always()
+        run: |
+          git config user.name "Peter Parker"
+          git config user.email "peter.alexander.parker@outlook.com"
+          git add gate/runs/live-aa gate/reports
+          git commit -m "Live A/A study: runs to ${{ inputs.runs }}" || echo "nothing to commit"
+          git pull --rebase origin main
+          git push

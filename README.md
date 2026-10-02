@@ -317,8 +317,8 @@ will be linked here as they open.
 Every vendor call this project makes is also on the portfolio's central ledger, run by
 [compliant-ai-gateway](https://github.com/Peter-A-P/compliant-ai-gateway) and shown at
 [gateway.peterparker.ca/dashboard](https://gateway.peterparker.ca/dashboard).
-`.github/workflows/push-ledgers.yml` pushes every committed ledger there after each drift, gold
-and red-team run, nightly and on demand, under the source name `ai-release-gate:<path>`. What
+`.github/workflows/push-ledgers.yml` pushes every committed ledger there after each drift, gold,
+red-team and live A/A run, nightly and on demand, under the source name `ai-release-gate:<path>`. What
 leaves is ledger rows, which hold hashes, counts, costs and latencies and no answer text, and
 only rows for this project. It is a workflow of its own so that a failed push cannot fail a
 measurement, and the calls themselves still go straight to the vendors: none is routed through

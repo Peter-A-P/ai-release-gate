@@ -1570,3 +1570,118 @@ def export_site(
     typer.echo("building the read model from the committed record; about a minute", err=True)
     files = export(build(ROOT), out)
     typer.echo(f"{len(files)} files written to {out}")
+
+
+# ---------------------------------------------------------------------------- the live A/A study (stage 7)
+
+live_aa_app = typer.Typer(help="the A/A study at full size: the live suite against itself")
+app.add_typer(live_aa_app, name="live-aa")
+
+LIVE_AA = ROOT / "gate" / "runs" / "live-aa"
+
+
+def _live_licences(spec: EvalSpec) -> dict[str, live.Licence]:
+    judges = _panel_or_exit(JUDGE_PANEL).arms
+    out: dict[str, live.Licence] = {}
+    try:
+        for s in spec.suites:
+            if s.grader is not None:
+                out[s.key] = live.license_judge(s.grader, judges, GOLD, stratum=s.source.stratum)
+    except live.ConfigError as e:
+        typer.echo(f"judge refused: {e}", err=True)
+        raise typer.Exit(2) from e
+    return out
+
+
+@live_aa_app.command("run")
+def live_aa_run(
+    root: Annotated[Path, typer.Option(help="a checkout of the gated repository's base branch")],
+    runs: Annotated[int, typer.Option(help="stop once this many runs are stored")] = 2,
+    max_usd: Annotated[float, typer.Option(help="stop before a run once this much is spent")] = 5.0,
+    out: Annotated[Path, typer.Option(help="where the runs, ledger and answers go")] = LIVE_AA,
+    config: Annotated[str, typer.Option(help="the gate config, relative to the root")] = (
+        live.CONFIG_FILE
+    ),
+    allowed: Annotated[bool, typer.Option(VENDOR_FLAG, help=VENDOR_HELP)] = False,
+) -> None:
+    """Answer and judge the base prompt live, with no cache, until `runs` runs are stored.
+    Resumable: runs already in the store are kept and not paid for again. Spends money."""
+    from gate import live_aa_study as la
+
+    try:
+        spec, subject, prompt = live.load_repo_config(root, config)
+    except (live.ConfigError, ValueError) as e:
+        typer.echo(f"gate config: {e}", err=True)
+        raise typer.Exit(2) from e
+    store = out / la.SIDES_FILE
+    have = la.read_sides(store)
+    snapshot = out / "base"
+    if have:
+        # Every run must be the same configuration, or the pairs are not A/A pairs.
+        _, s0, p0 = live.load_repo_config(snapshot, config)
+        if live.sha16(p0) != live.sha16(prompt) or s0 != subject:
+            typer.echo(
+                f"the stored runs are of prompt {live.sha16(p0)} on {s0.model}; this base is "
+                f"{live.sha16(prompt)} on {subject.model}. Start a new --out for a new base.",
+                err=True,
+            )
+            raise typer.Exit(2)
+    else:
+        (snapshot / subject.prompt).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(root / config, snapshot / config)
+        shutil.copyfile(root / subject.prompt, snapshot / subject.prompt)
+    licences = _live_licences(spec)
+    g = _gold_or_exit()
+    typer.echo(f"{len(have)} runs stored, {runs} wanted, cap US${max_usd:.2f}", err=True)
+    if len(have) >= runs:
+        return
+    _refuse_unless_allowed(allowed, "gate live-aa run")
+    spent = 0.0
+    run_id = f"live-aa-{live.sha16(prompt)}"
+    with _open_chat(out, run_id) as chat:
+        for index in range(len(have), runs):
+            if spent >= max_usd:
+                typer.echo(f"stopping: US${spent:.2f} spent, the cap is US${max_usd:.2f}", err=True)
+                break
+            spend = live.Spend()
+            # A fresh, file-less cache per run: nothing is reused across runs, which is the
+            # whole point, and the in-memory one only ever sees each request once.
+            side, suites = live.run_side(
+                f"run {index}",
+                spec,
+                subject,
+                prompt,
+                g,
+                licences,
+                chat=chat,
+                cache=live.Cache(None),
+                spend=spend,
+            )
+            la.append_side(store, la.side_row(index, side, suites, spent_usd=spend.usd))
+            live.write_answers(out / "answers" / f"run-{index:02d}.jsonl", {"run": suites})
+            spent += spend.usd
+            typer.echo(f"run {index}: {spend.calls} calls, US${spend.usd:.2f}", err=True)
+
+
+@live_aa_app.command("report")
+def live_aa_report(
+    out: Annotated[Path, typer.Option(help="where the runs are stored")] = LIVE_AA,
+    config: Annotated[str, typer.Option(help="the gate config, relative to the snapshot")] = (
+        live.CONFIG_FILE
+    ),
+    write: Annotated[Path | None, typer.Option(help="also write the report here")] = None,
+) -> None:
+    """Every ordered pair of stored runs through the gate, and how often it blocked. Offline."""
+    from gate import live_aa_study as la
+
+    sides = la.read_sides(out / la.SIDES_FILE)
+    if len(sides) < 2:
+        typer.echo(f"{len(sides)} runs stored; a pair needs two", err=True)
+        raise typer.Exit(2)
+    spec, subject, prompt = live.load_repo_config(out / "base", config)
+    licences = _live_licences(spec)
+    spent = la.total_spent(out / la.SIDES_FILE)
+    s = la.study(
+        spec, sides, judges={k: lic.counts for k, lic in licences.items()}, spent_usd=spent
+    )
+    _write(write, la.render(s, prompt_sha=live.sha16(prompt), model=subject.model))

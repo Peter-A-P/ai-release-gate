@@ -104,7 +104,7 @@ What it shows:
   no-change comparison well under four times in five. That is why the A/A study blocked every
   pair at five points: the suites the screen let through were too small for the margin.
 
-### Filtering the bank on discrimination, measured and not switched on (2026-10-02)
+### Filtering the bank on discrimination, measured and rejected (2026-10-02)
 
 PLAN.md asks that 02's items be filtered on discrimination before their difficulties are used,
 because an item that barely discriminates has a difficulty that is a division by nearly zero.
@@ -126,8 +126,11 @@ points it is better than the bank as shipped and still blocks nearly nine no-cha
 ten, because the check above says five points needs about 80 items and the filter lets a
 60-item suite through. Neither setting of the bank is the right screen for this panel; the
 empirical numbers above are closer to it than either. Choosing between them changes the
-margin's evidence, which this document says is changed only with a measured reason, so it is
-left as a decision rather than made here. The figures are reproducible with the spec copied and
+margin's evidence, which this document says is changed only with a measured reason. **Decided
+2026-10-02: the bank stays as shipped.** The filter would make the gate decide nothing at three
+points, and the unfiltered 118 is what the check above measures the quietest arms needing, so
+it moves the screen away from the measurement rather than towards it (PLAN.md B13 item 4,
+`docs/rejected.md`). The figures are reproducible with the spec copied and
 `min_discrimination: 0.3` added under `power`, and `gate aa --month 2026-09-run2 --baseline
 2026-09 --delta 5 --no-decide-all --spec <that copy>`.
 
@@ -336,6 +339,13 @@ differently from the base prompt, and so did the next
 ([#2](https://github.com/Peter-A-P/regulated-qa-demo/pull/2)). That is under the table's lowest
 row, so ten points keeps false blocks near 2% or lower, with the caveat that both sides sat at a
 completeness of 100%, where there is little room to disagree ([`gate-action.md`](gate-action.md)).
+
+**Measured, from 2026-10-02.** `gate live-aa run` answers and judges the demo repository's base
+prompt live, again and again with no cache, and `gate live-aa report` puts every ordered pair of
+runs through the gate ([`gate/reports/live-aa.md`](../gate/reports/live-aa.md)). It runs in the
+`live-aa` workflow, since it spends, and its intervals resample runs, not pairs, because each
+run is in many pairs. The share of items that differ between two runs is the number the table
+above needed.
 
 What this means in plain terms: a 100-question suite graded by a judge can guard against a
 regression of ten points or more and cannot see anything smaller. The remedy is more questions,

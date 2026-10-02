@@ -379,3 +379,38 @@ def test_the_decision_is_recorded_with_its_occasion_as_the_action_asks(
     assert not first.passed
     assert ledger.GateRecord.content_id(first.content()) == first.record_id
     assert "[o/r#12](https://github.com/o/r/pull/12)" in cards.render_decisions([first, second])
+
+
+def test_the_live_aa_study_pays_for_each_run_once_and_pairs_them_offline(
+    tmp_path: Path, vendor: FakeVendor
+) -> None:
+    """Every run is fresh, with nothing reused across runs; a second invocation keeps what is
+    stored and pays only for the rest; the report puts every ordered pair through the gate."""
+    from gate import live_aa_study as la
+
+    base = repo(tmp_path / "base", "Be quick.")
+    out = tmp_path / "aa"
+    args = ["live-aa", "run", "--root", str(base), "--out", str(out)]
+    assert CliRunner().invoke(cli.app, [*args, "--runs", "2"]).exit_code != 0, "no flag, no spend"
+    assert vendor.requests == []
+    result = CliRunner().invoke(cli.app, [*args, "--runs", "2", FLAG])
+    assert result.exit_code == 0, result.output
+    assert len(vendor.requests) == 400, "two runs of 100 answers and 100 judgements, none cached"
+    result = CliRunner().invoke(cli.app, [*args, "--runs", "3", FLAG])
+    assert result.exit_code == 0, result.output
+    assert len(vendor.requests) == 600, "the stored two are kept, only the third is paid for"
+    assert len(la.read_sides(out / la.SIDES_FILE)) == 3
+    assert la.total_spent(out / la.SIDES_FILE) == pytest.approx(3 * 100 * 0.003)
+    other = repo(tmp_path / "other", "Be careful and complete.")
+    clash = CliRunner().invoke(
+        cli.app, ["live-aa", "run", "--root", str(other), "--out", str(out), "--runs", "4", FLAG]
+    )
+    assert clash.exit_code == 2 and "Start a new --out" in clash.output
+    report = tmp_path / "report.md"
+    result = CliRunner().invoke(
+        cli.app, ["live-aa", "report", "--out", str(out), "--write", str(report)]
+    )
+    assert result.exit_code == 0, result.output
+    text = report.read_text(encoding="utf-8")
+    assert "| Ordered pairs of distinct runs | 6 |" in text
+    assert "resample the 3 runs, not the pairs" in text
