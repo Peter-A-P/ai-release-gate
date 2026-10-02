@@ -187,6 +187,23 @@ def render_aa(studies: list[tuple[str, AAStudy]], *, seed: int = 0) -> str:
 PR_MARKER = "<!-- ai-release-gate -->"
 
 
+def _corrected(c: CorrectedRate) -> str:
+    """A corrected rate, and when the clamp at 0 or 1 decided its interval, that said beside it.
+
+    When the judge says yes less often than its own false-positive rate, Rogan-Gladen comes out
+    below zero in nearly every resample, so the interval clamps to "0.0% (0.0% to 0.0%)": a
+    bare number wearing brackets. It printed exactly that on the first blocked pull request,
+    2026-10-02. The figure is still the best estimate; the note says what made it look certain.
+    """
+    text = c.corrected.fmt()
+    if c.clamped_share > 0.05:
+        text += (
+            f", clamped in {c.clamped_share:.0%} of resamples: the judge's raw rate is at the "
+            "edge its own error rate allows"
+        )
+    return text
+
+
 def render_pr_comment(
     d: Decision,
     *,
@@ -221,8 +238,8 @@ def render_pr_comment(
         ]
         for suite, judge, task, kappa, base, cand in judged:
             out.append(
-                f"| {suite} | {judge} | {task} | {kappa:.2f} | {base.corrected.fmt()} | "
-                f"{cand.corrected.fmt()} |"
+                f"| {suite} | {judge} | {task} | {kappa:.2f} | {_corrected(base)} | "
+                f"{_corrected(cand)} |"
             )
         out += [
             "",

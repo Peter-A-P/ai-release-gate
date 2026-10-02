@@ -316,3 +316,36 @@ was unparseable. Completeness:
 The reports are `docs/judge-calibration-openai-judge-large-multipart.md` and
 `docs/judge-calibration-google-judge-large-multipart.md`, and both rebuild byte for byte from
 the record.
+
+## #11: the first block, 2026-10-02
+
+[#11](https://github.com/Peter-A-P/regulated-qa-demo/pull/11) is the block path run live for the
+first time. The prompt is the kind that ships during an incident: while answers are being
+reviewed, reply to every message with one hand-off sentence and answer nothing. Unlike #6, it
+asks for something the model has no reason to refuse, so the regression actually happens. It
+is not #6 made stronger until it blocked. #6 stays open as the record of a change the model
+declined to make, and #11 is a separate change, written to exercise the one path no pull request
+had reached.
+
+**Blocked.** The baseline was 100.0% (97.5 to 100.0) complete and the candidate 0.0% (0.0 to 2.5):
+100 items worse, none better. The latency and cost lines passed, since a one-sentence reply is
+faster and cheaper, and the accuracy line blocked on its own. 400 vendor calls, US$0.37.
+
+What it shows: the live path decides a block as it decides a pass. The base branch's rules
+govern, both sides are answered and judged live, and the licensed judge's error is divided out
+of the difference. What it does not show: anything about a regression smaller than a collapse.
+A ten-point margin on 100 questions can see nothing finer (`docs/gate-statistics.md`), and #3
+remains the record of a real regression this suite cannot see.
+
+**Two defects it found, both fixed the same day:**
+- **The corrected difference read -110.9% (-116.9 to -104.5).** Dividing a -100% raw difference by
+  the judge's Youden index, 0.90, carries it past what a difference can be. The correction is now
+  clamped to -100% to +100%, in the point and in every resample (`gate.stats.paired_difference`).
+  No earlier decision was near either end, so none moves.
+- **The candidate's corrected rate read 0.0% (0.0% to 0.0%)**, a bare number wearing brackets.
+  The judge said yes less often than its own false-positive rate, so Rogan-Gladen fell below zero
+  in nearly every resample and the clamp at 0 made the interval look certain. The comment now
+  says when the clamp decided an interval.
+
+The comment on #11 was written by the gate as pinned then (`783ccd4`), so it shows both defects.
+It is kept as written, like every record. The demo picks up the fixes when it is next re-pinned.

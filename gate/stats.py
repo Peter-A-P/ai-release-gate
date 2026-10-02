@@ -152,7 +152,11 @@ def paired_difference(
     worse = sum(1 for i in paired if baseline[i] and not candidate[i])
     better = sum(1 for i in paired if candidate[i] and not baseline[i])
     raw_point = (better - worse) / n
-    point = raw_point / youden if youden is not None else raw_point
+    # A difference of two rates lies in [-1, 1]. Dividing by the judge's Youden index can carry
+    # it past either end when nearly every item moved one way: the first blocked pull request,
+    # 2026-10-02, printed -110.9% (-116.9 to -104.5) for a candidate that answered nothing.
+    # The correction is clamped to what a difference can be, in the point and every resample.
+    point = _bounded(raw_point / youden) if youden is not None else raw_point
     rng = random.Random(seed)
     spread = math.sqrt(inflation)
     tp = round(se_p * se_n)
@@ -169,7 +173,7 @@ def paired_difference(
         se_d = rng.binomialvariate(se_n, rate_draw(rng, tp, se_n)) / se_n
         sp_d = rng.binomialvariate(sp_n, rate_draw(rng, tn, sp_n)) / sp_n
         y = se_d + sp_d - 1
-        return raw / y if y > 0 else float("nan")
+        return _bounded(raw / y) if y > 0 else float("nan")
 
     drawn = [one() for _ in range(resamples)]
     means = sorted(m for m in drawn if not math.isnan(m))
@@ -192,6 +196,10 @@ def paired_difference(
         judge_youden=youden,
         dropped_resamples=dropped,
     )
+
+
+def _bounded(difference: float) -> float:
+    return max(-1.0, min(1.0, difference))
 
 
 def holm(pvalues: Sequence[float]) -> list[float]:

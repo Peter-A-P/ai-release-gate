@@ -222,3 +222,29 @@ def test_a_judge_that_carries_no_information_is_refused_not_divided_by() -> None
         paired_difference(base, cand, delta=0.03, judge_counts=(50, 50, 50, 50))
     with pytest.raises(ValueError, match="no positives or no negatives"):
         paired_difference(base, cand, delta=0.03, judge_counts=(317, 0, 0, 0))
+
+
+def test_a_judge_corrected_difference_never_leaves_minus_one_to_one() -> None:
+    """2026-10-02: a candidate that answered nothing printed -110.9% (-116.9 to -104.5) once
+    the judge's Youden index divided it."""
+    base = {f"q{i}": True for i in range(100)}
+    cand = {f"q{i}": False for i in range(100)}
+    t = paired_difference(base, cand, delta=0.1, resamples=400, judge_counts=(317, 0, 16, 147))
+    assert t.difference.point == -1.0
+    assert -1.0 <= t.difference.lo <= t.difference.hi <= 1.0
+    assert t.p_inferior == 1.0
+
+
+def test_a_corrected_rate_decided_by_the_clamp_says_so() -> None:
+    from drift.analysis.stats import Estimate
+    from gate.judge.calibration import CorrectedRate
+    from gate.report import _corrected
+
+    clamped = CorrectedRate(
+        Estimate(0.0, 0.0, 0.01, 100), Estimate(0.0, 0.0, 0.0, 100), 1.0, 0.9, False, 0.97
+    )
+    assert "clamped in 97% of resamples" in _corrected(clamped)
+    plain = CorrectedRate(
+        Estimate(0.9, 0.85, 0.95, 100), Estimate(0.89, 0.83, 0.95, 100), 1.0, 0.9, False, 0.0
+    )
+    assert "clamped" not in _corrected(plain)
