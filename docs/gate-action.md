@@ -349,3 +349,21 @@ remains the record of a real regression this suite cannot see.
 
 The comment on #11 was written by the gate as pinned then (`783ccd4`), so it shows both defects.
 It is kept as written, like every record. The demo picks up the fixes when it is next re-pinned.
+
+## Every check's spend on the record (2026-10-02)
+
+04's invoice check of September found Anthropic billing US$1.07 of gate checks on 2026-09-27 and
+09-28 that no ledger held. The cause was not lost rows but lost files: the six paid runs on those
+days came before the action kept anything (the artifact step arrived in `ac89380`, on 09-28 at
+20:46), so each run's call ledger went with its runner. The one artifact from then, run
+36467851453, holds an empty ledger correctly: it was #6 re-run from the cache, which paid for
+nothing. #11's artifact holds 400 rows for its 400 paid calls. Those September rows cannot be
+recovered.
+
+So that a gap is seen the day it happens:
+- `gate check` checkpoints its call ledger into one file and writes `ledger-check.json` beside the
+  answers: the rows the ledger holds against the calls the run paid for. A step in the action
+  fails, visibly and without changing the verdict, when they disagree.
+- The nightly `ledger` workflow keeps each gate run's call ledger, when it has rows, under
+  `gate/runs/pr-ledgers/`, and `push-ledgers` sends it to the portfolio's central ledger like any
+  other committed ledger.

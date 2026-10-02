@@ -407,6 +407,29 @@ def run_gold_suite(
 
 
 ANSWERS_FILE = "answers.jsonl"
+LEDGER_CHECK_FILE = "ledger-check.json"
+
+
+def ledger_check(path: Path, *, paid_calls: int) -> dict[str, int]:
+    """How many rows the call ledger holds against how many calls were paid for, after a
+    checkpoint, so that the file on disk is the whole ledger and not a header beside a
+    write-ahead log nobody uploads.
+
+    A ledger is the record of what was spent. 04's invoice check of September found Anthropic
+    billing gate checks that no ledger held: the runs of 2026-09-27 and 09-28 kept no artifact
+    at all, so their ledgers went with the runner. This is written beside the answers so that
+    a ledger short of its calls is seen the day it happens rather than at the next invoice."""
+    import sqlite3
+
+    if not path.is_file():
+        return {"paid_calls": paid_calls, "rows": 0}
+    con = sqlite3.connect(path)
+    try:
+        con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        (rows,) = con.execute("SELECT count(*) FROM ledger").fetchone()
+    finally:
+        con.close()
+    return {"paid_calls": paid_calls, "rows": int(rows)}
 
 
 def write_answers(path: Path, sides: Mapping[str, Mapping[str, LiveSuite]]) -> int:

@@ -61,6 +61,19 @@ jobs:
                 fi
                 unzip -o -q "$dir/a.zip" decision.jsonl -d "$dir" 2>/dev/null \
                   || echo "$repo $name has no decision.jsonl (a run from before 2026-09-30)"
+                # The run's call ledger too, kept in the repository so push-ledgers sends it to
+                # the portfolio's central ledger: the record of what each gate check spent. Only
+                # a ledger with rows; a run served wholly from the cache spent nothing.
+                run_id="${name#gate-answers-}"
+                keep="gate/runs/pr-ledgers/$repo/$run_id/ledger.sqlite"
+                if [ ! -e "$keep" ] && unzip -o -q "$dir/a.zip" ledger.sqlite -d "$dir" 2>/dev/null; then
+                  rows=$(python3 -c "import sqlite3,sys; print(sqlite3.connect(sys.argv[1]).execute('select count(*) from ledger').fetchone()[0])" "$dir/ledger.sqlite" 2>/dev/null || echo 0)
+                  if [ "$rows" -gt 0 ]; then
+                    mkdir -p "$(dirname "$keep")"
+                    cp "$dir/ledger.sqlite" "$keep"
+                    echo "$repo $name: kept its call ledger, $rows rows"
+                  fi
+                fi
               done
           done
           find "$RUNNER_TEMP/harvest" -name decision.jsonl | sort > "$RUNNER_TEMP/files.txt"
@@ -78,7 +91,7 @@ jobs:
         run: |
           git config user.name "Peter Parker"
           git config user.email "peter.alexander.parker@outlook.com"
-          git add gate/runs/ledger.jsonl gate/reports
+          git add gate/runs/ledger.jsonl gate/reports gate/runs/pr-ledgers
           git commit -m "Ledger: gate decisions from pull requests" || { echo "nothing new"; exit 0; }
           git pull --rebase origin main
           git push

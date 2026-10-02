@@ -13,6 +13,7 @@ else's middlebox (CLAUDE.md). `gold label` and `judge calibrate` are offline.
 from __future__ import annotations
 
 import contextlib
+import json
 import shutil
 import textwrap
 import time
@@ -1217,6 +1218,16 @@ def check(
             cache=store,
             spend=spend,
         )
+    check_ledger = live.ledger_check(work / "ledger.sqlite", paid_calls=spend.calls)
+    work.mkdir(parents=True, exist_ok=True)
+    (work / live.LEDGER_CHECK_FILE).write_text(
+        json.dumps(check_ledger, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
+    )
+    if check_ledger["rows"] != check_ledger["paid_calls"]:
+        typer.echo(
+            f"the call ledger holds {check_ledger['rows']} rows for {spend.calls} paid calls",
+            err=True,
+        )
     answers = work / live.ANSWERS_FILE
     n = live.write_answers(answers, {"base": base_live, "candidate": cand_live})
     typer.echo(f"{n} answers, both sides, with the judge's replies: {answers}", err=True)
@@ -1661,6 +1672,9 @@ def live_aa_run(
             live.write_answers(out / "answers" / f"run-{index:02d}.jsonl", {"run": suites})
             spent += spend.usd
             typer.echo(f"run {index}: {spend.calls} calls, US${spend.usd:.2f}", err=True)
+    # Checkpointed into the one file the workflow commits; the -wal beside it is not committed.
+    c = live.ledger_check(out / "ledger.sqlite", paid_calls=0)
+    typer.echo(f"the committed ledger holds {c['rows']} rows", err=True)
 
 
 @live_aa_app.command("report")

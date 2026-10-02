@@ -77,3 +77,5 @@ traces/
 gate/runs/live-aa/ledger.sqlite-wal
 gate/runs/live-aa/ledger.sqlite-shm
 gate/runs/live-aa/raw/*.tmp
+gate/runs/pr-ledgers/**/ledger.sqlite-wal
+gate/runs/pr-ledgers/**/ledger.sqlite-shm

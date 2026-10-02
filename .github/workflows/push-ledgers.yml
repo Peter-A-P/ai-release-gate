@@ -5,7 +5,7 @@ name: push-ledgers
 # dashboard shows this project's calls as of the last run rather than as of 04's last push.
 #
 # Its own workflow so that a failed push can never fail or hold up a measurement: it runs after
-# the drift, gold, redteam and live-aa workflows finish, never inside them. Not on `push`,
+# the drift, gold, redteam, live-aa and ledger workflows finish, never inside them. Not on `push`,
 # because the commits those workflows make with GITHUB_TOKEN trigger no workflow; `workflow_run`
 # does fire, and checks out the default branch as it stands then, commit included. Nightly as
 # well, after ledger.yml, as a backstop, and by hand.
@@ -26,7 +26,7 @@ name: push-ledgers
 
 on:
   workflow_run:
-    workflows: [drift, gold, redteam, live-aa]
+    workflows: [drift, gold, redteam, live-aa, ledger]
     types: [completed]
   schedule:
     # 07:40 UTC, after ledger.yml at 07:10.

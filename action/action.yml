@@ -99,6 +99,30 @@ runs:
           gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F "body=@$body" > /dev/null
         fi
 
+    # The record of what this run spent, checked before it is kept. `gate check` checkpoints the
+    # call ledger into one file and writes ledger-check.json beside it: the ledger's rows against
+    # the calls it paid for. A short ledger is an error on the run, not a changed verdict:
+    # continue-on-error, so the decision stands and the gap is seen the same day rather than at
+    # the next invoice (04's invoice check of September found gate checks no ledger held).
+    - name: Check the ledger holds every paid call
+      if: always()
+      continue-on-error: true
+      shell: bash
+      run: |
+        f="$RUNNER_TEMP/gate-work/ledger-check.json"
+        if [ ! -s "$f" ]; then
+          echo "::warning::no ledger check written: the gate stopped before its calls finished"
+          exit 0
+        fi
+        python3 - "$f" <<'PY'
+        import json, sys
+        c = json.load(open(sys.argv[1]))
+        print(f"the call ledger holds {c['rows']} rows for {c['paid_calls']} paid calls")
+        if c["rows"] != c["paid_calls"]:
+            print(f"::error::the call ledger holds {c['rows']} rows for {c['paid_calls']} paid calls")
+            sys.exit(1)
+        PY
+
     # Every answer and every judge verdict, with the call ledger, and the decision as a ledger
     # record (decision.jsonl). The comment says a faithfulness regression needs a human reading,
     # and without this there is nothing to read: the replies stayed on the runner. The record is

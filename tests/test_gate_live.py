@@ -415,3 +415,34 @@ def test_the_live_aa_study_pays_for_each_run_once_and_pairs_them_offline(
     assert "| Ordered pairs of distinct runs | 6 |" in text
     assert "resample the 3 runs, not the pairs" in text
     assert "(0.0 to 0.0)" not in text, "a unanimous share still has an interval with width"
+
+
+def test_every_check_says_how_many_rows_its_ledger_holds_against_its_paid_calls(
+    tmp_path: Path, vendor: FakeVendor
+) -> None:
+    """04's invoice check found gate checks billed that no ledger held. Each check now writes
+    ledger-check.json beside its answers, and the action fails a step when the two disagree."""
+    base = repo(tmp_path / "base", "Be careful and complete.")
+    cand = repo(tmp_path / "cand", "Be quick.")
+    run(base, cand, tmp_path, FLAG)
+    check = json.loads((tmp_path / "w" / live.LEDGER_CHECK_FILE).read_text(encoding="utf-8"))
+    # The fake vendor writes no ledger, so this is exactly the gap the check exists to show.
+    assert check == {"paid_calls": len(vendor.requests), "rows": 0}
+    assert check["paid_calls"] > 0
+
+
+def test_the_ledger_check_reads_the_ledger_through_its_write_ahead_log(tmp_path: Path) -> None:
+    import sqlite3
+
+    path = tmp_path / "ledger.sqlite"
+    writer = sqlite3.connect(path)
+    writer.execute("PRAGMA journal_mode=WAL")
+    writer.execute("CREATE TABLE ledger (id INTEGER PRIMARY KEY, cost_usd REAL)")
+    writer.executemany("INSERT INTO ledger (cost_usd) VALUES (?)", [(0.001,)] * 5)
+    writer.commit()  # committed, still open: the rows are in the -wal, not the main file
+    assert live.ledger_check(path, paid_calls=5) == {"paid_calls": 5, "rows": 5}
+    writer.close()
+    assert (
+        not (tmp_path / "ledger.sqlite-wal").exists()
+        or (tmp_path / "ledger.sqlite-wal").stat().st_size == 0
+    ), "checkpointed into the one file that is uploaded"
