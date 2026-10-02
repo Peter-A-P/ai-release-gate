@@ -1,0 +1,91 @@
+name: push-ledgers
+
+# Pushes this repository's committed ledgers to the portfolio's central ledger at
+# gateway.peterparker.ca (project 04, docs/central.md, "From another project's own runs"), so its
+# dashboard shows this project's calls as of the last run rather than as of 04's last push.
+#
+# Its own workflow so that a failed push can never fail or hold up a measurement: it runs after
+# the drift, gold and redteam workflows finish, never inside them. Not on `push`, because the
+# commits those workflows make with GITHUB_TOKEN trigger no workflow; `workflow_run` does fire,
+# and checks out the default branch as it stands then, commit included. Nightly as well, after
+# ledger.yml, as a backstop, and by hand.
+#
+# What leaves: ledger rows, which hold no content by construction (hashes, counts, identifiers,
+# costs, latencies), and only rows whose project is ai-release-gate. Every committed ledger held
+# only that project on 2026-10-02; the first step prints what they hold, so a stranger's rows
+# would be seen, and `--project` keeps them on the runner either way. No answer text is in a
+# ledger, and the red-team suites' withheld text is not in the repository at all.
+#
+# The `boundary` this repository pins stays at 0.1.0 (pyproject.toml). The push runs 04's
+# current library as a tool beside it, which reads every ledger schema from v1 on.
+#
+# Each file keeps the source name `ai-release-gate:<path from the repository root>`, under which
+# the first 92 were pushed on 2026-09-30: the same name adds to the same source, so a push of an
+# unchanged file sends nothing new. Every file is pushed even if one fails, and the job fails at
+# the end if any did. `push` exits non-zero unless the central ledger holds every row it sent.
+
+on:
+  workflow_run:
+    workflows: [drift, gold, redteam]
+    types: [completed]
+  schedule:
+    # 07:40 UTC, after ledger.yml at 07:10.
+    - cron: "40 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: push-ledgers
+  cancel-in-progress: false
+
+env:
+  BOUNDARY_TOOL: "git+https://github.com/Peter-A-P/compliant-ai-gateway@v0.34.1"
+  CENTRAL: https://gateway.peterparker.ca
+  PROJECT: ai-release-gate
+
+jobs:
+  push:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+
+      - name: Say which projects the committed ledgers hold
+        run: |
+          git ls-files -z '*.sqlite' | xargs -0 python3 -c '
+          import sqlite3, sys, collections
+          seen = collections.Counter()
+          for path in sys.argv[1:]:
+              con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+              for (project,) in con.execute("select distinct project from ledger"):
+                  seen[project] += 1
+          for project, files in sorted(seen.items()):
+              print(f"{files} file(s) hold rows for project {project!r}")
+          others = sorted(p for p in seen if p != "${{ env.PROJECT }}")
+          if others:
+              print(f"::warning::rows for {others} stay on the runner: only ${{ env.PROJECT }} is pushed")
+          '
+
+      - name: Push every committed ledger
+        env:
+          BOUNDARY_INGEST_KEY: ${{ secrets.BOUNDARY_INGEST_KEY }}
+        run: |
+          failed=0
+          total=0
+          while IFS= read -r -d '' f; do
+            total=$((total + 1))
+            echo "::group::$f"
+            if ! uvx --from "$BOUNDARY_TOOL" boundary ledger push --url "$CENTRAL" \
+                --ledger "$f" --source "$PROJECT:$f" --project "$PROJECT"; then
+              echo "::error file=$f::push failed"
+              failed=$((failed + 1))
+            fi
+            echo "::endgroup::"
+          done < <(git ls-files -z '*.sqlite')
+          echo "$((total - failed)) of $total ledgers pushed"
+          [ "$failed" -eq 0 ]

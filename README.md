@@ -306,8 +306,19 @@ One of fifteen projects. This one is the measurement layer for the
 others: the compliant gateway, the filings analyst, the small-model cost frontier and the
 self-healing production AI all use it to make their claims. Its statistical core comes from
 [model-selection-tenth-cost](https://github.com/Peter-A-P/model-selection-tenth-cost), which
-supplies the power analysis and the item calibration this suite's intervals lean on. The
-projects that consume this one are not public yet; each will be linked here as it opens.
+supplies the power analysis and the item calibration this suite's intervals lean on. Of the
+projects that consume this one, the compliant gateway is public and linked below; the others
+will be linked here as they open.
+
+Every vendor call this project makes is also on the portfolio's central ledger, run by
+[compliant-ai-gateway](https://github.com/Peter-A-P/compliant-ai-gateway) and shown at
+[gateway.peterparker.ca/dashboard](https://gateway.peterparker.ca/dashboard).
+`.github/workflows/push-ledgers.yml` pushes every committed ledger there after each drift, gold
+and red-team run, nightly and on demand, under the source name `ai-release-gate:<path>`. What
+leaves is ledger rows, which hold hashes, counts, costs and latencies and no answer text, and
+only rows for this project. It is a workflow of its own so that a failed push cannot fail a
+measurement, and the calls themselves still go straight to the vendors: none is routed through
+the gateway.
 
 ## How this was built
 
