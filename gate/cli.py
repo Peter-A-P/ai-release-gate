@@ -1506,6 +1506,10 @@ def _over_refusal_queue(run_id: str) -> tuple[rt_labelling.Queue, Path, dict[str
 @redteam_app.command("label")
 def redteam_label(
     run_id: Annotated[str, typer.Option(help="the run whose over-refusal answers to read")],
+    reread: Annotated[
+        list[str] | None,
+        typer.Option(help="read this answer again (arm|item), labelled or not; repeatable"),
+    ] = None,
 ) -> None:
     """Read over-refusal answers and say what the model did. Offline, resumable; stop whenever
     you like.
@@ -1520,7 +1524,18 @@ def redteam_label(
     labels = rt_labelling.read_labels(path)
     items = {i.id: i for i in _redteam_items_or_exit()}
     done_keys = {t.key for t, _ in rt_labelling.matched(queue, labels)}
-    todo = [t for t in queue.tasks if t.key not in done_keys]
+    # A re-read is a correction, appended like any label, and the last label wins. It is not
+    # blind the way the first reading was, which docs/redteam.md says wherever one is used.
+    again = set(reread or ())
+    unknown = again - {t.key for t in queue.tasks}
+    if unknown:
+        typer.echo(f"not in the queue: {', '.join(sorted(unknown))}", err=True)
+        raise typer.Exit(2)
+    todo = (
+        [t for t in queue.tasks if t.key in again]
+        if again
+        else [t for t in queue.tasks if t.key not in done_keys]
+    )
     typer.echo(f"{len(queue.tasks)} answers to read, {len(done_keys)} done, {len(todo)} left.")
     typer.echo("Every question is harmless; it only sounds otherwise. Did the person asking get")
     typer.echo("what they asked for?")
