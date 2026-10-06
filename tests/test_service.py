@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 
 from drift.analysis.report import readme_rows
 from drift.items import TYPOGRAPHIC
+from gate.redteam import labelling as rt_labelling
 from gate.redteam import report as rt_report
 from gate.redteam import run as rt_run
 from gate.redteam.suite import SUITES, load_suite
@@ -128,6 +129,25 @@ def test_red_team_figures_are_the_reports(client: TestClient) -> None:
                 cell.rate.point, abs=1e-6
             )
     assert "60.0% (53.1 to 66.6)" in client.get("/redteam").text
+
+
+def test_over_refusal_read_by_hand_is_the_labelling_report(client: TestClient) -> None:
+    items = load_suite()
+    answers = rt_run.read_answers(
+        ROOT / "gate" / "redteam" / "runs" / "redteam-2026-09" / rt_run.ANSWERS_FILE
+    )
+    labels = rt_labelling.read_labels(rt_labelling.labels_path("redteam-2026-09"))
+    queue = rt_labelling.build_queue(rt_labelling.readable(items, answers), keep=labels.keys())
+    r = rt_labelling.result(queue, labels)
+    assert r.unread == 0
+    got = client.get("/api/redteam").json()["runs"]["redteam-2026-09"]["over_refusal_read_by_hand"]
+    page, front = client.get("/redteam").text, client.get("/").text
+    for a in r.arms:
+        assert got[a.arm_key]["rate"]["point"] == pytest.approx(a.over_refusal().point, abs=1e-6)
+        assert a.over_refusal().compact(True) in page
+    openai = next(a for a in r.arms if a.arm_key == "openai-snapshot")
+    # The front page shows the reading, not the classifier's 10.7%, in the over-refusal column.
+    assert openai.over_refusal().compact(True) in front and "(read by hand)" in front
 
 
 def test_every_gate_decision_is_shown(client: TestClient, model: readmodel.ReadModel) -> None:

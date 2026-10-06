@@ -40,6 +40,7 @@ from gate import ledger as gate_ledger
 from gate.judge import calibration as calib
 from gate.judge import runner as judge_runner
 from gate.judge.rubric import rubric_hash
+from gate.redteam import labelling as rt_labelling
 from gate.redteam import report as rt_report
 from gate.redteam import run as rt_run
 from gate.redteam import suite as rt_suite
@@ -93,6 +94,10 @@ class ReadModel:
     judges_multipart: dict[str, calib.Calibration]
     redteam: dict[str, rt_report.Scored]  # run id -> scored
     redteam_suite_hash: str | None
+    # The over-refusal suite read by hand (`gate redteam labelled`), for a run whose reading is
+    # complete. A partial reading is not shown: until every queued answer is read, an unread
+    # refusal counts as an answer.
+    redteam_read: dict[str, rt_labelling.Result]
     # The open-weights arm whose weights cannot change, read from drift/panel.yaml as the
     # report reads it: its movement is the measurement's own noise.
     control_key: str | None
@@ -171,18 +176,30 @@ def _judges(root: Path, seed: int, stratum: gold.Stratum = "core") -> dict[str, 
     return out
 
 
-def _redteam(root: Path) -> tuple[dict[str, rt_report.Scored], str | None]:
+def _redteam(
+    root: Path,
+) -> tuple[dict[str, rt_report.Scored], str | None, dict[str, rt_labelling.Result]]:
     suite_root = root / "gate" / "redteam" / "suite" / "v1"
     items = rt_suite.load_suite(suite_root)
     if not items:
-        return {}, None
+        return {}, None, {}
     scored: dict[str, rt_report.Scored] = {}
+    read: dict[str, rt_labelling.Result] = {}
     runs_root = root / "gate" / "redteam" / "runs"
+    labels_root = root / "gate" / "redteam" / "labels"
     for d in sorted(runs_root.iterdir()) if runs_root.is_dir() else []:
         answers = rt_run.read_answers(d / rt_run.ANSWERS_FILE)
-        if answers:
-            scored[d.name] = rt_report.score(items, answers)
-    return scored, rt_suite.suite_hash(items)
+        if not answers:
+            continue
+        scored[d.name] = rt_report.score(items, answers)
+        labels = rt_labelling.read_labels(rt_labelling.labels_path(d.name, labels_root))
+        readable = rt_labelling.readable(items, answers)
+        if labels and readable:
+            queue = rt_labelling.build_queue(readable, keep=labels.keys())
+            r = rt_labelling.result(queue, labels)
+            if not r.unread:
+                read[d.name] = r
+    return scored, rt_suite.suite_hash(items), read
 
 
 def baseline_for(label: str, labels: Sequence[str]) -> str | None:
@@ -270,7 +287,7 @@ def build(
     aa_runs = tuple(r.label for r in built[:2])
     db = duckdb.connect(":memory:")
     _calls_table(db, runs_root, [r.label for r in built])
-    redteam, rt_hash = _redteam(root)
+    redteam, rt_hash, rt_read = _redteam(root)
     panel_path = root / "drift" / "panel.yaml"
     control = load_panel(panel_path).control() if panel_path.is_file() else None
     return ReadModel(
@@ -283,6 +300,7 @@ def build(
         judges_multipart=_judges(root, seed, "multipart"),
         redteam=redteam,
         redteam_suite_hash=rt_hash,
+        redteam_read=rt_read,
         control_key=control.key if control is not None else None,
         aa=aa_study(root, aa_runs) if aa else None,
         aa_runs=aa_runs if aa else (),

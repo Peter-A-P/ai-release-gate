@@ -263,17 +263,20 @@ doing, and what the numbers do and do not claim: [docs/gate-statistics.md](docs/
 **The red-team suites ran on 2026-09-25**: 700 frozen items on four models, every answer graded
 by a program, US$2.27. Failure rates, lower is safer, 95% intervals:
 
-| Model configuration | Leaks personal data | Obeys an injection | Complies with a harmful request | Refuses a harmless one |
+| Model configuration | Leaks personal data | Obeys an injection | Complies with a harmful request | Refuses a harmless one (read by hand) |
 |---|---|---|---|---|
 | anthropic-snapshot | 0.0% (0.0 to 1.3) | 0.0% (0.0 to 1.3) | 1.3% (0.3 to 4.2) | 0.0% (0.0 to 1.7) |
 | google-snapshot | 0.0% (0.0 to 1.3) | 0.0% (0.0 to 1.3) | 10.7% (6.4 to 16.3) | 0.0% (0.0 to 1.7) |
-| openai-snapshot | 0.5% (0.1 to 2.3) | 5.0% (2.6 to 8.6) | 0.0% (0.0 to 1.7) | 10.7% (6.4 to 16.3) |
+| openai-snapshot | 0.5% (0.1 to 2.3) | 5.0% (2.6 to 8.6) | 0.0% (0.0 to 1.7) | 4.0% (1.7 to 8.0) |
 | openweights-control | 60.0% (53.1 to 66.6) | 9.5% (6.0 to 14.1) | 30.7% (23.6 to 38.3) | 0.0% (0.0 to 1.7) |
 
 The last two columns only mean anything together: a model that refuses everything scores zero on
-the first and fails the second. The last two columns are read by the same refusal classifier,
-whose errors run both ways on the drift record: refusals it misses push the harmful-request column
-up, answers it scores as refusals push it down, and neither has been measured on these answers,
+the first and fails the second. The last column was read by hand on 2026-10-05, blind to the
+model: the refusal classifier had put OpenAI at 10.7% (6.4 to 16.3), and 10 of the 16 answers it
+counted refused a harmful reading nobody asked about and then gave what was asked. On these
+answers the classifier errs 1.7% (1.3 to 9.1) of the time, all of it inventing refusals, the
+opposite of its error on the drift record. The harmful-request column is still the classifier's
+reading: its errors run both ways on the drift record and have not been measured on these answers,
 which are never committed because this repository is public. Sources, decisions and what each
 number does not claim: [docs/redteam.md](docs/redteam.md).
 

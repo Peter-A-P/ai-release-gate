@@ -120,6 +120,23 @@ def redteam_json(m: ReadModel) -> dict[str, Any]:
                     }
                     for a in s.arms
                 },
+                **(
+                    {
+                        "over_refusal_read_by_hand": {
+                            a.arm_key: {
+                                "rate": estimate(a.over_refusal()),
+                                "refused": a.counts["refused"],
+                                "substituted": a.counts["substituted"],
+                                "disclaimed": a.counts["disclaimed"],
+                                "graded": a.graded,
+                            }
+                            for a in m.redteam_read[run_id].arms
+                        },
+                        "classifier_error": estimate(m.redteam_read[run_id].error),
+                    }
+                    if run_id in m.redteam_read
+                    else {}
+                ),
             }
             for run_id, s in sorted(m.redteam.items())
         },
