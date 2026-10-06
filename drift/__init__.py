@@ -5,4 +5,4 @@ runner can never be a confound in the record. Grading is programmatic only. Ever
 score carries a confidence interval.
 """
 
-__version__ = "0.1.0.dev1"
+__version__ = "0.1.0"

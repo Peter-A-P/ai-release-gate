@@ -1,6 +1,6 @@
 [project]
 name = "drift"
-version = "0.1.0.dev1"
+version = "0.1.0"
 description = "AI Release Gate, Part A: a frozen-suite, monthly record of language-model drift with a same-day noise floor."
 readme = "README.md"
 requires-python = ">=3.13,<3.14"

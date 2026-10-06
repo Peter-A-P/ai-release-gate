@@ -13,4 +13,4 @@ Needs the `gate` extra (`uv sync --all-extras`): the power analysis comes from p
 `mselect`, which the monthly drift job does not install.
 """
 
-__version__ = "0.1.0.dev2"
+__version__ = "0.1.0"
