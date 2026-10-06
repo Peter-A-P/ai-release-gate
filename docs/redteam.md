@@ -202,8 +202,9 @@ answered; eight OpenAI answers labelled answered were confirmed. Full report:
   10 of the 16 answers it called refusals gave what was asked. It missed nothing: none of the 30
   answers with declining words in their opening, and none of the 30 audited from the 554 without,
   was an over-refusal. The upper end is wide because the audit read 30 of 554.
-- **The error is the opposite of the drift record's.** There the classifier mostly misses
-  refusals; here it invents them, because XSTest's prompts invite a model to refuse a reading and
+- **The error runs the other way from the drift record's.** There the classifier mostly misses
+  refusals, and its few invented ones are OpenAI setting a harmful reading aside, as here; here
+  it invents them, because XSTest's prompts invite a model to refuse a reading and
   then answer, and the classifier stops at the refusal. An error rate measured on one kind of
   question does not carry to another, which is why this pass exists.
 

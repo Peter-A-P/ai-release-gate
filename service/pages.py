@@ -1397,6 +1397,11 @@ def _judge_table(judges: dict[str, calib.Calibration]) -> str:
     )
 
 
+def _kappa(k: Estimate) -> str:
+    """A kappa as `gate gold intra-rater` prints it: a number, not a percentage."""
+    return k.compact(False)
+
+
 def judge_page(model: ReadModel) -> str:
     parts = [
         "<h1>Judge calibration</h1>",
@@ -1412,6 +1417,33 @@ def judge_page(model: ReadModel) -> str:
         "yes 98% of the time, a judge that always says yes agrees 98%. The last column is raw "
         "agreement minus that, which is why a judge with 87% agreement can be refused.</p>",
     ]
+    if model.intra is not None:
+        rows = {t.task: t for t in model.intra.tasks}
+        comp = rows["complete"]
+        parts += [
+            "<h2>How consistent is the human?</h2>",
+            f"<p>Every licence above is agreement with one person's labels, so those labels were "
+            f"checked against themselves: {model.intra.read} answers read a second time, weeks "
+            f"later, in a different order and blind to the first reading. On completeness the "
+            f"two readings agree with a kappa of {e(_kappa(comp.kappa))}; "
+            f"{len(comp.yes_then_no) + len(comp.no_then_yes)} of {comp.counts.n} changed, "
+            f"{len(comp.yes_then_no)} of them from complete to incomplete. A judge cannot be "
+            "shown to agree with the standard more closely than the standard agrees with "
+            "itself.</p>",
+            table(
+                ["Judge", "Task", "Against the first reading", "Against the second"],
+                (
+                    [
+                        f"<code>{e(j.judge_key)}</code>",
+                        e(j.task),
+                        e(_kappa(j.against_first)),
+                        e(_kappa(j.against_second)),
+                    ]
+                    for j in model.intra.judges
+                    if j.task == "complete"
+                ),
+            ),
+        ]
     if model.judges_multipart:
         parts += [
             "<h2>On the multi-part questions</h2>",

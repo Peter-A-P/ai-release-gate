@@ -317,6 +317,26 @@ The reports are `docs/judge-calibration-openai-judge-large-multipart.md` and
 `docs/judge-calibration-google-judge-large-multipart.md`, and both rebuild byte for byte from
 the record.
 
+### Decided, 2026-10-06: the finding is the result
+
+Six judges have been tried on the multi-part stratum: the gate's own under two rubric versions,
+two allowed to think, and two larger models. The best, GPT-5.4, reached 0.508 against a bar of
+0.6, and the literal check of each question's expected phrases reached 0.077: it flags every
+incomplete answer and 100 of the 124 complete ones, because models paraphrase. **Peter decided
+to stop here and publish the finding as this project's result on multi-part completeness:**
+
+- **The suite can see a brevity regression; no grader tried can grade it.** By hand, a
+  one-sentence limit drops completeness from 99% to 50% on these questions, and every judge
+  calls most of those short answers complete.
+- **So the gate does not gate on it.** The demo keeps gating on the first hundred, where its
+  judge is licensed at 0.924, and #3 stays open as the regression that suite cannot see. Nothing
+  grades the multi-part stratum, and the bar is not lowered to let something.
+- **The false-block study and #3's re-run on the multi-part suite are not done**, because both
+  need a licensed grader; they are not pending, they are closed by this decision.
+- **What would reopen it** is a grader that clears 0.6 on these 150 labels under the current
+  rubric, measured offline against them before any gate uses it. A larger price list or a new
+  model generation is a reason to try again, not a reason to expect a different answer.
+
 ## #11: the first block, 2026-10-02
 
 [#11](https://github.com/Peter-A-P/regulated-qa-demo/pull/11) is the block path run live for the

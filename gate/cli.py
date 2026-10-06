@@ -342,6 +342,48 @@ def gold_status() -> None:
     typer.echo(gold.summarise(gold.load(GOLD), gold.read_labels(GOLD / gold.LABELS_FILE)))
 
 
+@gold_app.command("intra-rater")
+def gold_intra_rater(
+    write: Annotated[
+        bool, typer.Option("--write", help="also write docs/judge-intra-rater.md")
+    ] = False,
+) -> None:
+    """How far the second pass agrees with the first, and each judge against both. Offline."""
+    from drift.analysis.stats import Estimate
+    from gate.judge import intra_rater
+    from gate.judge.rubric import rubric_hash
+
+    g = _gold_or_exit()
+    labels = gold.read_labels(GOLD / gold.LABELS_FILE)
+    verdicts = judge_runner.read_verdicts(GOLD / judge_runner.VERDICTS_FILE)
+    current = rubric_hash()
+    r = intra_rater.intra_rater(g, labels, verdicts, rubric_hash=current)
+    if not r.read:
+        typer.echo("nothing read twice yet: run `gate gold label --pass 2`", err=True)
+        raise typer.Exit(2)
+    # Each judge's published kappa on the whole core stratum, for comparison, computed as
+    # `gate judge calibrate --stratum core` computes it.
+    ids = set(g.instance_ids_in("core"))
+    first = {
+        k: v
+        for k, v in gold.usable_labels(gold.latest_labels(labels, pass_no=1), g.by_instance).items()
+        if k in ids
+    }
+    licensed: dict[str, dict[str, Estimate]] = {}
+    for key in sorted({j.judge_key for j in r.judges}):
+        mine = [
+            v
+            for v in verdicts
+            if v.judge_key == key and v.instance_id in ids and v.rubric_hash == current
+        ]
+        c = calib.calibrate(first, mine, judge_key=key)
+        licensed[key] = {t.task: t.kappa for t in c.tasks}
+    _write(
+        ROOT / "docs" / "judge-intra-rater.md" if write else None,
+        intra_rater.render(r, licensed=licensed),
+    )
+
+
 @gold_app.command("label")
 def gold_label(
     pass_no: Annotated[

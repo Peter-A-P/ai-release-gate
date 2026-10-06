@@ -247,7 +247,7 @@ calibrated against human labels and corrected for its own error rate, paired non
 tests, a power analysis, and a GitHub Action that blocks a regression on a real repository with a
 measured false-block rate.
 
-**Part B has started.** The gate's statistics are built and were first run against themselves
+**Part B is built.** The gate's statistics were first run against themselves
 on 2026-09-19: the two September runs cut into 256 pairs where nothing changed, so every block
 is a false block. The gate as specified blocked 7.0% (4.3 to 10.2) of them, all on the
 open-weights control in the one block large enough to decide at a three-point margin. The rule
@@ -259,6 +259,23 @@ verdict between two runs, against the 4% the ten-point margin was set from; the 
 of 100 every time, so that is how steady a prompt at the ceiling is
 ([gate/reports/live-aa.md](gate/reports/live-aa.md)). How the test works, what the power screen is
 doing, and what the numbers do and do not claim: [docs/gate-statistics.md](docs/gate-statistics.md).
+
+**The gate runs on real pull requests** at
+[regulated-qa-demo](https://github.com/Peter-A-P/regulated-qa-demo): each side answered live and
+graded for completeness by Gemini 3.8 Flash, licensed at kappa 0.924 (0.886 to 0.958) against 480
+answers labelled by hand. Those labels were checked against themselves: a hundred read again two
+weeks later, blind, agree at kappa 0.851 (0.739 to 0.957), and the judge holds its licence against
+either reading ([docs/judge-intra-rater.md](docs/judge-intra-rater.md)). Rewordings pass, a
+prompt that answers nothing is blocked
+([#11](https://github.com/Peter-A-P/regulated-qa-demo/pull/11)), and a one-sentence limit passes
+when it should not ([#3](https://github.com/Peter-A-P/regulated-qa-demo/pull/3)): on ordinary
+questions any answer that states the main point is complete. Fifty multi-part questions do see
+that regression by hand, and none of six judges tried can grade them, the best at kappa 0.508
+against a bar of 0.6. That is published as the result rather than lowering the bar
+([docs/gate-action.md](docs/gate-action.md)).
+
+The argument of the whole project, in one piece for a reader who has never run an eval:
+[**Your LLM eval has no error bars**](docs/your-llm-eval-has-no-error-bars.md).
 
 **The red-team suites ran on 2026-09-25**: 700 frozen items on four models, every answer graded
 by a program, US$2.27. Failure rates, lower is safer, 95% intervals:
@@ -274,8 +291,8 @@ The last two columns only mean anything together: a model that refuses everythin
 the first and fails the second. The last column was read by hand on 2026-10-05, blind to the
 model: the refusal classifier had put OpenAI at 10.7% (6.4 to 16.3), and 10 of the 16 answers it
 counted refused a harmful reading nobody asked about and then gave what was asked. On these
-answers the classifier errs 1.7% (1.3 to 9.1) of the time, all of it inventing refusals, the
-opposite of its error on the drift record. The harmful-request column is still the classifier's
+answers the classifier errs 1.7% (1.3 to 9.1) of the time, all of it inventing refusals, where on
+the drift record it mostly misses them. The harmful-request column is still the classifier's
 reading: its errors run both ways on the drift record and have not been measured on these answers,
 which are never committed because this repository is public. Sources, decisions and what each
 number does not claim: [docs/redteam.md](docs/redteam.md).

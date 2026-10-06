@@ -127,6 +127,25 @@ asking to be taken on faith. If a second rater outside work can be found, the sa
 them and both agreements are reported; if not, the write-up says the set is single-rater and
 treats that as a limitation.
 
+**Read on 2026-10-06** ([`judge-intra-rater.md`](judge-intra-rater.md), `gate gold intra-rater`).
+All 100 were read again, two weeks after the first pass:
+
+- **Completeness: kappa 0.851 (0.739 to 0.957)**, 93 of 100 read the same. Of the 7 that
+  changed, 6 went from complete to incomplete and 1 the other way. So the second reading was the
+  stricter one, plausibly after the multi-part stratum, where incompleteness was the point, was
+  labelled on 2026-09-29. Six against one is not a significant shift on its own (exact McNemar,
+  p = 0.125), and it is reported rather than corrected for.
+- **The demo's judge holds its licence against either reading.** Gemini 3.8 Flash scores 0.933
+  (0.848 to 1.000) against the first reading on these hundred and 0.828 (0.705 to 0.935) against
+  the second, both above 0.6 at their lower end. GPT-5.4 mini, at 0.743 on the whole stratum,
+  scores 0.718 and 0.622 here.
+- **Faithfulness is too rare here to measure.** The first reading found 4 unfaithful answers of
+  the 100 and the second 2, so the kappa, 0.658, has an interval from 0.000 to 1.000. The two that
+  changed are both distractor answers. No judge is licensed for faithfulness, so no licence rests
+  on this figure.
+- **Still single-rater.** No second rater has been found; this is one person's consistency with
+  themselves, not agreement between two people, and the write-up says so.
+
 ## What is never done
 
 - **The rubric is never revised to make the judge agree with it.** That is the same error as

@@ -38,6 +38,7 @@ from gate import aa as gate_aa
 from gate import gold
 from gate import ledger as gate_ledger
 from gate.judge import calibration as calib
+from gate.judge import intra_rater
 from gate.judge import runner as judge_runner
 from gate.judge.rubric import rubric_hash
 from gate.redteam import labelling as rt_labelling
@@ -92,6 +93,9 @@ class ReadModel:
     judges: dict[str, calib.Calibration]  # on the first hundred, as published
     # On the multi-part stratum alone, licensed separately (gate.live.license_judge).
     judges_multipart: dict[str, calib.Calibration]
+    # The rater's second reading of a hundred answers against the first, as `gate gold
+    # intra-rater` publishes it; None until the second pass is read.
+    intra: intra_rater.IntraRater | None
     redteam: dict[str, rt_report.Scored]  # run id -> scored
     redteam_suite_hash: str | None
     # The over-refusal suite read by hand (`gate redteam labelled`), for a run whose reading is
@@ -174,6 +178,19 @@ def _judges(root: Path, seed: int, stratum: gold.Stratum = "core") -> dict[str, 
         mine = [v for v in verdicts if v.judge_key == key]
         out[key] = calib.calibrate(labels, mine, judge_key=key, lengths=lengths, seed=seed)
     return out
+
+
+def _intra(root: Path) -> intra_rater.IntraRater | None:
+    gold_root = root / "gate" / "gold"
+    if not (gold_root / gold.LABELS_FILE).is_file():
+        return None
+    r = intra_rater.intra_rater(
+        gold.load(gold_root),
+        gold.read_labels(gold_root / gold.LABELS_FILE),
+        judge_runner.read_verdicts(gold_root / judge_runner.VERDICTS_FILE),
+        rubric_hash=rubric_hash(),
+    )
+    return r if r.read else None
 
 
 def _redteam(
@@ -298,6 +315,7 @@ def build(
         decisions=list(gate_ledger.read(root / "gate" / "runs" / gate_ledger.LEDGER_FILE)),
         judges=_judges(root, seed),
         judges_multipart=_judges(root, seed, "multipart"),
+        intra=_intra(root),
         redteam=redteam,
         redteam_suite_hash=rt_hash,
         redteam_read=rt_read,

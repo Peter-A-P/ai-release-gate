@@ -384,3 +384,14 @@ def test_the_site_says_which_way_the_classifier_erred_from_the_labels(
         body = client.get(path).text
         assert summary in body, path
         assert "never invent" not in body and "ran one way" not in body, path
+
+
+def test_the_judge_page_shows_the_rater_against_themself(
+    client: TestClient, model: readmodel.ReadModel
+) -> None:
+    assert model.intra is not None
+    comp = next(t for t in model.intra.tasks if t.task == "complete")
+    page = client.get("/judge").text
+    assert comp.kappa.compact(False) in page
+    published = (ROOT / "docs" / "judge-intra-rater.md").read_text(encoding="utf-8")
+    assert comp.kappa.compact(False).split(" (")[0] in published
