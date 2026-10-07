@@ -56,6 +56,12 @@ class CallRecord(BaseModel):
     latency_ms: float
     input_tokens: int
     output_tokens: int
+    # Prompt tokens the vendor read from, or wrote to, its prompt cache (2026-10-07), which
+    # it bills apart from `input_tokens` and at other rates. 0 on records written before the
+    # field existed, although the ledger shows OpenAI and Google arms reading their caches in
+    # September and October; the ledger beside each arm has the true figures.
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
     cost_usd: float | None
     costed: bool
     ledger_id: int

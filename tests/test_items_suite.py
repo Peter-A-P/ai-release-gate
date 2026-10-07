@@ -291,3 +291,23 @@ def test_the_2026_10_01_price_file_only_adds() -> None:
         f"{p}/{m}" for p, models in after.items() for m in models if m not in before.get(p, {})
     }
     assert added == {"openai/gpt-5.4-2026-03-05", "google/gemini-3.1-pro-preview"}
+
+
+def test_the_2026_10_07_price_file_only_moves_anthropic_cache_writes_to_the_1_hour_rate() -> None:
+    """2026-10-07.yaml exists because the runner now writes Anthropic's 1-hour prompt cache,
+    billed at 2x input, and the pinned gateway has one cache_write rate a model. So each
+    Anthropic cache_write is twice its input rate, and every other rate is carried over."""
+    from boundary.config import load_price_list
+
+    folder = Path(__file__).resolve().parent.parent / "drift" / "config" / "prices"
+    before = load_price_list(folder / "2026-10-01.yaml").per_million_tokens
+    after = load_price_list(folder / "2026-10-07.yaml").per_million_tokens
+    assert {p: set(m) for p, m in after.items()} == {p: set(m) for p, m in before.items()}
+    for provider, models in before.items():
+        for model, entry in models.items():
+            new = after[provider][model]
+            if provider == "anthropic":
+                assert new.cache_write == pytest.approx(2 * entry.input), model
+                assert new.model_copy(update={"cache_write": entry.cache_write}) == entry
+            else:
+                assert new == entry, f"{provider}/{model} was repriced"

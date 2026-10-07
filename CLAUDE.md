@@ -56,7 +56,10 @@ honest release gate for prompt and model changes (phase 2).
     knew neither that a vendor-level refusal counts as a refusal nor that a truncated
     answer is ungradeable rather than wrong.
 - **No caching on the monthly run.** Development caching is fine for building graders;
-  the scheduled job must hit the vendors.
+  the scheduled job must hit the vendors. Vendor prompt caching is not this: it reuses the
+  vendor's reading of a prompt's opening, and the answer is still a fresh call. It is on for
+  the long-context passage on Anthropic's arms since 2026-10-07 (PLAN.md section 2.3);
+  OpenAI and Google do it unasked. Never mark anything else without amending the plan.
 - **No LLM grading in Part A.** Programmatic graders only. In Part B a judge is used only
   after calibration against the gold set, and its kappa is stored with every run.
 - **The ledger is append-only.** A mistaken run record is superseded by a new record that

@@ -85,8 +85,32 @@ show.
 
 ### 2.3 Everything held fixed
 
-- Temperature 0, fixed `max_tokens`, fixed system prompt, no tools, no vendor-side
-  caching or "prompt caching" features.
+- Temperature 0, fixed `max_tokens`, fixed system prompt, no tools, no response caching:
+  every answer comes from a fresh call to the vendor. ~~No vendor-side caching or "prompt
+  caching" features.~~ **Amended 2026-10-07, from the November 2026 run: vendor prompt
+  caching is used on Anthropic's arms for the long-context passage.** Prompt caching is not
+  response caching. The vendor keeps its reading of a prompt's opening (the prefill) and
+  reuses it when a later request opens with the same text; the answer is generated afresh
+  every time. The original line was never true of the whole panel: OpenAI and Google cache
+  prompts without being asked and cannot be told not to, and October's ledgers show it on
+  all four of their arms (OpenAI read 431,616 and 508,672 prompt tokens from cache against
+  475,764 and 398,708 fresh; Google 97,806 and 73,353). Anthropic caches only a request that
+  marks where the reusable part ends, so its three arms were the only ones that did not.
+  Marking the passage brings them in line, and pays: project 04 replayed every Anthropic
+  long-context call of September and October from the record (offline, 1,316 calls) and
+  found the 1-hour cache saves US$6.32 of US$16.54, about US$1.94 of US$3.77 a full run,
+  while the 5-minute default costs US$0.30 more, because this plan spreads an item's five
+  repeats over the run (section 2.4), a median of 8 minutes apart. What changes on the wire:
+  on those arms, and only for `long_context_recall`, the user message is two text blocks,
+  the passage with `cache_control: {type: ephemeral, ttl: 1h}` and the question after it,
+  whose texts joined are the frozen prompt exactly (`drift.runner.run.user_content`, tested
+  on every public item). The suite and its hash do not change. Each record carries
+  `cache_read_tokens` and `cache_write_tokens` from then on, and
+  `drift/config/prices/2026-10-07.yaml` prices a write at the 1-hour rate. **What to watch:**
+  a cached prefix should not change an answer, but that is the vendor's claim, not a
+  measurement, so November's report compares the three Anthropic arms' long-context
+  accuracy and same-day flip rate with September's and October's, and if either moves past
+  its interval the change is the first suspect, named as such, before any drift is declared.
 - **Two exceptions, both forced by a vendor and both found by the first dry run on
   2026-09-12, both recorded in `panel.yaml` rather than applied globally.**
   `claude-sonnet-5` returns 400 "`temperature` is deprecated for this model", so that arm

@@ -725,3 +725,67 @@ def test_a_vendor_refusal_counts_even_when_a_token_escaped_first() -> None:
     rec = record_for(resp, arm=arm, item=item, repeat=0, run_id="r", month="2026-09")
     assert rec.correct is True
     assert rec.detail is not None and "refused by the vendor" in rec.detail
+
+
+def _suite_items(block_file: str) -> list[Item]:
+    path = Path(__file__).resolve().parent.parent / "drift" / "suite" / "v1" / block_file
+    return [Item.model_validate_json(line) for line in path.read_text().splitlines() if line]
+
+
+def test_the_passage_is_marked_for_prompt_caching_on_anthropic_arms_only() -> None:
+    """PLAN.md section 2.3, amended 2026-10-07: on an Anthropic arm a long-context prompt goes
+    out as two blocks, the passage marked for the 1-hour cache and the question after it,
+    whose texts joined are the prompt exactly. Every other arm and block sends the prompt as
+    it is. Checked on every public long-context item in the frozen suite."""
+    from drift.runner.run import user_content
+
+    anthropic = Arm(key="a", provider="anthropic", model="m", arm="snapshot", family="f")
+    openai = Arm(key="o", provider="openai", model="m", arm="snapshot", family="f")
+    items = _suite_items("long_context_recall-gutenberg.jsonl")
+    assert items
+    for item in items:
+        content = user_content(anthropic, item)
+        assert isinstance(content, list) and len(content) == 2
+        passage, question = content
+        assert passage["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+        assert "cache_control" not in question
+        assert passage["text"] + question["text"] == item.prompt
+        assert passage["text"].startswith("Passage:")
+        assert question["text"].startswith("\n\nQuestion:")
+        assert len(passage["text"]) > 20 * len(question["text"])
+        assert user_content(openai, item) == item.prompt
+    other = _suite_items("structured_extraction-hand.jsonl")[0]
+    assert user_content(anthropic, other) == other.prompt
+
+
+def test_a_long_context_prompt_with_no_question_is_refused_rather_than_sent_whole() -> None:
+    from drift.runner.run import user_content
+
+    arm = Arm(key="a", provider="anthropic", model="m", arm="snapshot", family="f")
+    item = _suite_items("long_context_recall-gutenberg.jsonl")[0]
+    broken = item.model_copy(update={"prompt": item.prompt.replace("\n\nQuestion:", " Q:")})
+    with pytest.raises(ValueError, match="nothing to cache"):
+        user_content(arm, broken)
+
+
+def test_the_record_carries_the_prompt_cache_tokens() -> None:
+    item = _suite_items("long_context_recall-gutenberg.jsonl")[0]
+    resp = ChatResponse(
+        text="7",
+        finish_reason="end_turn",
+        usage=Usage(input_tokens=20, output_tokens=2, cache_read_tokens=8000, cache_write_tokens=0),
+        cost_usd=0.001,
+        costed=True,
+        model_requested="anthropic/m",
+        model_returned="m",
+        provider="anthropic",
+        latency_ms=1.0,
+        status=200,
+        headers={},
+        raw=None,
+        ledger_id=1,
+        mode=Mode.PASSTHROUGH,
+    )
+    arm = Arm(key="a", provider="anthropic", model="m", arm="snapshot", family="f")
+    rec = record_for(resp, arm=arm, item=item, repeat=0, run_id="r", month="2026-11")
+    assert (rec.input_tokens, rec.cache_read_tokens, rec.cache_write_tokens) == (20, 8000, 0)
