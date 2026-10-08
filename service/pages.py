@@ -108,7 +108,7 @@ p, li { margin: 0 0 0.85rem; }
 .tabs a[aria-current] { border-color: var(--accent); background: var(--accent-soft);
   color: var(--ink); font-weight: 600; }
 
-.hero { position: relative; padding: 3.25rem 0 2.25rem; border-bottom: 1px solid var(--line); }
+.hero { position: relative; padding: 2.25rem 0 2.25rem; border-bottom: 1px solid var(--line); }
 /* A wash of the accent behind the first screen, full width, fading into the page: the one place
    colour is used for its own sake, so the opening is not black on white alone. */
 .hero::before { content: ""; position: absolute; z-index: -1; top: 0; bottom: 0; left: 50%;
