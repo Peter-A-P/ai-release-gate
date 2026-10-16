@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import datetime as dt
 import math
+import re
 from collections.abc import Iterable, Sequence
 from html import escape
+from pathlib import Path
 
 from drift.analysis.metrics import ArmMetrics, drift_declared, month_over_month
 from drift.analysis.report import ClassifierCheck, join_and
@@ -38,6 +40,7 @@ NAV = (
     ("/gate", "Gate decisions"),
     ("/judge", "Judge calibration"),
     ("/redteam", "Red team"),
+    ("/architecture", "How it's built"),
 )
 
 CSS = """
@@ -148,6 +151,11 @@ p, li { margin: 0 0 0.85rem; }
 .part { padding: 2.75rem 0 0.5rem; }
 .part h2 { font-size: clamp(1.8rem, 3.4vw, 2.4rem); }
 .detail h1 { font-size: clamp(1.9rem, 3.8vw, 2.5rem); margin-top: 2.25rem; }
+.arch-figure { margin: 1.1rem 0 1.4rem; }
+.arch-figure a { display: block; }
+.arch-figure img { display: block; width: 100%; height: auto; background: #ffffff;
+  border: 1px solid var(--line); border-radius: 8px; }
+.detail p.where { font-size: 0.86rem; color: var(--ink-faint); }
 .detail h2 { font-size: 1.35rem; margin: 2.2rem 0 0.6rem; }
 .detail > p { color: var(--ink-soft); }
 .detail .note, .verdict { margin: 1.1rem 0 0; padding: 0.9rem 1.1rem;
@@ -724,7 +732,8 @@ auditor can read.</p>
 <p class="hero-note">{len(runs)} full runs so far, {calls:,} calls to {arms} model
 configurations from Anthropic, OpenAI, Google and one open-weights model, US${spent:.2f} in
 total. Every answer is marked by an ordinary program rather than by another AI, so the marker
-cannot drift while it is measuring drift.</p>
+cannot drift while it is measuring drift.
+<a href="/architecture">See how it's built</a>, in four diagrams.</p>
 </header>""")
 
     # -------------------------------------------------------------- the idea
@@ -1457,6 +1466,55 @@ def judge_page(model: ReadModel) -> str:
 
 
 # ---------------------------------------------------------------------------- red team
+
+
+DOCS = Path(__file__).resolve().parent.parent / "docs"
+ARCHITECTURE = DOCS / "architecture.md"
+
+
+def diagrams() -> list[Path]:
+    """The architecture diagrams, which the site serves at /architecture/<name>.svg."""
+    return sorted((DOCS / "architecture").glob("*.svg"))
+
+
+def _md_inline(text: str) -> str:
+    """`code` and [text](link) from the architecture document, as HTML. Links become their
+    words: the document's links point inside the repository, which this site is not."""
+    text = e(text)
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    return re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
+
+
+def architecture_page(_model: ReadModel) -> str:
+    """docs/architecture.md, section by section, with its diagrams. Rendered from the document
+    itself so the page and the repository cannot tell two different stories."""
+    md = ARCHITECTURE.read_text(encoding="utf-8")
+    parts = [
+        "<h1>How it's built</h1>",
+        "<p>How the project is put together, in four pictures: the two halves of the project and "
+        "this site, one monthly drift run, one pull request through the gate, and how each "
+        "published number is produced. Select a diagram to open it full size.</p>",
+    ]
+    for section in re.split(r"^## ", md, flags=re.M)[1:]:
+        title, _, body = section.partition("\n")
+        blocks = [b.strip() for b in body.strip().split("\n\n") if b.strip()]
+        image = re.fullmatch(r"!\[(.*)\]\(architecture/([^)]+\.svg)\)", blocks[0], re.S)
+        if image is None:
+            raise ValueError(f"architecture.md: section {title!r} does not open with a diagram")
+        alt, name = image.groups()
+        svg = (DOCS / "architecture" / name).read_text(encoding="utf-8")
+        size = re.search(r'width="(\d+)" height="(\d+)"', svg)
+        dims = f' width="{size.group(1)}" height="{size.group(2)}"' if size else ""
+        parts.append(f"<h2>{_md_inline(title.strip())}</h2>")
+        parts.append(
+            f'<figure class="arch-figure"><a href="/architecture/{e(name)}">'
+            f'<img src="/architecture/{e(name)}"{dims} alt="{e(alt)}"></a></figure>'
+        )
+        for block in blocks[1:]:
+            text = " ".join(line.strip() for line in block.splitlines())
+            where = ' class="where"' if text.startswith("Where it lives:") else ""
+            parts.append(f"<p{where}>{_md_inline(text)}</p>")
+    return "\n".join(parts)
 
 
 def redteam_page(model: ReadModel) -> str:

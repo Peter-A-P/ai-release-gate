@@ -164,6 +164,7 @@ HTML = "text/html; charset=utf-8"
 JSON = "application/json"
 WOFF2 = "font/woff2"
 TEXT = "text/plain; charset=utf-8"
+SVG = "image/svg+xml"
 STATIC = Path(__file__).resolve().parent / "static"
 
 
@@ -194,6 +195,11 @@ def _file(name: str) -> Callable[[ReadModel], bytes]:
     return lambda _m: (STATIC / name).read_bytes()
 
 
+def _doc(path: Path) -> Callable[[ReadModel], bytes]:
+    """A committed file from docs/, served as it is."""
+    return lambda _m: path.read_bytes()
+
+
 ROUTES: tuple[Route, ...] = (
     Route("/", "index.html", HTML, _page("/", "Overview", pages.overview)),
     Route("/drift", "drift.html", HTML, _page("/drift", "Drift record", pages.drift_page)),
@@ -201,6 +207,12 @@ ROUTES: tuple[Route, ...] = (
     Route("/gate", "gate.html", HTML, _page("/gate", "Gate decisions", pages.gate_page)),
     Route("/judge", "judge.html", HTML, _page("/judge", "Judge calibration", pages.judge_page)),
     Route("/redteam", "redteam.html", HTML, _page("/redteam", "Red team", pages.redteam_page)),
+    Route(
+        "/architecture",
+        "architecture.html",
+        HTML,
+        _page("/architecture", "How it's built", pages.architecture_page),
+    ),
     Route("/data/drift.json", "data/drift.json", JSON, _json(drift_json), ("/api/drift",)),
     Route("/data/costs.json", "data/costs.json", JSON, _json(costs_json), ("/api/costs",)),
     Route("/data/gate.json", "data/gate.json", JSON, _json(gate_json), ("/api/gate",)),
@@ -223,6 +235,11 @@ ROUTES: tuple[Route, ...] = (
         _file("fonts/newsreader-latin.woff2"),
     ),
     Route("/fonts/LICENSE.txt", "fonts/LICENSE.txt", TEXT, _file("fonts/LICENSE.txt")),
+    # The architecture diagrams, from docs/ as committed, so the site shows the same files.
+    *(
+        Route(f"/architecture/{p.name}", f"architecture/{p.name}", SVG, _doc(p))
+        for p in pages.diagrams()
+    ),
 )
 
 

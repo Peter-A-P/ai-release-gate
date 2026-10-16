@@ -57,6 +57,7 @@ def config() -> dict[str, Any]:
             {"route": "/data/build.json", "headers": {"Cache-Control": "no-store"}},
             {"route": "/data/*", "headers": {"Cache-Control": "public, max-age=3600"}},
             {"route": "/fonts/*", "headers": {"Cache-Control": "public, max-age=604800"}},
+            {"route": "/architecture/*", "headers": {"Cache-Control": "public, max-age=3600"}},
         ],
         "mimeTypes": {".json": "application/json", ".woff2": "font/woff2"},
         "globalHeaders": HEADERS,

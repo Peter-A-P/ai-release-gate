@@ -286,6 +286,36 @@ def test_the_hosting_config_serves_every_page_at_its_clean_url(site: Path) -> No
     assert not [r for r in ROUTES if r.path.startswith("/api/")]
 
 
+def test_the_architecture_page_shows_every_diagram_and_serves_the_committed_files(
+    client: TestClient,
+) -> None:
+    """The page is docs/architecture.md rendered, so every diagram in docs/ is on it, and each
+    is served as the committed file, byte for byte."""
+    import re
+
+    from service import pages
+
+    html = client.get("/architecture").text
+    shown = set(re.findall(r'<img src="/architecture/([^"]+)"', html))
+    assert shown == {p.name for p in pages.diagrams()}
+    assert len(shown) >= 3
+    for p in pages.diagrams():
+        got = client.get(f"/architecture/{p.name}")
+        assert got.status_code == 200
+        assert got.headers["content-type"].startswith("image/svg+xml")
+        assert got.content == p.read_bytes()
+    assert "<h2>The system</h2>" in html
+    assert 'class="where"' in html
+
+
+def test_the_architecture_page_is_in_the_menu_and_linked_from_the_top(client: TestClient) -> None:
+    front = client.get("/").text
+    menu = front.partition("</nav>")[0]
+    assert 'href="/architecture"' in menu
+    hero = front.partition("</header>\n")[2].partition("</header>")[0]
+    assert 'href="/architecture"' in hero
+
+
 # ---------------------------------------------------------------------------- the front page
 
 

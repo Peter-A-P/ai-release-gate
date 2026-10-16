@@ -26,6 +26,8 @@ on:
       - "drift/graders/**"
       - "gate/**"
       - "service/**"
+      - "docs/architecture.md"
+      - "docs/architecture/**"
       - "uv.lock"
 
 permissions:
