@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1256" height="636" viewBox="0 0 1256 636" role="img" aria-label="Each number in the README comes from a committed input through one command into a stored report, and every table is written between markers so a reader can regenerate it offline from the record." font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9 z" fill="#14201E"/></marker><marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9 z" fill="#0E6E60"/></marker><marker id="arrow-signal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9 z" fill="#A64C1C"/></marker><marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9 z" fill="#5C6B67"/></marker></defs>
+<rect width="1256" height="636" fill="#FFFFFF"/>
+<text x="28" y="42" font-size="16" font-weight="700" fill="#14201E">How the published numbers are produced</text>
+<path d="M 244.0 98.0 L 356.0 98.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 572.0 98.0 L 684.0 98.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 244.0 210.0 L 356.0 210.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 572.0 210.0 L 684.0 210.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 244.0 322.0 L 356.0 322.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 572.0 322.0 L 684.0 322.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 244.0 434.0 L 356.0 434.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 572.0 434.0 L 684.0 434.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 244.0 546.0 L 356.0 546.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 572.0 546.0 L 684.0 546.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 900.0 98.0 L 950.0 98.0 Q 956.0 98.0 956.0 104.0 L 956.0 266.0 Q 956.0 272.0 962.0 272.0 L 1012.0 272.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 900.0 210.0 L 950.0 210.0 Q 956.0 210.0 956.0 216.0 L 956.0 291.0 Q 956.0 297.0 962.0 297.0 L 1012.0 297.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 900.0 322.0 L 1012.0 322.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 900.0 434.0 L 950.0 434.0 Q 956.0 434.0 956.0 428.0 L 956.0 353.0 Q 956.0 347.0 962.0 347.0 L 1012.0 347.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 900.0 546.0 L 950.0 546.0 Q 956.0 546.0 956.0 540.0 L 956.0 378.0 Q 956.0 372.0 962.0 372.0 L 1012.0 372.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="28.0" y="66.0" width="216.0" height="64.0" rx="4" fill="#F2F4F3" stroke="#5C6B67" stroke-width="1.1" stroke-dasharray="5 3"/>
+<text x="136.0" y="87.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">Three official runs</text>
+<text x="136.0" y="103.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">2026-09-13, 09-16, 10-01</text>
+<text x="136.0" y="120.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">drift/runs</text>
+<rect x="356.0" y="66.0" width="216.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#14201E" stroke-width="1.1"/>
+<text x="464.0" y="87.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">drift report</text>
+<text x="464.0" y="103.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">regraded from the record</text>
+<text x="464.0" y="120.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">drift.analysis.report</text>
+<rect x="684.0" y="66.0" width="216.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#A64C1C" stroke-width="1.6"/>
+<rect x="684.0" y="66.0" width="5" height="64.0" rx="2" fill="#A64C1C"/>
+<text x="792.0" y="87.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">Noise floor per arm,</text>
+<text x="792.0" y="103.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">change vs previous run</text>
+<text x="792.0" y="120.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">drift/reports/*.md</text>
+<rect x="28.0" y="178.0" width="216.0" height="64.0" rx="4" fill="#F2F4F3" stroke="#5C6B67" stroke-width="1.1" stroke-dasharray="5 3"/>
+<text x="136.0" y="206.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">Two runs cut into 256 pairs,</text>
+<text x="136.0" y="222.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">then 380 live pairs</text>
+<rect x="356.0" y="178.0" width="216.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#14201E" stroke-width="1.1"/>
+<text x="464.0" y="199.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">The A/A study</text>
+<text x="464.0" y="215.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">the gate against itself</text>
+<text x="464.0" y="232.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate.aa, gate.live_aa</text>
+<rect x="684.0" y="178.0" width="216.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#A64C1C" stroke-width="1.6"/>
+<rect x="684.0" y="178.0" width="5" height="64.0" rx="2" fill="#A64C1C"/>
+<text x="792.0" y="199.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">False-alarm rate</text>
+<text x="792.0" y="215.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">where nothing changed</text>
+<text x="792.0" y="232.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate/reports/live-aa.md</text>
+<rect x="28.0" y="290.0" width="216.0" height="64.0" rx="4" fill="#F2F4F3" stroke="#5C6B67" stroke-width="1.1" stroke-dasharray="5 3"/>
+<text x="136.0" y="311.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">480 answers labelled by hand</text>
+<text x="136.0" y="327.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">100 reread blind, two weeks on</text>
+<text x="136.0" y="344.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate/gold</text>
+<rect x="356.0" y="290.0" width="216.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#14201E" stroke-width="1.1"/>
+<text x="464.0" y="311.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">Judge calibration</text>
+<text x="464.0" y="327.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">six judges, three rubrics</text>
+<text x="464.0" y="344.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate.judge.calibration</text>
+<rect x="684.0" y="290.0" width="216.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#A64C1C" stroke-width="1.6"/>
+<rect x="684.0" y="290.0" width="5" height="64.0" rx="2" fill="#A64C1C"/>
+<text x="792.0" y="311.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">Kappa per judge, licences,</text>
+<text x="792.0" y="327.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">the intra-rater check</text>
+<text x="792.0" y="344.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">docs/judge-calibration-*.md</text>
+<rect x="28.0" y="402.0" width="216.0" height="64.0" rx="4" fill="#F2F4F3" stroke="#5C6B67" stroke-width="1.1" stroke-dasharray="5 3"/>
+<text x="136.0" y="423.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">700 frozen red-team items</text>
+<text x="136.0" y="439.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">four models</text>
+<text x="136.0" y="456.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate/redteam/suite</text>
+<rect x="356.0" y="402.0" width="216.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#14201E" stroke-width="1.1"/>
+<text x="464.0" y="423.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">Red-team run</text>
+<text x="464.0" y="439.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">graded by programs, not AI</text>
+<text x="464.0" y="456.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate.redteam</text>
+<rect x="684.0" y="402.0" width="216.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#A64C1C" stroke-width="1.6"/>
+<rect x="684.0" y="402.0" width="5" height="64.0" rx="2" fill="#A64C1C"/>
+<text x="792.0" y="423.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">Leak, injection, harmful,</text>
+<text x="792.0" y="439.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">over-refusal rates</text>
+<text x="792.0" y="456.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate/redteam/runs</text>
+<rect x="28.0" y="514.0" width="216.0" height="64.0" rx="4" fill="#F2F4F3" stroke="#5C6B67" stroke-width="1.1" stroke-dasharray="5 3"/>
+<text x="136.0" y="542.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">Pull requests on</text>
+<text x="136.0" y="558.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">regulated-qa-demo</text>
+<rect x="356.0" y="514.0" width="216.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#14201E" stroke-width="1.1"/>
+<text x="464.0" y="535.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">Gate decisions</text>
+<text x="464.0" y="551.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">both sides live, judged, tested</text>
+<text x="464.0" y="568.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate.decision</text>
+<rect x="684.0" y="514.0" width="216.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#A64C1C" stroke-width="1.6"/>
+<rect x="684.0" y="514.0" width="5" height="64.0" rx="2" fill="#A64C1C"/>
+<text x="792.0" y="535.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">decisions.md, model cards,</text>
+<text x="792.0" y="551.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">spend per check</text>
+<text x="792.0" y="568.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate/reports</text>
+<rect x="1012.0" y="247.0" width="216.0" height="150.0" rx="4" fill="#FFFFFF" stroke="#A64C1C" stroke-width="1.6"/>
+<rect x="1012.0" y="247.0" width="5" height="150.0" rx="2" fill="#A64C1C"/>
+<text x="1120.0" y="311.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">README tables</text>
+<text x="1120.0" y="327.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">and the dashboard</text>
+<text x="1120.0" y="344.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">--write-readme, gate export</text>
+<rect x="261.7" y="88.0" width="76.7" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="300.0" y="100.0" font-size="12" text-anchor="middle" fill="#14201E">raw answers</text>
+<rect x="604.4" y="88.0" width="47.3" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="628.0" y="100.0" font-size="12" text-anchor="middle" fill="#14201E">writes</text>
+<rect x="261.7" y="200.0" width="76.7" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="300.0" y="212.0" font-size="12" text-anchor="middle" fill="#14201E">same prompt</text>
+<rect x="604.4" y="200.0" width="47.3" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="628.0" y="212.0" font-size="12" text-anchor="middle" fill="#14201E">writes</text>
+<rect x="276.4" y="312.0" width="47.3" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="300.0" y="324.0" font-size="12" text-anchor="middle" fill="#14201E">labels</text>
+<rect x="604.4" y="312.0" width="47.3" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="628.0" y="324.0" font-size="12" text-anchor="middle" fill="#14201E">writes</text>
+<rect x="273.4" y="424.0" width="53.2" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="300.0" y="436.0" font-size="12" text-anchor="middle" fill="#14201E">US$2.27</text>
+<rect x="604.4" y="424.0" width="47.3" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="628.0" y="436.0" font-size="12" text-anchor="middle" fill="#14201E">writes</text>
+<rect x="264.6" y="536.0" width="70.8" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="300.0" y="548.0" font-size="12" text-anchor="middle" fill="#14201E">each check</text>
+<rect x="604.4" y="536.0" width="47.3" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="628.0" y="548.0" font-size="12" text-anchor="middle" fill="#14201E">writes</text>
+<text x="1120.0" y="478.8" font-size="11" text-anchor="middle" fill="#5C6B67" font-style="italic">every number carries a 95% interval;</text>
+<text x="1120.0" y="493.8" font-size="11" text-anchor="middle" fill="#5C6B67" font-style="italic">every table is regenerated offline</text>
+<text x="1120.0" y="508.8" font-size="11" text-anchor="middle" fill="#5C6B67" font-style="italic">from the committed record</text>
+<rect x="28" y="600" width="26" height="16" rx="3" fill="#FFFFFF" stroke="#A64C1C" stroke-width="1.6"/>
+<text x="62" y="612" font-size="11" fill="#5C6B67">a published number</text>
+<rect x="185.01999999999998" y="600" width="26" height="16" rx="3" fill="#F2F4F3" stroke="#5C6B67" stroke-dasharray="4 3"/>
+<text x="219.01999999999998" y="612" font-size="11" fill="#5C6B67">the input</text>
+</svg>

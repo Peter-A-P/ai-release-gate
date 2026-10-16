@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1142" height="758" viewBox="0 0 1142 758" role="img" aria-label="The gate answers both sides of a pull request live, has a licensed judge grade every answer, corrects the judge&#x27;s own error out of the difference, runs a paired non-inferiority test at a stated margin with a power screen, and posts a verdict whose evidence goes to the ledger and the model cards." font-family="'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9 z" fill="#14201E"/></marker><marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9 z" fill="#0E6E60"/></marker><marker id="arrow-signal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9 z" fill="#A64C1C"/></marker><marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 1 1 L 9 5 L 1 9 z" fill="#5C6B67"/></marker></defs>
+<rect width="1142" height="758" fill="#FFFFFF"/>
+<text x="28" y="42" font-size="16" font-weight="700" fill="#14201E">One pull request through the gate</text>
+<path d="M 571.0 130.0 L 571.0 180.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<path d="M 290.0 212.0 L 440.0 212.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 702.0 212.0 L 852.0 212.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<path d="M 571.0 244.0 L 571.0 286.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 290.0 326.0 L 440.0 326.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 571.0 366.0 L 571.0 408.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 290.0 440.0 L 440.0 440.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 571.0 472.0 L 571.0 522.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 571.0 586.0 L 571.0 631.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<path d="M 852.0 440.0 L 702.0 440.0" fill="none" stroke="#14201E" stroke-width="1.4" marker-end="url(#arrow)"/>
+<rect x="440.0" y="66.0" width="262.0" height="64.0" rx="4" fill="#F2F4F3" stroke="#5C6B67" stroke-width="1.1" stroke-dasharray="5 3"/>
+<text x="571.0" y="87.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">A pull request</text>
+<text x="571.0" y="103.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">changing a prompt or a model</text>
+<text x="571.0" y="120.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">regulated-qa-demo</text>
+<rect x="440.0" y="180.0" width="262.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#0E6E60" stroke-width="1.6"/>
+<rect x="440.0" y="180.0" width="5" height="64.0" rx="2" fill="#0E6E60"/>
+<text x="571.0" y="201.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">The gate Action</text>
+<text x="571.0" y="217.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">both sides answered live, no cache</text>
+<text x="571.0" y="234.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">action/action.yml, gate.live</text>
+<rect x="852.0" y="180.0" width="262.0" height="64.0" rx="4" fill="#F2F4F3" stroke="#5C6B67" stroke-width="1.1" stroke-dasharray="5 3"/>
+<text x="983.0" y="201.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">The gateway</text>
+<text x="983.0" y="217.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">a spend cap per check</text>
+<text x="983.0" y="234.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">boundary, project 04</text>
+<path d="M 28.0 182.0 a 131.0 7 0 0 1 262.0 0 L 290.0 242.0 a 131.0 7 0 0 1 -262.0 0 Z" fill="#FFFFFF" stroke="#14201E" stroke-width="1.1"/><path d="M 28.0 182.0 a 131.0 7 0 0 0 262.0 0" fill="none" stroke="#14201E" stroke-width="1.1"/>
+<text x="159.0" y="205.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">The suite the gate guards</text>
+<text x="159.0" y="221.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">ordinary and multi-part questions</text>
+<text x="159.0" y="238.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate/specs</text>
+<rect x="440.0" y="286.0" width="262.0" height="80.0" rx="4" fill="#FFFFFF" stroke="#0E6E60" stroke-width="1.6"/>
+<rect x="440.0" y="286.0" width="5" height="80.0" rx="2" fill="#0E6E60"/>
+<text x="571.0" y="307.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">The judge, Gemini 3.8 Flash</text>
+<text x="571.0" y="323.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">licensed at kappa 0.924; its error</text>
+<text x="571.0" y="339.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">is taken out of the difference</text>
+<text x="571.0" y="356.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate.judge</text>
+<path d="M 28.0 296.0 a 131.0 7 0 0 1 262.0 0 L 290.0 356.0 a 131.0 7 0 0 1 -262.0 0 Z" fill="#FFFFFF" stroke="#14201E" stroke-width="1.1"/><path d="M 28.0 296.0 a 131.0 7 0 0 0 262.0 0" fill="none" stroke="#14201E" stroke-width="1.1"/>
+<text x="159.0" y="319.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">480 hand labels</text>
+<text x="159.0" y="335.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">reread blind at kappa 0.851</text>
+<text x="159.0" y="352.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate/gold</text>
+<rect x="440.0" y="408.0" width="262.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#14201E" stroke-width="1.1"/>
+<text x="571.0" y="429.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">Paired non-inferiority test</text>
+<text x="571.0" y="445.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">ten-point margin, bootstrap, power</text>
+<text x="571.0" y="462.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate.stats, gate.power_check</text>
+<rect x="28.0" y="408.0" width="262.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#14201E" stroke-width="1.1"/>
+<text x="159.0" y="429.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">The A/A study</text>
+<text x="159.0" y="445.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">the gate against itself: false alarms</text>
+<text x="159.0" y="462.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate.live_aa, gate.aa</text>
+<rect x="440.0" y="522.0" width="262.0" height="64.0" rx="4" fill="#FFFFFF" stroke="#A64C1C" stroke-width="1.6"/>
+<rect x="440.0" y="522.0" width="5" height="64.0" rx="2" fill="#A64C1C"/>
+<text x="571.0" y="550.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">The verdict</text>
+<text x="571.0" y="566.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">pass, or blocked with the evidence</text>
+<path d="M 440.0 638.0 a 131.0 7 0 0 1 262.0 0 L 702.0 698.0 a 131.0 7 0 0 1 -262.0 0 Z" fill="#FFFFFF" stroke="#14201E" stroke-width="1.1"/><path d="M 440.0 638.0 a 131.0 7 0 0 0 262.0 0" fill="none" stroke="#14201E" stroke-width="1.1"/>
+<text x="571.0" y="661.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">The ledger, decisions.md, model cards</text>
+<text x="571.0" y="677.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">each side&#x27;s interval, cost, latency</text>
+<text x="571.0" y="694.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate.ledger, gate.cards</text>
+<rect x="852.0" y="408.0" width="262.0" height="64.0" rx="4" fill="#F2F4F3" stroke="#5C6B67" stroke-width="1.1" stroke-dasharray="5 3"/>
+<text x="983.0" y="429.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">Another project&#x27;s graded outcomes</text>
+<text x="983.0" y="445.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">the same decision and record</text>
+<text x="983.0" y="462.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">gate.adapter, docs/gate-adapter.md</text>
+<rect x="462.1" y="145.0" width="217.8" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="571.0" y="157.0" font-size="12" text-anchor="middle" fill="#14201E">both sides; the verdict posted back</text>
+<rect x="320.8" y="202.0" width="88.4" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="365.0" y="214.0" font-size="12" text-anchor="middle" fill="#14201E">the questions</text>
+<rect x="732.8" y="202.0" width="88.4" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="777.0" y="214.0" font-size="12" text-anchor="middle" fill="#14201E">calls, costed</text>
+<rect x="529.7" y="255.0" width="82.6" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="571.0" y="267.0" font-size="12" text-anchor="middle" fill="#14201E">every answer</text>
+<rect x="338.4" y="316.0" width="53.2" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="365.0" y="328.0" font-size="12" text-anchor="middle" fill="#14201E">licence</text>
+<rect x="470.9" y="377.0" width="200.2" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="571.0" y="389.0" font-size="12" text-anchor="middle" fill="#14201E">corrected scores, paired by item</text>
+<rect x="300.2" y="430.0" width="129.6" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="365.0" y="442.0" font-size="12" text-anchor="middle" fill="#14201E">the false-alarm rate</text>
+<rect x="485.6" y="487.0" width="170.8" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="571.0" y="499.0" font-size="12" text-anchor="middle" fill="#14201E">interval against the margin</text>
+<rect x="529.7" y="598.5" width="82.6" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="571.0" y="610.5" font-size="12" text-anchor="middle" fill="#14201E">the evidence</text>
+<rect x="724.0" y="430.0" width="106.1" height="20.0" rx="3" fill="#FFFFFF"/>
+<text x="777.0" y="442.0" font-size="12" text-anchor="middle" fill="#14201E">its own outcomes</text>
+<rect x="28" y="722" width="26" height="16" rx="3" fill="#FFFFFF" stroke="#0E6E60" stroke-width="1.6"/>
+<text x="62" y="734" font-size="11" fill="#5C6B67">built here</text>
+<rect x="141.9" y="722" width="26" height="16" rx="3" fill="#FFFFFF" stroke="#A64C1C" stroke-width="1.6"/>
+<text x="175.9" y="734" font-size="11" fill="#5C6B67">the decision</text>
+<rect x="266.58" y="722" width="26" height="16" rx="3" fill="#F2F4F3" stroke="#5C6B67" stroke-dasharray="4 3"/>
+<text x="300.58" y="734" font-size="11" fill="#5C6B67">outside the repository</text>
+<path d="M 445.2 729.0 a 13.0 7 0 0 1 26.0 0 L 471.2 731.0 a 13.0 7 0 0 1 -26.0 0 Z" fill="#FFFFFF" stroke="#14201E" stroke-width="1.1"/><path d="M 445.2 729.0 a 13.0 7 0 0 0 26.0 0" fill="none" stroke="#14201E" stroke-width="1.1"/>
+<text x="479.15999999999997" y="734" font-size="11" fill="#5C6B67">data at rest</text>
+</svg>

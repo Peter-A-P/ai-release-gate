@@ -313,7 +313,8 @@ with a model card per model and prompt in [gate/reports/model-cards/](gate/repor
 Another project can hand the gate its own graded outcomes and get the same decision and
 record: [docs/gate-adapter.md](docs/gate-adapter.md).
 
-Full design in [PLAN.md](PLAN.md).
+Full design in [PLAN.md](PLAN.md). Four architecture diagrams, the system, one monthly drift run, one pull
+request through the gate and how the numbers are produced, are in [docs/architecture.md](docs/architecture.md).
 
 ## Reproduce every number yourself
 
