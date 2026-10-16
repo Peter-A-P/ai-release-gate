@@ -85,25 +85,25 @@
 <text x="1120.0" y="311.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">README tables</text>
 <text x="1120.0" y="327.0" font-size="13" font-weight="500" text-anchor="middle" fill="#14201E">and the dashboard</text>
 <text x="1120.0" y="344.0" font-size="11" font-family="Consolas, Menlo, 'DejaVu Sans Mono', monospace" text-anchor="middle" fill="#5C6B67">--write-readme, gate export</text>
-<rect x="261.7" y="88.0" width="76.7" height="20.0" rx="3" fill="#FFFFFF"/>
+<rect x="262.3" y="88.0" width="75.3" height="20.0" rx="3" fill="#FFFFFF"/>
 <text x="300.0" y="100.0" font-size="12" text-anchor="middle" fill="#14201E">raw answers</text>
-<rect x="604.4" y="88.0" width="47.3" height="20.0" rx="3" fill="#FFFFFF"/>
+<rect x="608.3" y="88.0" width="39.3" height="20.0" rx="3" fill="#FFFFFF"/>
 <text x="628.0" y="100.0" font-size="12" text-anchor="middle" fill="#14201E">writes</text>
-<rect x="261.7" y="200.0" width="76.7" height="20.0" rx="3" fill="#FFFFFF"/>
+<rect x="261.0" y="200.0" width="78.0" height="20.0" rx="3" fill="#FFFFFF"/>
 <text x="300.0" y="212.0" font-size="12" text-anchor="middle" fill="#14201E">same prompt</text>
-<rect x="604.4" y="200.0" width="47.3" height="20.0" rx="3" fill="#FFFFFF"/>
+<rect x="608.3" y="200.0" width="39.3" height="20.0" rx="3" fill="#FFFFFF"/>
 <text x="628.0" y="212.0" font-size="12" text-anchor="middle" fill="#14201E">writes</text>
-<rect x="276.4" y="312.0" width="47.3" height="20.0" rx="3" fill="#FFFFFF"/>
+<rect x="280.3" y="312.0" width="39.3" height="20.0" rx="3" fill="#FFFFFF"/>
 <text x="300.0" y="324.0" font-size="12" text-anchor="middle" fill="#14201E">labels</text>
-<rect x="604.4" y="312.0" width="47.3" height="20.0" rx="3" fill="#FFFFFF"/>
+<rect x="608.3" y="312.0" width="39.3" height="20.0" rx="3" fill="#FFFFFF"/>
 <text x="628.0" y="324.0" font-size="12" text-anchor="middle" fill="#14201E">writes</text>
-<rect x="273.4" y="424.0" width="53.2" height="20.0" rx="3" fill="#FFFFFF"/>
+<rect x="272.3" y="424.0" width="55.4" height="20.0" rx="3" fill="#FFFFFF"/>
 <text x="300.0" y="436.0" font-size="12" text-anchor="middle" fill="#14201E">US$2.27</text>
-<rect x="604.4" y="424.0" width="47.3" height="20.0" rx="3" fill="#FFFFFF"/>
+<rect x="608.3" y="424.0" width="39.3" height="20.0" rx="3" fill="#FFFFFF"/>
 <text x="628.0" y="436.0" font-size="12" text-anchor="middle" fill="#14201E">writes</text>
-<rect x="264.6" y="536.0" width="70.8" height="20.0" rx="3" fill="#FFFFFF"/>
+<rect x="264.6" y="536.0" width="70.7" height="20.0" rx="3" fill="#FFFFFF"/>
 <text x="300.0" y="548.0" font-size="12" text-anchor="middle" fill="#14201E">each check</text>
-<rect x="604.4" y="536.0" width="47.3" height="20.0" rx="3" fill="#FFFFFF"/>
+<rect x="608.3" y="536.0" width="39.3" height="20.0" rx="3" fill="#FFFFFF"/>
 <text x="628.0" y="548.0" font-size="12" text-anchor="middle" fill="#14201E">writes</text>
 <text x="1120.0" y="478.8" font-size="11" text-anchor="middle" fill="#5C6B67" font-style="italic">every number carries a 95% interval;</text>
 <text x="1120.0" y="493.8" font-size="11" text-anchor="middle" fill="#5C6B67" font-style="italic">every table is regenerated offline</text>
