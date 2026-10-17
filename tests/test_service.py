@@ -306,6 +306,8 @@ def test_the_architecture_page_shows_every_diagram_and_serves_the_committed_file
         assert got.content == p.read_bytes()
     assert "<h2>The system</h2>" in html
     assert 'class="where"' in html
+    # A way back at the bottom, for a reader who has scrolled past every diagram.
+    assert html.rindex('<p class="arch-back"><a href="/">') > html.rindex("<img ")
 
 
 def test_the_architecture_page_is_in_the_menu_and_linked_from_the_top(client: TestClient) -> None:

@@ -156,6 +156,7 @@ p, li { margin: 0 0 0.85rem; }
 .arch-figure img { display: block; width: 100%; height: auto; background: #ffffff;
   border: 1px solid var(--line); border-radius: 8px; }
 .detail p.where { font-size: 0.86rem; color: var(--ink-faint); }
+.arch-back { margin: 2rem 0 0; font-size: 0.95rem; }
 .detail h2 { font-size: 1.35rem; margin: 2.2rem 0 0.6rem; }
 .detail > p { color: var(--ink-soft); }
 .detail .note, .verdict { margin: 1.1rem 0 0; padding: 0.9rem 1.1rem;
@@ -1514,6 +1515,7 @@ def architecture_page(_model: ReadModel) -> str:
             text = " ".join(line.strip() for line in block.splitlines())
             where = ' class="where"' if text.startswith("Where it lives:") else ""
             parts.append(f"<p{where}>{_md_inline(text)}</p>")
+    parts.append('<p class="arch-back"><a href="/">Back to the overview</a></p>')
     return "\n".join(parts)
 
 
