@@ -14,6 +14,8 @@ twice does not reliably give the identical answer.
 This project fixes the second problem so that the first one can be measured, and publishes the
 evidence month by month while it does.
 
+**The site: [gate.peterparker.ca](https://gate.peterparker.ca)**, with the drift record, the cost of every run, the gate's decisions, and how it is built.
+
 **Status:** the record is running. Three full runs are in: two in September, on 2026-09-13 and
 2026-09-16, which measured how much a score moves when nothing has changed, and the first
 scheduled monthly run on 2026-10-01, which found no model drifting. The record continues on the
