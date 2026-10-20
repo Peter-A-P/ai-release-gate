@@ -354,7 +354,12 @@ the gateway.
 
 ## How this was built
 
-Design, methodology, evaluation choices and judgement are Peter Parker's. AI coding assistants
-(Claude Code) were used for implementation and drafting, the way a senior engineer uses them in
-2026. Every number in the results table is reproducible from this repository with one command,
-and that reproducibility is the evidence that matters.
+The design, the methods, the evaluation and the judgement calls are mine. The one that cost
+the most money was keeping five calls per question when one would have been four fifths
+cheaper. I tried the cheaper version first. It reports nearly the same accuracy, but it throws
+away the noise floor, and without one the gate declared drift on an open-weights model whose
+weights cannot change. That result is why the gate asks every question five times.
+
+I used AI coding assistants (Claude Code) for implementation and drafting, the way a senior
+engineer uses them in 2026. Every number in the results table is reproducible from this
+repository with one command, and that reproducibility is the evidence that matters.
