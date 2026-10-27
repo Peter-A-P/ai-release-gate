@@ -185,7 +185,9 @@ def mcnemar_exact(b: int, c: int) -> float:
     if n == 0:
         return 1.0
     k = min(b, c)
-    tail = sum(math.comb(n, i) for i in range(k + 1)) / float(2**n)
+    # Integer over integer: Python divides big integers exactly before rounding, where float(2**n)
+    # overflows once more than 1,023 items are discordant.
+    tail = sum(math.comb(n, i) for i in range(k + 1)) / 2**n
     return float(min(1.0, 2 * tail))
 
 

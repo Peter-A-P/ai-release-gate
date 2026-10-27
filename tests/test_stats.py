@@ -39,6 +39,12 @@ def test_a_unanimous_share_never_prints_a_zero_width_interval() -> None:
     assert mixed.lo < 0.03 < mixed.hi
 
 
+def test_mcnemar_exact_holds_past_a_thousand_discordant_items() -> None:
+    assert mcnemar_exact(600, 600) == 1.0
+    assert mcnemar_exact(1500, 500) < 1e-100
+    assert 0.0 < mcnemar_exact(560, 480) < 0.05
+
+
 def test_mcnemar_exact_known_values() -> None:
     assert mcnemar_exact(0, 0) == 1.0
     assert mcnemar_exact(5, 5) == 1.0
