@@ -210,7 +210,7 @@ def holm(pvalues: Sequence[float]) -> list[float]:
     adjusted = [0.0] * m
     running = 0.0
     for rank, i in enumerate(order):
-        running = max(running, min(1.0, (m - rank) * pvalues[i]))
+        running = max(running, min(1.0, (m - rank - 1) * pvalues[i]))
         adjusted[i] = running
     return adjusted
 
