@@ -235,6 +235,8 @@ ROUTES: tuple[Route, ...] = (
         _file("fonts/newsreader-latin.woff2"),
     ),
     Route("/fonts/LICENSE.txt", "fonts/LICENSE.txt", TEXT, _file("fonts/LICENSE.txt")),
+    # The link-preview card that og:image names, 1200 x 630, made in the portfolio plan.
+    Route("/og.png", "og.png", "image/png", _file("og.png")),
     # The architecture diagrams, from docs/ as committed, so the site shows the same files.
     *(
         Route(f"/architecture/{p.name}", f"architecture/{p.name}", SVG, _doc(p))

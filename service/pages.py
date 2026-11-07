@@ -32,6 +32,7 @@ from service.readmodel import ReadModel, Run
 REPO = "https://github.com/Peter-A-P/ai-release-gate"
 PORTFOLIO = "https://peterparker.ca"
 PROJECT_PAGE = "https://peterparker.ca/projects/ai-release-gate/"
+SITE = "https://gate.peterparker.ca"  # where the static export is served; og:url and og:image
 
 NAV = (
     ("/", "Overview"),
@@ -329,6 +330,16 @@ def page(model: ReadModel, path: str, title: str, body: str) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{e(full_title)}</title>
 <meta name="description" content="A release gate for AI: a frozen test asked of eight model configurations every month, five times each, so a change in score can be told apart from noise. Every number is reproducible from the repository.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Peter Parker">
+<meta property="og:url" content="{SITE}{e(path)}">
+<meta property="og:title" content="{e(full_title)}">
+<meta property="og:description" content="A release gate for AI: a frozen test asked of eight model configurations every month, five times each, so a change in score can be told apart from noise. Every number is reproducible from the repository.">
+<meta property="og:image" content="{SITE}/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="No AI change ships unless it is proven not to regress.">
+<meta name="twitter:card" content="summary_large_image">
 <style>{CSS}</style>
 </head>
 <body>

@@ -242,8 +242,8 @@ def test_the_export_publishes_no_answer_text_and_nothing_withheld(site: Path) ->
 
     files = sorted(p for p in site.rglob("*") if p.is_file())
     assert not [p for p in files if "withheld" in p.as_posix()]
-    # The fonts are binary and are the committed files themselves, checked below.
-    files = [p for p in files if p.suffix != ".woff2"]
+    # The fonts and the link-preview card are binary and are the committed files themselves.
+    files = [p for p in files if p.suffix not in (".woff2", ".png")]
     published = "\n".join(p.read_text(encoding="utf-8") for p in files)
     answers = [
         r.output
