@@ -30,6 +30,12 @@ from service.readmodel import Holder, ReadModel, build
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def finite(x: float) -> float | None:
+    """A measurement JSON can carry. An arm whose every call failed has no latencies, and the
+    percentile of nothing is NaN, which strict JSON refuses; the document says null instead."""
+    return x if math.isfinite(x) else None
+
+
 def estimate(x: Estimate) -> dict[str, Any]:
     """An interval as JSON. NaN has no JSON form, so an undefined bound is null."""
 
@@ -61,8 +67,8 @@ def drift_json(m: ReadModel) -> dict[str, Any]:
                         "accuracy_by_block": {
                             b: estimate(v) for b, v in a.accuracy_by_block.items()
                         },
-                        "latency_p50_ms": a.latency_p50_ms,
-                        "latency_p95_ms": a.latency_p95_ms,
+                        "latency_p50_ms": finite(a.latency_p50_ms),
+                        "latency_p95_ms": finite(a.latency_p95_ms),
                         "cost_usd": a.cost_usd,
                     }
                     for k, a in sorted(r.arms.items())

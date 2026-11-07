@@ -386,20 +386,41 @@ def test_each_run_is_paired_with_the_run_its_report_compares_against() -> None:
 
 
 def test_the_change_column_is_the_readmes_on_every_page() -> None:
-    """October is paired with September as its report and the README pair it, not with the
-    between-run baseline that happens to come before it in time."""
+    """The README's table is the latest run's, and its change column is that run against the run
+    its report compares it with (`baseline_for`), not whichever run came before it in time. The
+    front page and the drift page print the same figures. The test follows the README, so a new
+    monthly run does not leave it checking last month's table."""
     from service import pages
 
-    m = readmodel.build(ROOT, runs=["2026-09", "2026-09-run2", "2026-10"], aa=False)
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     block = readme.split("<!-- drift:start -->")[1].split("<!-- drift:end -->")[0]
-    rows = [r for r in block.splitlines() if r.startswith("| 2026-10 |")]
-    assert len(rows) == 8
+    rows = [r for r in block.splitlines() if r.startswith("| 20")]
+    (latest,) = {r.strip("|").split("|")[0].strip() for r in rows}
+    labels = readmodel.official_runs(ROOT / "drift" / "runs")
+    baseline = readmodel.baseline_for(latest, labels)
+    assert baseline is not None
+    m = readmodel.build(ROOT, runs=[baseline, latest], aa=False)
+    assert len(rows) == len(m.runs[-1].arms)
     front, drift = pages.overview(m), pages.drift_page(m)
     for row in rows:
         change = [c.strip() for c in row.strip("|").split("|")][4]
         assert change in front and change in drift, row
-    assert "between run 2026-09 and run 2026-10" in front
+    assert f"between run {baseline} and run {latest}" in front
+
+
+def test_an_arm_whose_every_call_failed_exports_as_strict_json() -> None:
+    """November's open-weights control answered nothing, so it has no latencies and their
+    percentile is NaN. Strict JSON cannot carry NaN; the export says null and the page n/a."""
+    import json
+    import math
+
+    from service.app import finite
+
+    assert finite(math.nan) is None and finite(812.0) == 812.0
+    m = readmodel.build(ROOT, runs=["2026-11"], aa=False)
+    doc = json.loads(next(r for r in service_app.ROUTES if r.path == "/data/drift.json").render(m))
+    control = doc["runs"][0]["arms"]["openweights-control"]
+    assert control["latency_p50_ms"] is None and control["latency_p95_ms"] is None
 
 
 def test_the_site_says_which_way_the_classifier_erred_from_the_labels(

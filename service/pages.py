@@ -1170,7 +1170,9 @@ def drift_page(model: ReadModel) -> str:
                     _mom_cell(prev, run, key),
                     declared or '<span class="muted">first run</span>',
                     est(m.refusal_rate_should_answer),
-                    f"{m.latency_p50_ms / 1000:.2f} s",
+                    f"{m.latency_p50_ms / 1000:.2f} s"
+                    if math.isfinite(m.latency_p50_ms)
+                    else '<span class="muted">n/a</span>',
                     f"US${m.cost_per_1000_calls_usd:.2f}",
                 ]
             )
