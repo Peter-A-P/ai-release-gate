@@ -243,6 +243,9 @@ ROUTES: tuple[Route, ...] = (
     Route("/fonts/LICENSE.txt", "fonts/LICENSE.txt", TEXT, _file("fonts/LICENSE.txt")),
     # The link-preview card that og:image names, 1200 x 630, made in the portfolio plan.
     Route("/og.png", "og.png", "image/png", _file("og.png")),
+    # The portfolio's teal "P" mark, and a robots file that allows the whole site.
+    Route("/favicon.svg", "favicon.svg", SVG, _file("favicon.svg")),
+    Route("/robots.txt", "robots.txt", TEXT, _file("robots.txt")),
     # The architecture diagrams, from docs/ as committed, so the site shows the same files.
     *(
         Route(f"/architecture/{p.name}", f"architecture/{p.name}", SVG, _doc(p))

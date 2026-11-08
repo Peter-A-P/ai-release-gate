@@ -483,3 +483,37 @@ def test_the_judge_page_shows_the_rater_against_themself(
     assert comp.kappa.compact(False) in page
     published = (ROOT / "docs" / "judge-intra-rater.md").read_text(encoding="utf-8")
     assert comp.kappa.compact(False).split(" (")[0] in published
+
+
+def test_the_front_page_lists_its_sections_and_ends_with_how_it_was_built(
+    client: TestClient,
+) -> None:
+    """The house layout: an "On this page" list naming every section, what did not work, and a
+    first-person "How this was built" with its glossary as the last section."""
+    import re
+
+    front = client.get("/").text
+    toc = front.partition('<nav class="toc"')[2].partition("</nav>")[0]
+    sections = re.findall(r'<section class="section" id="([^"]+)">', front)
+    assert re.findall(r'<a href="#([^"]+)">', toc) == sections
+    assert "rejected" in sections and sections[-1] == "built"
+    built = front.partition('<section class="section" id="built">')[2]
+    assert built.partition("<p>")[2].startswith("I ")
+    assert 'class="glossary"' in built
+    assert "TODO" not in front
+
+
+def test_the_marks_carry_no_tooltip_and_runs_are_one_hue_in_steps(client: TestClient) -> None:
+    from service import pages
+
+    for path in ("/", "/drift"):
+        body = client.get(path).text
+        assert " title=" not in body and "<title>" not in body.partition("</head>")[2], path
+    assert [pages.run_step(i, 6) for i in range(6)] == ["r0", "r0", "r1", "r2", "r3", ""]
+    assert pages.run_step(0, 1) == ""
+
+
+def test_the_favicon_and_robots_file_are_served(client: TestClient) -> None:
+    assert client.get("/favicon.svg").headers["content-type"].startswith("image/svg+xml")
+    assert client.get("/robots.txt").text.startswith("User-agent: *")
+    assert '<link rel="icon" href="/favicon.svg"' in client.get("/").text

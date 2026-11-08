@@ -32,13 +32,22 @@ from drift.analysis.stats import Estimate
 from gate.aa import AAStudy
 from gate.judge import calibration as calib
 from gate.ledger import GateRecord
-from gate.redteam.suite import FAILURE, SUITES
+from gate.redteam.suite import SUITES
 from service.readmodel import ReadModel, Run
 
 REPO = "https://github.com/Peter-A-P/ai-release-gate"
 PORTFOLIO = "https://peterparker.ca"
 PROJECT_PAGE = "https://peterparker.ca/projects/ai-release-gate/"
 SITE = "https://gate.peterparker.ca"  # where the static export is served; og:url and og:image
+
+# The red-team columns in words a non-specialist reads the right way round, as the README's
+# table has them. `FAILURE` keeps its short names for the reports.
+PLAIN = {
+    "pii_leakage": "Leaks personal data",
+    "prompt_injection": "Obeys an injection",
+    "jailbreak": "Complies with a harmful request",
+    "over_refusal": "Refuses a harmless one",
+}
 
 NAV = (
     ("/", "Overview"),
@@ -158,6 +167,8 @@ p, li { margin: 0 0 0.85rem; }
 .part { padding: 2.75rem 0 0.5rem; }
 .part h2 { font-size: clamp(1.8rem, 3.4vw, 2.4rem); }
 .detail h1 { font-size: clamp(1.9rem, 3.8vw, 2.5rem); margin-top: 2.25rem; }
+.detail .hero h1 { margin-top: 0; }
+.detail .hero { margin-bottom: 0.5rem; }
 .arch-figure { margin: 1.1rem 0 1.4rem; }
 .arch-figure a { display: block; }
 .arch-figure img { display: block; width: 100%; height: auto; background: #ffffff;
@@ -287,6 +298,39 @@ td.r4 { background: color-mix(in srgb, var(--warn) 44%, transparent); }
 
 svg text { fill: var(--ink-faint); font-size: 12px; }
 svg .axis { stroke: var(--line); }
+/* Runs are ordered in time, so they are one hue in steps, the newest darkest. */
+svg .run { stroke: var(--accent); fill: var(--accent); stroke-width: 2; }
+.run-key { color: var(--accent); }
+.run.r0, .run-key.r0 { opacity: 0.3; }
+.run.r1, .run-key.r1 { opacity: 0.45; }
+.run.r2, .run-key.r2 { opacity: 0.6; }
+.run.r3, .run-key.r3 { opacity: 0.8; }
+
+.toc { padding: 1.5rem 0 1.75rem; border-bottom: 1px solid var(--line); }
+.toc ol { margin: 0; padding: 0; list-style: none; counter-reset: toc; columns: 2 16rem;
+  column-gap: 2rem; }
+.toc li { counter-increment: toc; margin: 0 0 0.3rem; break-inside: avoid; font-size: 0.93rem; }
+.toc li::before { content: counter(toc, decimal-leading-zero); font-variant-numeric: tabular-nums;
+  color: var(--ink-faint); font-size: 0.78rem; margin-right: 0.6rem; }
+.disclose { border: 1px solid var(--line); border-radius: var(--radius); padding: 0 1.1rem;
+  margin: 1.1rem 0; background: var(--paper-soft); }
+.disclose summary { display: flex; align-items: baseline; gap: 0.6rem; cursor: pointer;
+  padding: 0.8rem 0 0.8rem 0.25rem; font-weight: 600; font-size: 0.94rem; list-style: none; }
+.disclose summary::-webkit-details-marker { display: none; }
+.disclose summary::before { content: "\\203A"; flex: none; width: 0.6em; text-align: center;
+  font-size: 1.2em; line-height: 1; color: var(--ink-faint); transform: rotate(90deg);
+  transition: transform 0.12s ease; }
+.disclose[open] summary::before { transform: rotate(270deg); }
+.disclose summary:hover { color: var(--accent-ink); }
+.disclose[open] summary { border-bottom: 1px solid var(--line); margin-bottom: 0.75rem; }
+.disclose > *:last-child { margin-bottom: 0.85rem; }
+.disclose p.note { margin-top: 0; }
+.glossary { margin: 0 0 0.9rem; }
+.glossary dt { font-weight: 600; margin-top: 0.7rem; }
+.glossary dd { margin: 0.15rem 0 0; color: var(--ink-soft); font-size: 0.92rem; }
+@media (prefers-reduced-motion: reduce) {
+  .disclose summary::before { transition: none; }
+}
 footer { max-width: var(--column); margin: 0 auto; padding: 2rem 1.5rem 3rem;
   font-size: 0.86rem; color: var(--ink-faint); border-top: 1px solid var(--line); }
 footer .footer-lead { color: var(--ink); font-weight: 600; font-size: 0.95rem; }
@@ -346,6 +390,7 @@ def page(model: ReadModel, path: str, title: str, body: str) -> str:
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="No AI change ships unless it is proven not to regress.">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>{CSS}</style>
 </head>
 <body>
@@ -494,17 +539,22 @@ def floor_chart(prev: Run | None, cur: Run, control: str | None) -> str:
     out.append('<div class="dp" role="table" aria-label="Noise floor and change, by model">')
     for key, m, change, verdict in rows:
         f = m.same_day_flip_rate
-        marks = grid + (
-            f'<span class="dp-bar" style="width:{_pct(f.point, 0, top):.2f}%" '
-            f'title="{e(key)} noise floor: {est(f)}"></span>' + _ci(f, 0, top, "upper")
-        )
-        value = f"floor <b>{est(f)}</b>"
+        # The values are printed beside each row, so the marks carry no tooltip. An arm that
+        # answered nothing draws no bar: a stub at zero would read as a floor of 0%.
+        dead = math.isnan(f.point)
+        marks = grid
+        if not dead:
+            marks += (
+                f'<span class="dp-bar" style="width:{_pct(f.point, 0, top):.2f}%"></span>'
+                + _ci(f, 0, top, "upper")
+            )
+        value = "no answers in this run" if dead else f"floor <b>{est(f)}</b>"
         if change is not None and not math.isnan(change.point):
             marks += _ci(change, 0, top, "lower") + (
-                f'<span class="dp-dot lower" style="left:{_pct(change.point, 0, top):.2f}%" '
-                f'title="{e(key)} change: {est(change)}"></span>'
+                f'<span class="dp-dot lower" style="left:{_pct(change.point, 0, top):.2f}%">'
+                "</span>"
             )
-        if change is not None:
+        if change is not None and not dead:
             value += f"<br>change <b>{est(change)}</b>"
         if verdict == "declared":
             value += ' <span class="tag bad">drift</span>'
@@ -569,8 +619,7 @@ def judge_chart(model: ReadModel) -> str:
                 )
                 dot = (
                     f'<span class="dp-dot mid {"good" if t.usable else "bad"}" '
-                    f'style="left:{_pct(k.point, lo, hi):.2f}%" '
-                    f'title="{e(key)}, {e(t.task)}: kappa {est(k, pct=False)}"></span>'
+                    f'style="left:{_pct(k.point, lo, hi):.2f}%"></span>'
                     if not math.isnan(k.point)
                     else ""
                 )
@@ -607,8 +656,7 @@ def judge_verdict(model: ReadModel) -> str:
         f'<p class="verdict">A licence never carries from one kind of question to another. '
         f"<code>{e(k)}</code> clears the bar on the first hundred questions for "
         f"{e(asks.get(task, task))} and "
-        "falls below it on multi-part ones, so there the gate grades with no judge at all "
-        "rather than with an instrument shown not to work.</p>"
+        "falls below it on multi-part ones, so on those the gate grades with no judge at all.</p>"
     )
 
 
@@ -738,18 +786,18 @@ def overview(model: ReadModel) -> str:
             )
             why = (
                 f"The open-weights control <code>{e(ck or '')}</code> answered none of its "
-                "questions, and a change is only called drift once it is larger than the "
-                "control's, so no model could be judged"
+                "questions, so no model could be judged against it"
                 if control_dead
                 else "No model answered in both runs, so none could be judged"
             )
+            # Short, because it is a tile: the rule itself is stated in the verdict under the
+            # floor chart.
             seen = (
-                ". On their own noise floor alone, "
+                ". Against their own noise floor, "
                 + join_and(
                     [f"<code>{e(k)}</code> {est(moves[k][0].flip_rate)}" for k in past_floor]
                 )
-                + " moved more than chance explains, which is what the control exists to "
-                "rule out or confirm"
+                + " moved more than chance explains"
                 if past_floor
                 else ""
             )
@@ -824,9 +872,9 @@ def overview(model: ReadModel) -> str:
     arms = len(cur.arms) if cur else 0
     parts.append(f"""<header class="hero">
 <p class="eyebrow">Measured results, reproducible from one command</p>
-<h1>Did the AI get worse, or is that <span class="hl">just noise?</span> This tells you, with error bars.</h1>
+<h1>Did the AI get worse, or is that <span class="hl">just noise?</span> This tells you, with error&nbsp;bars.</h1>
 <p class="lead">Software teams change code and run their tests. Teams building on AI change a
-prompt, or the vendor quietly updates a model, and the evaluation score moves from 86 to 83.
+prompt, or the vendor updates a model without saying so, and the evaluation score moves from 86 to 83.
 Is that a regression? Nobody in the room can say, <strong>because an AI model's score moves by
 about that much when nothing has changed at all.</strong> This project measures that noise,
 model by model, on a test that never changes, and builds a release gate on top of it: a change
@@ -855,8 +903,7 @@ apart.</p>
 <tr class="real"><td><strong>Your team changed a prompt or a model</strong></td><td data-label="Real change"><strong>Yes, the one you meant to measure</strong></td><td data-label="How it is told">The gate: all of the above, then a paired test with an interval, on every pull request</td></tr>
 </tbody></table></div>
 <p>The first two rows are why most AI evaluation cannot be trusted. So the first thing measured
-here is not drift at all. It is the noise floor: how far a score moves when nothing whatsoever has
-changed. Every later claim that a model changed has to clear it, model by model, before it
+here is the noise floor: how far a score moves when nothing has changed. Every later claim that a model changed has to clear it, model by model, before it
 counts.</p>
 </section>""")
 
@@ -868,7 +915,8 @@ counts.</p>
                 '<p class="verdict"><strong>No drift verdict for this run.</strong> '
                 + (
                     f"The open-weights control <code>{e(ck or '')}</code> answered none of its "
-                    "questions, so there is nothing to tell a vendor's change from the serving "
+                    "questions. A change is only called drift once it is larger than the "
+                    "control's, so there is nothing to tell a vendor's change from the serving "
                     "stack's noise, and every model is shown as not judged rather than as "
                     "unchanged. The floors and changes above are still measured."
                     if control_dead
@@ -958,11 +1006,13 @@ any time. Running both side by side is how a quietly moved model gets caught.</p
             )
             ledger = (
                 "<h3>Decisions on the record</h3><p>Every decision the gate makes, here or on a "
-                "pull request, goes into an append-only ledger. Each record's id is the hash of "
-                "its content, so the same comparison under the same rules is the same id, and a "
-                "wrong decision is superseded by a new record, never edited. "
+                "pull request, goes into an append-only ledger. "
                 f'<a href="/gate">All {len(model.decisions)} decisions</a>.</p>'
                 f'<div class="cards">{items}</div>'
+                '<details class="disclose"><summary>For the technical reader: how a decision '
+                "is recorded</summary><p>Each record's id is the hash of its content, so the "
+                "same comparison under the same rules is the same id, and a wrong decision is "
+                "superseded by a new record, never edited.</p></details>"
             )
         parts.append(f"""<section class="section" id="gate">
 <h2>The gate, tested where the right answer is known</h2>
@@ -983,9 +1033,8 @@ rule out a drop bigger than the suite's margin.</p></article>
 <p class="note">false alarms. This is what "the number went down" costs: the team learns to
 ignore the gate, and then it catches nothing.</p></article>
 </div>
-<p class="verdict">{where}. That rate is published as the gate's
-measured cost rather than tuned away: tuning the rules until this test passes would measure
-nothing.</p>
+<p class="verdict">{where}. That rate is published as the gate's measured cost. Tuning the
+rules until this test passed would leave a gate that measures nothing.</p>
 {ledger}
 </section>""")
 
@@ -1016,7 +1065,7 @@ right.</p>
         }
 
         head = "".join(
-            f'<th class="num">{e(FAILURE[x].capitalize())}'
+            f'<th class="num">{e(PLAIN[x])}'
             + (" (read by hand)" if x == "over_refusal" and by_hand else "")
             + "</th>"
             for x in SUITES
@@ -1052,11 +1101,13 @@ and refusing a harmless one. Lower is safer; the darker the cell, the higher the
 <div class="table-wrap"><table class="heat"><thead><tr><th>Model configuration</th>{head}</tr></thead>
 <tbody>{body}</tbody></table></div>
 <p class="note">Read the last two columns together: a model that refuses everything scores zero
-on the third and fails the fourth. The harmful-request column is read by the refusal classifier:
+on the third and fails the fourth. Run <code>{e(run_id)}</code>, US${sc.cost_usd:.2f}.
+<a href="/redteam">The red-team page</a>.</p>
+<details class="disclose"><summary>For the technical reader: how the last two columns are read</summary>
+<p class="note">The harmful-request column is read by the refusal classifier:
 refusals it misses push the column up, answers it reads as refusals push it down, and that has not
 been measured on these answers, which are never published because this repository is
-public.{hand_note} Run <code>{e(run_id)}</code>, US${sc.cost_usd:.2f}.
-<a href="/redteam">The red-team page</a>.</p>
+public.{hand_note}</p></details>
 </section>""")
 
     # -------------------------------------------------------------- the limitation
@@ -1069,7 +1120,7 @@ public.{hand_note} Run <code>{e(run_id)}</code>, US${sc.cost_usd:.2f}.
             for label, c in checks
         )
         parts.append(f"""<section class="section" id="limitation">
-<h2>The honest limitation</h2>
+<h2>Refusals are read by a crude classifier, so its mistakes are counted by hand</h2>
 <p class="section-lead">Whether a model <em>refused</em> a request is decided by a classifier
 built from eleven regular expressions, which is a crude way to read English. So its error rate
 is measured by hand every month it is quoted: a person reads the stored answers blind, without
@@ -1080,6 +1131,31 @@ a harmless reading of an ambiguous request with no refusing language at all, whi
 can tell from plain compliance. Tuning the classifier until that case disappears would mean
 tuning it until every vendor looks safe, so it is published as a limitation instead, and a test
 fails if anyone tries.</p>
+</section>""")
+
+    # -------------------------------------------------------------- what did not work
+    # Fixed results from docs/rejected.md and the judge calibrations, as the README states them.
+    parts.append(f"""<section class="section" id="rejected">
+<h2>What was tried and did not work</h2>
+<p class="section-lead">Each of these looked like a reasonable shortcut, and each was measured
+before it was accepted or refused.</p>
+<div class="cards">
+<div class="card"><h3>Ask each question once, not five times</h3><p>It would cut the bill by four
+fifths, and accuracy barely moves. But one call leaves no noise floor, and on two runs four days
+apart, with nothing changed, the only test left declared drift on 6 to 8 of the 8
+configurations, including the open-weights control, in all 25 ways of keeping one call each. So
+it was rejected.</p></div>
+<div class="card"><h3>An AI marker for the drift record</h3><p>Asked to re-mark 50 stored answers
+five times each, it never changed its mind: 0.0% (0.0% to 4.9%). That passes this test, but a
+same-day test cannot see the marker's own vendor changing it between months, and its one mistake
+was made the same way all five times.</p></div>
+<div class="card"><h3>Judges on multi-part questions</h3><p>Six judges were tried on fifty questions
+that each ask for two or three things. None clears the bar: the best reached kappa 0.508 against
+0.6. The bar was kept, and the gate uses no judge on those questions.</p></div>
+</div>
+<p class="note">The evidence for the first two, and the commands that reproduce it offline, is in
+<a href="{REPO}/blob/main/docs/rejected.md">docs/rejected.md</a>; for the judges, in
+<a href="{REPO}/blob/main/docs/gate-action.md">docs/gate-action.md</a>.</p>
 </section>""")
 
     # -------------------------------------------------------------- how it works
@@ -1127,8 +1203,7 @@ that writes the reports, checked after every deploy against the commit they were
 <h2>What this deliberately does not do</h2>
 <div class="takeaways">
 <div class="takeaway"><h3>No AI marks the drift record</h3><p>Every answer in the monthly record
-is marked by a plain program, so the marker cannot drift while it is measuring drift. An AI
-judge appears only in the gate, and only where it has been licensed against a person.</p></div>
+is marked by a plain program. An AI judge appears only in the gate, and only where it has been licensed against a person.</p></div>
 <div class="takeaway"><h3>No drift it cannot separate from noise</h3><p>A move is called a change
 only when it clears that model's own floor and the control. A score that went down is not, on
 its own, evidence of anything.</p></div>
@@ -1165,6 +1240,49 @@ the plan. Three commands regrade every stored answer offline.</p></div>
         )
         + ".</p>\n</section>"
     )
+
+    # -------------------------------------------------------------- how this was built
+    parts.append(f"""<section class="section" id="built">
+<h2>How this was built</h2>
+<p>I designed this project and made the calls in it: what to measure, how to test the gate,
+and what to publish when a result went against the project, such as the gate's own false-alarm
+rate and a set of multi-part questions that no judge could grade. The call that cost the most
+money was asking every question five times when once would have been four fifths cheaper. I
+tried the cheaper version first. It reports nearly the same accuracy, but it throws away the
+noise floor, and without one the gate declared drift on an open-weights model whose weights
+cannot change. That result is why every question is asked five times.</p>
+<p>I used an AI coding assistant (Claude Code) for implementation and drafting, which is now
+standard practice in software, data science and machine learning work. Every number on this
+site can be reproduced from <a href="{REPO}">the repository</a>, offline and without a vendor
+key.</p>
+<p>The calculation of how many questions a decision needs comes from project 02, and the gate
+uses it as its power screen.</p>
+<details class="disclose">
+<summary>Glossary</summary>
+<dl class="glossary">
+<dt>Noise floor</dt><dd>How many answers change when the same model is asked the same question five times in one sitting, with nothing changed. A smaller move than this is noise.</dd>
+<dt>Snapshot and alias</dt><dd>A snapshot is a dated model version the vendor promises not to change. An alias is a name such as "latest" that the vendor can point at a new model at any time.</dd>
+<dt>Open-weights control</dt><dd>A model whose weights are published and fixed, so it cannot change. Any move it shows comes from the serving stack, not the model.</dd>
+<dt>95% interval</dt><dd>The range the true value is likely to sit in, given how much data there is. A wide interval means the number is uncertain.</dd>
+<dt>Kappa (Cohen's kappa)</dt><dd>Agreement between two markers after removing what they would agree on by guessing. 1 is perfect, 0 is chance; the bar here is {calib.KAPPA_FLOOR:g}.</dd>
+<dt>Non-inferiority test</dt><dd>A test of whether a new version is no more than a stated margin worse than the old one, rather than whether it is better.</dd>
+<dt>Power screen</dt><dd>A check, before deciding, that there are enough questions to tell a real drop from noise. Where there are not, the gate warns instead of deciding.</dd>
+<dt>Append-only ledger</dt><dd>A record that is only ever added to. A wrong entry is corrected by a new one, never edited.</dd>
+<dt>Prompt injection</dt><dd>Instructions hidden in a document the model is asked to read, which try to make it do something else.</dd>
+<dt>Over-refusal</dt><dd>A model refusing a harmless request.</dd>
+<dt>Regular expression</dt><dd>A text pattern a program matches, such as "I can't help with". Simple to check, crude at reading meaning.</dd>
+</dl>
+</details>
+</section>""")
+
+    # On this page: every section above, in order, after the hero.
+    toc = "".join(
+        f'<li><a href="#{sid}">{title}</a></li>'
+        for sid, title in re.findall(
+            r'<section class="section" id="([^"]+)">\s*<h2>(.*?)</h2>', "\n".join(parts)
+        )
+    )
+    parts.insert(1, f'<nav class="toc" aria-label="On this page"><ol>{toc}</ol></nav>')
     return "\n".join(parts)
 
 
@@ -1220,20 +1338,28 @@ def interval_chart(runs: Sequence[Run], arms: Sequence[str]) -> str:
                 continue
             a = m.accuracy
             yy = y + offsets[i]
-            colour = f"var(--s{i % 4 + 1})"
+            step = run_step(i, len(runs))
+            # No <title>: it would follow the pointer over the chart. The values are in the
+            # tables below, run by run.
             parts.append(
-                f'<line x1="{x(a.lo):.1f}" x2="{x(a.hi):.1f}" y1="{yy:.1f}" y2="{yy:.1f}" '
-                f'stroke="{colour}" stroke-width="2"><title>{e(r.label)} {e(arm)}: '
-                f"{est(a)}</title></line>"
-                f'<circle cx="{x(a.point):.1f}" cy="{yy:.1f}" r="4" fill="{colour}">'
-                f"<title>{e(r.label)} {e(arm)}: {est(a)}</title></circle>"
+                f'<line class="run {step}" x1="{x(a.lo):.1f}" x2="{x(a.hi):.1f}" '
+                f'y1="{yy:.1f}" y2="{yy:.1f}"/>'
+                f'<circle class="run {step}" cx="{x(a.point):.1f}" cy="{yy:.1f}" r="4"/>'
             )
     parts.append("</svg>")
     legend = " ".join(
-        f'<span style="color:var(--s{i % 4 + 1})">&#9679;</span> {e(r.label)}'
+        f'<span class="run-key {run_step(i, len(runs))}">&#9679;</span> {e(r.label)}'
         for i, r in enumerate(runs)
     )
-    return "".join(parts) + f'<p class="muted">{legend}</p>'
+    return "".join(parts) + f'<p class="muted">{legend} (the newest darkest)</p>'
+
+
+def run_step(i: int, n: int) -> str:
+    """The shade of run `i` of `n`: runs are ordered in time, so one hue in steps, the newest
+    full strength and each older run lighter, down to the lightest step for every run beyond
+    the fourth back."""
+    age = n - 1 - i
+    return "" if age == 0 else ("r3", "r2", "r1", "r0")[min(age, 4) - 1]
 
 
 def _mom_cell(prev: Run | None, run: Run, key: str) -> str:
@@ -1251,8 +1377,8 @@ def drift_page(model: ReadModel) -> str:
         "<h1>Drift record</h1>",
         f"<p>The frozen suite, {runs[-1].meta.items} questions content-hashed at "
         f"<code>{e(runs[-1].meta.suite_hash[:16])}</code>, asked of every model configuration "
-        f"{runs[-1].meta.repeats} times per run. Graded by programs only, so the marker cannot "
-        "drift while it measures drift. Rehearsal runs are not shown.</p>",
+        f"{runs[-1].meta.repeats} times per run. Graded by programs only. Rehearsal runs are "
+        "not shown.</p>",
         "<h2>Accuracy by run</h2>",
         interval_chart(runs, arms),
     ]
@@ -1535,7 +1661,7 @@ def _kappa(k: Estimate) -> str:
 def judge_page(model: ReadModel) -> str:
     parts = [
         "<h1>Judge calibration</h1>",
-        "<p>An LLM judge is used only where it has been shown to agree with a human. Each judge "
+        "<p>An AI judge (a language model asked to mark answers) is used only where it has been shown to agree with a human. Each judge "
         "below was compared with 480 answers labelled by hand, blind to the model and to the "
         "judge. Below a kappa of 0.6 on a task the gate refuses to use that judge for it.</p>",
         _judge_table(model.judges)
@@ -1611,10 +1737,12 @@ def architecture_page(_model: ReadModel) -> str:
     itself so the page and the repository cannot tell two different stories."""
     md = ARCHITECTURE.read_text(encoding="utf-8")
     parts = [
-        "<h1>How it's built</h1>",
-        "<p>How the project is put together, in four pictures: the two halves of the project and "
-        "this site, one monthly drift run, one pull request through the gate, and how each "
-        "published number is produced. Select a diagram to open it full size.</p>",
+        '<header class="hero"><p class="eyebrow">Architecture</p>'
+        "<h1>How it's built</h1>"
+        '<p class="lead">How the project is put together, in four pictures: the two halves of '
+        "the project and this site, one monthly drift run, one pull request through the gate, "
+        "and how each published number is produced. Select a diagram to open it full size.</p>"
+        '<p class="hero-note"><a href="/">Back to the results</a></p></header>',
     ]
     for section in re.split(r"^## ", md, flags=re.M)[1:]:
         title, _, body = section.partition("\n")
@@ -1635,7 +1763,7 @@ def architecture_page(_model: ReadModel) -> str:
             text = " ".join(line.strip() for line in block.splitlines())
             where = ' class="where"' if text.startswith("Where it lives:") else ""
             parts.append(f"<p{where}>{_md_inline(text)}</p>")
-    parts.append('<p class="arch-back"><a href="/">Back to the overview</a></p>')
+    parts.append('<p class="arch-back"><a href="/">Back to the results</a></p>')
     return "\n".join(parts)
 
 
@@ -1653,7 +1781,7 @@ def redteam_page(model: ReadModel) -> str:
         parts.append(f"<h2>{e(run_id)} <span class='muted'>(US${s.cost_usd:.2f})</span></h2>")
         parts.append(
             table(
-                ["Model configuration", *[FAILURE[x].capitalize() for x in SUITES]],
+                ["Model configuration", *[PLAIN[x] for x in SUITES]],
                 (
                     [f"<code>{e(a)}</code>", *[est(s.cells[(a, x)].rate) for x in SUITES]]
                     for a in s.arms

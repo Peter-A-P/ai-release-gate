@@ -92,7 +92,7 @@ Where it lives: `action/action.yml`, `gate.live`, `gate.judge`, `gate.stats`,
 ![Each number in the README comes from a committed input through one command into a stored report, and every table is written between markers so a reader can regenerate it offline from the record.](architecture/measurement.svg)
 
 Every number in the README comes from a committed input, through one command, into a stored
-report. This is where each one comes from.
+report.
 
 The drift table comes from the official runs in the record, re-marked into the noise floor for
 each model and the change since the previous run. The gate's false-alarm rate comes from
