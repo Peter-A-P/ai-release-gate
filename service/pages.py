@@ -444,7 +444,9 @@ def floor_chart(prev: Run | None, cur: Run, control: str | None) -> str:
             rows.append((key, m, mom.flip_rate, declared))
         else:
             rows.append((key, m, None, False))
-    rows.sort(key=lambda r: r[1].same_day_flip_rate.point)
+    rows.sort(
+        key=lambda r: (math.isnan(r[1].same_day_flip_rate.point), r[1].same_day_flip_rate.point)
+    )
     top = _scale_top(
         [r[1].same_day_flip_rate.hi for r in rows] + [r[2].hi for r in rows if r[2] is not None],
         0.02,
@@ -651,8 +653,15 @@ def overview(model: ReadModel) -> str:
             f'<span class="point-unit">{unit}</span><span class="point-label">{label}</span></div>'
         )
 
+    # An arm whose every call failed has no noise floor (NaN), and NaN in a sort key leaves the
+    # order undefined: November's dead control once headed the range as "nan%".
     floors = sorted(
-        ((m.same_day_flip_rate, k, r.label) for r in runs for k, m in r.arms.items()),
+        (
+            (m.same_day_flip_rate, k, r.label)
+            for r in runs
+            for k, m in r.arms.items()
+            if not math.isnan(m.same_day_flip_rate.point)
+        ),
         key=lambda t: t[0].point,
     )
     if floors:
@@ -679,7 +688,9 @@ def overview(model: ReadModel) -> str:
             mom = month_over_month(prev.arms[k], m)
             if drift_declared(mom, m, None if k == ck else cm):
                 declared.append(k)
-            if largest is None or mom.flip_rate.point > largest[0].point:
+            if not math.isnan(mom.flip_rate.point) and (
+                largest is None or mom.flip_rate.point > largest[0].point
+            ):
                 largest = (mom.flip_rate, k)
         shared = sum(1 for k in cur.arms if k in prev.arms)
         point(

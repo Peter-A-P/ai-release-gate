@@ -423,6 +423,23 @@ def test_an_arm_whose_every_call_failed_exports_as_strict_json() -> None:
     assert control["latency_p50_ms"] is None and control["latency_p95_ms"] is None
 
 
+def test_the_noise_floor_range_leaves_out_an_arm_that_never_answered() -> None:
+    """November's control has no noise floor. The front page's range runs over the arms that
+    were measured, and never prints nan."""
+    from service import pages
+
+    m = readmodel.build(ROOT, runs=["2026-10", "2026-11"], aa=False)
+    front = pages.overview(m)
+    assert "nan%" not in front
+    measured = [
+        a.same_day_flip_rate.point
+        for r in m.runs
+        for a in r.arms.values()
+        if a.same_day_flip_rate.n > 0
+    ]
+    assert f"{min(measured):.1%} to {max(measured):.1%}" in front
+
+
 def test_the_site_says_which_way_the_classifier_erred_from_the_labels(
     client: TestClient, model: readmodel.ReadModel
 ) -> None:
