@@ -551,10 +551,9 @@ def floor_chart(prev: Run | None, cur: Run, control: str | None) -> str:
         value = "no answers in this run" if dead else f"floor <b>{est(f)}</b>"
         if change is not None and not math.isnan(change.point):
             marks += _ci(change, 0, top, "lower") + (
-                f'<span class="dp-dot lower" style="left:{_pct(change.point, 0, top):.2f}%">'
-                "</span>"
+                f'<span class="dp-dot lower" style="left:{_pct(change.point, 0, top):.2f}%"></span>'
             )
-        if change is not None and not dead:
+        if change is not None:
             value += f"<br>change <b>{est(change)}</b>"
         if verdict == "declared":
             value += ' <span class="tag bad">drift</span>'
