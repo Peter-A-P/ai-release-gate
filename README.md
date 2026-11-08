@@ -107,7 +107,7 @@ five asks of one question count as one piece of evidence, not five. Where every 
 0 refused or all refused, a bootstrap has nothing to resample and the interval is Jeffreys over
 the 20 questions: 0.0% (0.0 to 11.7) means no refusal was seen, not that the rate is zero.
 
-**Across the three runs the noise floor runs from 0.2% to 5.0% depending on the model
+**Across the four runs the noise floor runs from 0.0% to 5.0% depending on the model
 configuration**, and in October from 1.2% (`anthropic-snapshot`) to 4.5% (`google-alias`). That
 spread is itself the point: in October the top of `google-alias`'s interval is 6.7% and the top
 of `anthropic-snapshot`'s is 2.4%, so the same move can be noise on one arm and a change on
@@ -153,6 +153,30 @@ sign of change on any arm (McNemar p = 1.000 on all eight). The smallest change 
 see at all, at 80% power, runs from 2.7 points on `anthropic-snapshot` to 4.0 on `google-alias`
 (the October report gives each with its interval). The run cost US$19.76 against an expected
 US$20.35.
+
+### The second month apart, 2026-11-01: not judged
+
+Compared with the run of 2026-10-01. **No drift verdict could be reached this month**, because the
+control did not run. Together, which served `openweights-control`, took
+Llama-3.3-70B-Instruct-Turbo off its pay-per-call tier, and all 2,100 of the control's calls
+came back `400 model_not_available`. The rule declares drift only on a change larger than both
+the model's own noise floor and the control's change, so with no control no model can be judged:
+
+| | Change, 2026-10-01 to 2026-11-01 |
+|---|---|
+| Lowest configuration | 0.2% (`anthropic-sonnet-snapshot`) |
+| Highest configuration | 1.9% (`google-snapshot`) |
+| Open-weights control | none: no answers |
+| Configurations where drift was declared | **not judged, 0 of 8 could be** |
+
+Until 2026-11-07 the report printed "no" on every arm, because a comparison against the
+control's missing value always comes out false. That was wrong: the rule had not been applied.
+It matters here, because two configurations moved more than their own floor allows,
+`anthropic-alias` by 1.4% (0.5 to 2.6) and `anthropic-snapshot` by 1.2% (0.2 to 2.1), both
+against a floor whose top is 0.6%. Neither moved in accuracy (both intervals span zero), and
+the control is the only thing that could say whether a move that size is the model or the
+serving stack. So November records those two moves and leaves them undecided. The other
+five sat inside their own floors.
 
 Full per-run detail, including the drift call against the noise floor and the control, is in
 [`drift/reports/`](drift/reports/).

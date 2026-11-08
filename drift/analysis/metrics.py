@@ -187,10 +187,22 @@ def month_over_month(prev: ArmMetrics, cur: ArmMetrics, *, seed: int = 0) -> Mon
     )
 
 
+def drift_judged(mom: MonthOverMonth, cur: ArmMetrics, control: MonthOverMonth | None) -> bool:
+    """Whether the drift rule can be applied at all: the arm answered in both runs, it has a
+    same-day floor, and the control it is held against (when one is passed) answered in both
+    runs too. When it cannot, the verdict is "not judged", never "no". November 2026's control
+    answered none of its calls, and a comparison against its NaN flip rate read as "no drift" on
+    every arm whatever the arm did."""
+    if mom.paired_items == 0 or cur.same_day_flip_rate.n == 0:
+        return False
+    return control is None or control.paired_items > 0
+
+
 def drift_declared(mom: MonthOverMonth, cur: ArmMetrics, control: MonthOverMonth | None) -> bool:
     """PLAN.md sections 1 and 4: the month-over-month flip rate exceeds the upper 95% bound of
-    the same-day flip rate, and exceeds the control arm's month-over-month flip rate."""
-    if mom.paired_items == 0 or cur.same_day_flip_rate.n == 0:
+    the same-day flip rate, and exceeds the control arm's month-over-month flip rate. False when
+    the rule cannot be applied; ask `drift_judged` before reading False as "no drift"."""
+    if not drift_judged(mom, cur, control):
         return False
     above_noise = mom.flip_rate.point > cur.same_day_flip_rate.hi
     above_control = control is None or mom.flip_rate.point > control.flip_rate.point

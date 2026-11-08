@@ -440,6 +440,24 @@ def test_the_noise_floor_range_leaves_out_an_arm_that_never_answered() -> None:
     assert f"{min(measured):.1%} to {max(measured):.1%}" in front
 
 
+def test_a_run_whose_control_never_answered_is_not_judged_anywhere() -> None:
+    """November's control answered nothing, so the drift rule could not be applied to any arm.
+    The front page, the drift page and the report say not judged, never "0 of 8 flagged" or no;
+    the front page names the moves past their own floor that the control would have decided."""
+    from service import pages
+
+    m = readmodel.build(ROOT, runs=["2026-10", "2026-11"], aa=False)
+    front, drift = pages.overview(m), pages.drift_page(m)
+    assert "not judged" in front and "models flagged as changed" not in front
+    assert "No drift verdict for this run" in front
+    assert "<code>anthropic-alias</code> 1.4%" in front
+    assert "<code>google-snapshot</code> 1.9%" not in front
+    nov = drift.split("2026-11 <span")[1]
+    assert "not judged" in nov and ">none<" not in nov
+    report = (ROOT / "drift" / "reports" / "2026-11.md").read_text(encoding="utf-8")
+    assert "| no |" not in report and "| not judged |" in report
+
+
 def test_the_site_says_which_way_the_classifier_erred_from_the_labels(
     client: TestClient, model: readmodel.ReadModel
 ) -> None:

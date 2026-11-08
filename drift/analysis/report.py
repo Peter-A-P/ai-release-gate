@@ -13,6 +13,7 @@ from drift.analysis.metrics import (
     MonthOverMonth,
     arm_metrics,
     drift_declared,
+    drift_judged,
     month_over_month,
 )
 from drift.analysis.stats import (
@@ -211,15 +212,23 @@ def render(
             "|---|---:|---|---:|---:|---:|---|---|",
         ]
         for key, mom in sorted(moms.items()):
-            declared = drift_declared(mom, cur[key], control_mom if key != control_key else None)
+            against = control_mom if key != control_key else None
+            if not drift_judged(mom, cur[key], against):
+                verdict = "not judged"
+            elif drift_declared(mom, cur[key], against):
+                verdict = "**yes**"
+            else:
+                verdict = "no"
             lines.append(
                 f"| {key} | {mom.paired_items} | {mom.flip_rate.fmt()} | {mom.correct_to_incorrect} | {mom.incorrect_to_correct} "
-                f"| {mom.mcnemar_p:.3f} | {signed(mom.accuracy_change)} | {'**yes**' if declared else 'no'} |"
+                f"| {mom.mcnemar_p:.3f} | {signed(mom.accuracy_change)} | {verdict} |"
             )
         lines += [
             "",
             "Drift is declared when the month-over-month flip rate exceeds the upper bound of the same-day",
             "flip rate and exceeds the control arm's month-over-month flip rate. Both numbers are shown.",
+            "Not judged means one of the two cannot be measured: the arm, or the control it is held",
+            "against, answered no questions in one of the runs. It is not a no.",
         ]
         if baseline is not None:
             # Said in the report rather than only on the command line. A baseline passed as an

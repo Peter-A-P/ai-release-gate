@@ -20,7 +20,13 @@ from collections.abc import Iterable, Sequence
 from html import escape
 from pathlib import Path
 
-from drift.analysis.metrics import ArmMetrics, drift_declared, month_over_month
+from drift.analysis.metrics import (
+    ArmMetrics,
+    MonthOverMonth,
+    drift_declared,
+    drift_judged,
+    month_over_month,
+)
 from drift.analysis.report import ClassifierCheck, join_and
 from drift.analysis.stats import Estimate
 from gate.aa import AAStudy
@@ -429,21 +435,43 @@ def _scale_top(values: Iterable[float], step: float) -> float:
     return max(step, math.ceil(top / step) * step)
 
 
+def drift_calls(prev: Run, cur: Run, control: str | None) -> dict[str, tuple[MonthOverMonth, str]]:
+    """Per arm in both runs: its change between them and the rule's verdict, one of "declared",
+    "none" or "not judged". Not judged is an arm the rule cannot be applied to, because it or the
+    control it is held against answered nothing in one of the runs; it is never shown as none."""
+    cm = (
+        month_over_month(prev.arms[control], cur.arms[control])
+        if control and control in prev.arms and control in cur.arms
+        else None
+    )
+    out: dict[str, tuple[MonthOverMonth, str]] = {}
+    for key, m in cur.arms.items():
+        if key not in prev.arms:
+            continue
+        mom = month_over_month(prev.arms[key], m)
+        against = None if key == control else cm
+        if not drift_judged(mom, m, against):
+            verdict = "not judged"
+        elif drift_declared(mom, m, against):
+            verdict = "declared"
+        else:
+            verdict = "none"
+        out[key] = (mom, verdict)
+    return out
+
+
 def floor_chart(prev: Run | None, cur: Run, control: str | None) -> str:
     """Per model configuration: the same-day noise floor of the latest run as a bar with its
     interval, and the change since the run before as a dot with its interval. A dot inside the
     bar's reach is a move noise explains."""
-    control_mom = None
-    if prev is not None and control and control in prev.arms and control in cur.arms:
-        control_mom = month_over_month(prev.arms[control], cur.arms[control])
-    rows: list[tuple[str, ArmMetrics, Estimate | None, bool]] = []
+    calls = drift_calls(prev, cur, control) if prev is not None else {}
+    rows: list[tuple[str, ArmMetrics, Estimate | None, str]] = []
     for key, m in cur.arms.items():
-        if prev is not None and key in prev.arms:
-            mom = month_over_month(prev.arms[key], m)
-            declared = drift_declared(mom, m, None if key == control else control_mom)
-            rows.append((key, m, mom.flip_rate, declared))
+        if key in calls:
+            mom, verdict = calls[key]
+            rows.append((key, m, mom.flip_rate, verdict))
         else:
-            rows.append((key, m, None, False))
+            rows.append((key, m, None, ""))
     rows.sort(
         key=lambda r: (math.isnan(r[1].same_day_flip_rate.point), r[1].same_day_flip_rate.point)
     )
@@ -464,21 +492,24 @@ def floor_chart(prev: Run | None, cur: Run, control: str | None) -> str:
         )
     out.append('<span class="key"><span class="sw ci"></span>95% interval</span></div>')
     out.append('<div class="dp" role="table" aria-label="Noise floor and change, by model">')
-    for key, m, change, declared in rows:
+    for key, m, change, verdict in rows:
         f = m.same_day_flip_rate
         marks = grid + (
             f'<span class="dp-bar" style="width:{_pct(f.point, 0, top):.2f}%" '
             f'title="{e(key)} noise floor: {est(f)}"></span>' + _ci(f, 0, top, "upper")
         )
         value = f"floor <b>{est(f)}</b>"
-        if change is not None:
+        if change is not None and not math.isnan(change.point):
             marks += _ci(change, 0, top, "lower") + (
                 f'<span class="dp-dot lower" style="left:{_pct(change.point, 0, top):.2f}%" '
                 f'title="{e(key)} change: {est(change)}"></span>'
             )
+        if change is not None:
             value += f"<br>change <b>{est(change)}</b>"
-            if declared:
-                value += ' <span class="tag bad">drift</span>'
+        if verdict == "declared":
+            value += ' <span class="tag bad">drift</span>'
+        elif verdict == "not judged":
+            value += ' <span class="tag">not judged</span>'
         label = f"<code>{e(key)}</code>"
         if key == control:
             label += "<small>open weights: cannot change</small>"
@@ -674,41 +705,91 @@ def overview(model: ReadModel) -> str:
             f"{est(lo_f)}; highest <code>{e(hi_k)}</code> in {e(hi_r)}, {est(hi_f)}",
         )
     declared: list[str] = []
-    largest: tuple[Estimate, str] | None = None
+    judged: list[str] = []
+    unjudged: list[str] = []
+    moves: dict[str, tuple[MonthOverMonth, str]] = {}
+    ck = model.control_key
+    # The control answered nothing in one of the runs, so no arm held against it can be judged.
+    control_dead = False
     if prev is not None and cur is not None:
-        ck = model.control_key
-        cm = (
-            month_over_month(prev.arms[ck], cur.arms[ck])
-            if ck and ck in prev.arms and ck in cur.arms
-            else None
-        )
-        for k, m in cur.arms.items():
-            if k not in prev.arms:
-                continue
-            mom = month_over_month(prev.arms[k], m)
-            if drift_declared(mom, m, None if k == ck else cm):
-                declared.append(k)
-            if not math.isnan(mom.flip_rate.point) and (
-                largest is None or mom.flip_rate.point > largest[0].point
-            ):
-                largest = (mom.flip_rate, k)
-        shared = sum(1 for k in cur.arms if k in prev.arms)
-        point(
-            f"{len(declared)} of {shared}",
-            "models flagged as changed",
+        moves = drift_calls(prev, cur, ck)
+        declared = sorted(k for k, (_, v) in moves.items() if v == "declared")
+        judged = sorted(k for k, (_, v) in moves.items() if v != "not judged")
+        unjudged = sorted(k for k, (_, v) in moves.items() if v == "not judged")
+        control_dead = ck is not None and ck in unjudged
+        between = (
             f"between run {e(prev.label)} and run {e(cur.label)}, "
             f"{_days_between(prev, cur)} days apart. "
-            + (
-                "The largest move, "
-                + (f"{est(largest[0])} on <code>{e(largest[1])}</code>, " if largest else "")
-                + "was inside what noise alone explains"
-                if not declared
-                else "Drift declared on "
-                + ", ".join(f"<code>{e(k)}</code>" for k in sorted(declared))
-                + ": a move larger than its own noise floor and the control's"
-            ),
-            "" if declared else "good",
         )
+        if not judged:
+            # Said in words, and the moves past an arm's own floor named, so a reader sees what
+            # the missing control leaves undecided rather than a reassuring zero.
+            past_floor = sorted(
+                (
+                    k
+                    for k, (mom, _) in moves.items()
+                    if control_dead
+                    and k != ck
+                    and mom.paired_items
+                    and cur.arms[k].same_day_flip_rate.n
+                    and mom.flip_rate.point > cur.arms[k].same_day_flip_rate.hi
+                ),
+                key=lambda k: -moves[k][0].flip_rate.point,
+            )
+            why = (
+                f"The open-weights control <code>{e(ck or '')}</code> answered none of its "
+                "questions, and a change is only called drift once it is larger than the "
+                "control's, so no model could be judged"
+                if control_dead
+                else "No model answered in both runs, so none could be judged"
+            )
+            seen = (
+                ". On their own noise floor alone, "
+                + join_and(
+                    [f"<code>{e(k)}</code> {est(moves[k][0].flip_rate)}" for k in past_floor]
+                )
+                + " moved more than chance explains, which is what the control exists to "
+                "rule out or confirm"
+                if past_floor
+                else ""
+            )
+            point("not judged", "drift verdict for this run", between + why + seen)
+        else:
+            largest = max(
+                (moves[k][0].flip_rate for k in judged), key=lambda x: x.point, default=None
+            )
+            largest_key = next(
+                (k for k in judged if largest is not None and moves[k][0].flip_rate is largest),
+                "",
+            )
+            skipped = (
+                " "
+                + join_and([f"<code>{e(k)}</code>" for k in unjudged])
+                + (" was" if len(unjudged) == 1 else " were")
+                + " not judged: no answers in one of the runs."
+                if unjudged
+                else ""
+            )
+            point(
+                f"{len(declared)} of {len(judged)}",
+                "models flagged as changed",
+                between
+                + (
+                    "The largest move, "
+                    + (
+                        f"{est(largest)} on <code>{e(largest_key)}</code>, "
+                        if largest is not None
+                        else ""
+                    )
+                    + "was inside what noise alone explains."
+                    if not declared
+                    else "Drift declared on "
+                    + ", ".join(f"<code>{e(k)}</code>" for k in declared)
+                    + ": a move larger than its own noise floor and the control's."
+                )
+                + skipped,
+                "" if declared else "good",
+            )
     if model.aa is not None:
         s = model.aa
         fb = s.false_block_rate(seed=0)
@@ -782,10 +863,23 @@ counts.</p>
     # -------------------------------------------------------------- the floor
     if cur is not None:
         verdict = ""
-        if prev is not None and declared:
+        if prev is not None and not judged:
+            verdict = (
+                '<p class="verdict"><strong>No drift verdict for this run.</strong> '
+                + (
+                    f"The open-weights control <code>{e(ck or '')}</code> answered none of its "
+                    "questions, so there is nothing to tell a vendor's change from the serving "
+                    "stack's noise, and every model is shown as not judged rather than as "
+                    "unchanged. The floors and changes above are still measured."
+                    if control_dead
+                    else "No model answered in both runs."
+                )
+                + "</p>"
+            )
+        elif prev is not None and declared:
             verdict = (
                 f'<p class="verdict bad"><strong>Drift declared on {len(declared)} of '
-                f"{len(cur.arms)}:</strong> "
+                f"{len(judged)}:</strong> "
                 + ", ".join(f"<code>{e(k)}</code>" for k in sorted(declared))
                 + ". The move cleared both the model's own noise floor and the control's. The "
                 '<a href="/drift">drift record</a> has the detail.</p>'
@@ -795,6 +889,12 @@ counts.</p>
             verdict = (
                 '<p class="verdict good"><strong>No model moved more than noise explains.'
                 "</strong> "
+                + (
+                    join_and([f"<code>{e(k)}</code>" for k in unjudged])
+                    + " could not be judged: no answers in one of the runs. "
+                    if unjudged
+                    else ""
+                )
                 + (
                     f"Two runs {days} days apart is too short for a vendor to change anything, "
                     "so a flagged model here would have meant the method was wrong. None was. "
@@ -1158,21 +1258,16 @@ def drift_page(model: ReadModel) -> str:
     ]
     for run in runs:
         prev = next((r for r in runs if r.label == run.baseline), None)
-        ck = model.control_key
-        control = None
-        if prev is not None and ck and ck in run.arms and ck in prev.arms:
-            control = month_over_month(prev.arms[ck], run.arms[ck])
+        calls = drift_calls(prev, run, model.control_key) if prev is not None else {}
+        cells = {
+            "declared": '<span class="block">drift declared</span>',
+            "none": '<span class="muted">none</span>',
+            "not judged": '<span class="muted">not judged</span>',
+        }
         rows = []
         for key in sorted(run.arms):
             m: ArmMetrics = run.arms[key]
-            declared = ""
-            if prev is not None and key in prev.arms:
-                mom = month_over_month(prev.arms[key], m)
-                declared = (
-                    '<span class="block">drift declared</span>'
-                    if drift_declared(mom, m, None if key == ck else control)
-                    else '<span class="muted">none</span>'
-                )
+            declared = cells[calls[key][1]] if key in calls else ""
             rows.append(
                 [
                     f"<code>{e(key)}</code>",
@@ -1210,7 +1305,8 @@ def drift_page(model: ReadModel) -> str:
     parts.append(
         '<p class="note">Drift is declared only when the change against the previous run exceeds '
         "the arm's own same-day noise floor and the open-weights control's change, which cannot "
-        "come from the model. Wrongly refused is the refusal classifier's reading. "
+        "come from the model. Not judged means that rule could not be applied, because the model or "
+        "the control answered nothing in one of the two runs; it is not a none. Wrongly refused is the refusal classifier's reading. "
         + classifier_summary([r.refusal_check for r in runs if r.refusal_check is not None])
         + "</p>"
     )

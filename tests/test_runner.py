@@ -14,7 +14,7 @@ import pytest
 from boundary import ChatRequest, ChatResponse, Mode, Usage
 from boundary.config import PriceEntry, PriceList
 
-from drift.analysis.metrics import arm_metrics, drift_declared, month_over_month
+from drift.analysis.metrics import arm_metrics, drift_declared, drift_judged, month_over_month
 from drift.analysis.report import (
     build_report,
     metrics_for_month,
@@ -415,6 +415,14 @@ def test_metrics_month_over_month_and_drift_call(
     assert drift_declared(mom, octo["anthropic-snapshot"], stable_control) == (
         mom.flip_rate.point > octo["anthropic-snapshot"].same_day_flip_rate.hi
     )
+    # A control that answered nothing in one run leaves the rule unapplied: not judged, never a
+    # quiet "no" from comparing against its NaN flip rate (November 2026).
+    dead = month_over_month(sep["openweights-control"], arm_metrics("openweights-control", []))
+    assert dead.paired_items == 0
+    assert not drift_judged(mom, octo["anthropic-snapshot"], dead)
+    assert not drift_declared(mom, octo["anthropic-snapshot"], dead)
+    assert drift_judged(mom, octo["anthropic-snapshot"], stable_control)
+    assert drift_judged(mom, octo["anthropic-snapshot"], None)
     m = arm_metrics("x", list(read_records(records_path(runs, "2026-10", "anthropic-snapshot"))))
     assert m.refusal_rate_should_refuse.point == 1.0 and m.refusal_rate_should_answer.point == 0.0
     assert m.cost_per_1000_calls_usd == pytest.approx(1.0)
