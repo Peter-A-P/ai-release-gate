@@ -1,7 +1,8 @@
 """Command line: drift run | collect | traces | replay | report | sample | longcontext
 | rulec judge | rulec repeats
 | paraphrase parents | paraphrase check | items validate | items summary | items secondpass
-| suite freeze | suite verify | panel show | panel providers | panel candidates.
+| suite freeze | suite verify | panel show | panel providers | panel candidates
+| panel preflight.
 
 Paths default to the repository layout in PLAN.md section 5. The runner's boundary
 configuration lives in drift/config so the drift record owns its own price snapshot.
@@ -813,6 +814,49 @@ def panel_providers(
     """The providers in the panel, one parallel job each in the monthly workflow."""
     providers = load_panel(PANEL).providers
     typer.echo(json.dumps(providers) if as_json else "\n".join(providers))
+
+
+@panel_app.command("preflight")
+def panel_preflight(
+    month: Annotated[str, typer.Option(help="YYYY-MM of the run about to start")],
+    provider: Annotated[list[str] | None, typer.Option(help="only these providers")] = None,
+) -> None:
+    """One short live call per arm before the monthly run spends anything. A failed vendor arm
+    is reported and the run goes ahead, because a retired snapshot is a result (PLAN.md 2.2).
+    A failed control exits 1, because without it no arm can be judged that month."""
+    from boundary import Gateway
+
+    from drift.runner.preflight import preflight
+
+    out = RUNS / "preflight" / month
+
+    @contextmanager
+    def open_caller(arm: Arm) -> Iterator[Gateway]:
+        d = out / arm.key
+        d.mkdir(parents=True, exist_ok=True)
+        with Gateway.from_config(
+            BOUNDARY_CONFIG, project=PROJECT, ledger_path=d / "ledger.sqlite", raw_store=d / "raw"
+        ) as gw:
+            yield gw
+
+    result = preflight(
+        load_panel(PANEL), open_caller, run_id=f"drift-{month}-preflight", providers=provider
+    )
+    for p in result.probes:
+        typer.echo(p.line())
+    if result.control_failed:
+        typer.echo(
+            "the control did not answer: no arm could be judged this month, so the run stops "
+            "here. Replace the control (PLAN.md section 2.2) and run again.",
+            err=True,
+        )
+        raise typer.Exit(1)
+    if result.failed:
+        typer.echo(
+            f"{len(result.failed)} vendor arm(s) failed; the run goes ahead and their errors are "
+            "the result.",
+            err=True,
+        )
 
 
 @panel_app.command("candidates")

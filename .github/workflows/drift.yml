@@ -102,6 +102,17 @@ jobs:
           else
             uv run drift suite verify --heldout
           fi
+      - name: One live call per arm, before anything is spent
+        # Added 2026-11-07. November's run went ahead with a control its host had retired ten
+        # days earlier, and spent US$15.89 on a month no arm of which could be judged. A failed
+        # control stops here, so no run job starts; a failed vendor arm is printed and the run
+        # goes ahead, because a retired snapshot is a result (PLAN.md section 2.2).
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          OPENWEIGHTS_API_KEY: ${{ secrets.OPENWEIGHTS_API_KEY }}
+        run: uv run drift panel preflight --month ${{ steps.plan.outputs.month }}
 
   run:
     needs: plan

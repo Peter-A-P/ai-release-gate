@@ -29,6 +29,8 @@ Thumbs.db
 
 # Development ledger for the runner (the monthly ledgers under drift/runs/<month>/ are committed)
 drift/runs/dev-ledger.sqlite*
+# Pre-run probes (drift panel preflight): a check, not part of the record.
+drift/runs/preflight/
 drift/runs/*/*/raw/*.tmp
 
 # SQLite's scratch files beside a ledger. `-wal` holds transactions not yet folded in and `-shm`
